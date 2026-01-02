@@ -6,12 +6,20 @@ import {
   Group,
 } from "react-resizable-panels";
 
-import ActivityBar from "./components/ActivityBar";
+import dynamic from 'next/dynamic';
+import MonacoEditor from "./components/MonacoEditor";
+import { ActivityBar } from "./components/ActivityBar";
 import SidePanel from "./components/SidePanel";
 import EditorArea from "./components/EditorArea";
 import StatusBar from "./components/StatusBar";
+import VoiceOrb from "./components/voice/VoiceOrb";
+
+const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
+import { useFileStore } from "./lib/useFileStore";
 
 export default function Home() {
+  const { showTerminal } = useFileStore();
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--vylos-black)] text-[var(--vylos-text-primary)]">
 
@@ -21,7 +29,7 @@ export default function Home() {
         {/* Activity Bar (Fixed Width) */}
         <ActivityBar />
 
-        {/* Resizable Panels */}
+        {/* Resizable Panels (Horizontal) */}
         <Group orientation="horizontal" className="h-full w-full">
 
           {/* Side Panel (File Explorer, etc.) */}
@@ -29,11 +37,34 @@ export default function Home() {
             <SidePanel />
           </Panel>
 
-          <Separator className="w-1 bg-[var(--vylos-black)] hover:bg-[var(--vylos-green)] transition-colors" />
+          <Separator className="w-[1px] bg-[var(--vylos-green)] transition-all duration-200" />
 
-          {/* Editor Area */}
+          {/* Main Workspace (Editor + Terminal) */}
           <Panel defaultSize={80}>
-            <EditorArea />
+            <Group orientation="vertical" className="h-full w-full">
+
+              {/* Editor area */}
+              <Panel defaultSize={showTerminal ? 70 : 100}>
+                <EditorArea />
+              </Panel>
+
+              {showTerminal && (
+                <>
+                  <Separator className="h-[1px] bg-[var(--vylos-black)] hover:bg-[var(--vylos-green)] transition-all duration-200" />
+                  <Panel defaultSize={30} minSize={100} className="bg-[#09090b]">
+                    <div className="h-full flex flex-col">
+                      <div className="h-7 border-b border-[#27272a] flex items-center px-4 bg-[#09090b]">
+                        <span className="text-[10px] uppercase tracking-widest text-[#10b981] font-bold">Terminal</span>
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <Terminal />
+                      </div>
+                    </div>
+                  </Panel>
+                </>
+              )}
+
+            </Group>
           </Panel>
 
         </Group>
@@ -41,6 +72,9 @@ export default function Home() {
 
       {/* Status Bar (Fixed Height) */}
       <StatusBar />
+
+      {/* Voice Tutor Orb */}
+      <VoiceOrb />
     </div>
   );
 }

@@ -1,5 +1,13 @@
-<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect width="200" height="200" fill="#000000"/>
-  <path d="M50 50 L100 150 L150 50" stroke="#00ff00" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="100" cy="100" r="10" fill="#4ec9b0"/>
-</svg>
+<svg version="1.1" width="512" height="512" viewBox="0 0 2880 2880" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="vylora-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#14e32d; stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#e6bd09; stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <g transform="matrix(1, 0, 0, 1, 1440, 1440)">
+        <path d="M -600 -800 L 0 400 L 600 -800 L 900 -800 L 0 1000 L -900 -800 Z" fill="url(#vylora-gradient)" />
+        <path d="M 200 -200 L 600 -1000 L 1000 -1000 L 600 -200 Z" fill="#e6bd09" opacity="0.7" />
+        <path d="M -150 100 L -400 -400 L -250 -400 L 0 100 Z" fill="#14e32d" opacity="0.5" />
+      </g>
+    </svg>

@@ -3,35 +3,57 @@
 import { X } from 'lucide-react';
 import MonacoEditor from './MonacoEditor';
 import { useFileStore } from '@/app/lib/useFileStore';
-import { useEffect } from 'react';
+import { cn } from '@/app/lib/utils';
 
 export default function EditorArea() {
-    const { activeFile, fileContent, setFileContent, isReading, setIsReading } = useFileStore();
-
-    useEffect(() => {
-        const loadFile = async () => {
-            if (activeFile && window.electron) {
-                setIsReading(true);
-                try {
-                    const content = await window.electron.fs.read(activeFile.path);
-                    setFileContent(content || '');
-                } catch (e) {
-                    console.error("Failed to read file", e);
-                    setFileContent('');
-                } finally {
-                    setIsReading(false);
-                }
-            }
-        };
-        loadFile();
-    }, [activeFile, setFileContent, setIsReading]);
+    const { openFiles, activeFileIndex, setActiveIndex, closeFile, updateActiveContent } = useFileStore();
+    const activeFile = activeFileIndex !== null ? openFiles[activeFileIndex] : null;
 
     if (!activeFile) {
         return (
-            <div className="h-full w-full bg-[var(--vylos-grey-dark)] flex items-center justify-center text-[var(--vylos-text-secondary)]">
-                <div className="text-center">
-                    <p>No file is open</p>
-                    <p className="text-xs mt-2 opacity-50">Select a file from the explorer to start editing</p>
+            <div className="h-full w-full bg-[#1e1e1e] flex flex-col items-center justify-center select-none">
+                <div className="flex flex-col items-center opacity-20">
+                    <img src="/logo.svg" alt="Vylos Logo" className="w-64 h-64 grayscale contrast-50" />
+                </div>
+
+                <div className="mt-12 space-y-4 max-w-sm w-full px-8">
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Go to File</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">P</kbd>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Open Folder</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">K</kbd>
+                            <span className="text-gray-600">,</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">O</kbd>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Toggle Terminal</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">`</kbd>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Toggle Voice Tutor</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">L</kbd>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -39,26 +61,52 @@ export default function EditorArea() {
 
     return (
         <div className="h-full w-full bg-[var(--vylos-grey-dark)] flex flex-col">
-            {/* Tabs */}
-            <div className="flex bg-[var(--vylos-black)] overflow-x-auto">
-                <div className="px-3 py-2 bg-[var(--vylos-grey-dark)] text-[var(--vylos-text-primary)] text-sm border-t-2 border-[var(--vylos-green)] flex items-center min-w-[120px] justify-between">
-                    <span>{activeFile.name}</span>
-                    <X size={14} className="ml-2 hover:bg-[var(--vylos-grey-light)] rounded p-0.5 cursor-pointer" />
-                </div>
+            {/* Tab Bar */}
+            <div className="flex bg-[#0d0d0d] overflow-x-auto scrollbar-hide border-b border-[#27272a] h-9">
+                {openFiles.map((file, index) => (
+                    <div
+                        key={file.path}
+                        onClick={() => setActiveIndex(index)}
+                        className={cn(
+                            "group flex items-center min-w-[120px] max-w-[200px] px-3 h-full border-r border-[#27272a] cursor-pointer transition-colors relative",
+                            activeFileIndex === index
+                                ? "bg-[var(--vylos-black)] text-[var(--vylos-green)]"
+                                : "bg-[#18181b] text-gray-500 hover:bg-[#1a1a1e] hover:text-gray-300"
+                        )}
+                    >
+                        <span className="truncate text-[12px] flex-1">{file.name}</span>
+
+                        {/* Dirty indicator / Close button */}
+                        <div className="flex items-center ml-2 w-4">
+                            {file.isDirty ? (
+                                <div className="w-2 h-2 rounded-full bg-[var(--vylos-green)] group-hover:hidden" />
+                            ) : null}
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    closeFile(file.path);
+                                }}
+                                className={cn(
+                                    "p-0.5 rounded-sm hover:bg-[#27272a] hover:text-white transition-opacity",
+                                    file.isDirty ? "hidden group-hover:flex" : "hidden group-hover:flex",
+                                    activeFileIndex === index && !file.isDirty ? "flex" : ""
+                                )}
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    </div>
+                ))}
             </div>
 
             {/* Editor Content */}
             <div className="flex-1 overflow-hidden relative">
-                {isReading ? (
-                    <div className="flex items-center justify-center h-full text-[var(--vylos-text-secondary)]">Loading...</div>
-                ) : (
-                    <MonacoEditor
-                        language={activeFile.name.endsWith('.ts') || activeFile.name.endsWith('.tsx') ? 'typescript' : 'javascript'}
-                        defaultValue={fileContent}
-                        // Force re-render when file changes to update content
-                        key={activeFile.path}
-                    />
-                )}
+                <MonacoEditor
+                    language={activeFile.name.endsWith('.ts') || activeFile.name.endsWith('.tsx') ? 'typescript' : 'javascript'}
+                    value={activeFile.content}
+                    onChange={(val) => updateActiveContent(val || "")}
+                    key={activeFile.path}
+                />
             </div>
         </div>
     );

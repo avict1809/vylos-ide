@@ -37,11 +37,36 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
+    "electron-icon-builder": "^2.0.1",
     "electron-rebuild": "^3.2.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "ai.vylos.app",
+    "productName": "Vylos",
+    "directories": {
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/dist/**/*",
+      "out/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "build/icons/icon.png"
+    },
+    "win": {
+      "icon": "build/icons/icon.png"
+    },
+    "linux": {
+      "icon": "build/icons/icon.png",
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }

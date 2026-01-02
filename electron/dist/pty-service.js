@@ -32,25 +32,23 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PtyService = void 0;
 const pty = __importStar(require("node-pty"));
-const os_1 = __importDefault(require("os"));
 class PtyService {
     constructor(onData) {
         this.ptyProcess = null;
         this.onData = onData;
     }
     create() {
-        const shell = os_1.default.platform() === 'win32' ? 'powershell.exe' : 'bash';
+        if (this.ptyProcess)
+            return;
+        const shell = process.platform === 'win32' ? 'powershell.exe' : 'bash';
         this.ptyProcess = pty.spawn(shell, [], {
             name: 'xterm-color',
             cols: 80,
             rows: 30,
-            cwd: process.env.HOME,
+            cwd: process.env.HOME || process.cwd(),
             env: process.env
         });
         this.ptyProcess.onData((data) => {
@@ -65,6 +63,7 @@ class PtyService {
     }
     kill() {
         this.ptyProcess?.kill();
+        this.ptyProcess = null;
     }
 }
 exports.PtyService = PtyService;

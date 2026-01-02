@@ -5,10 +5,15 @@ import path from 'path';
 let mainWindow: BrowserWindow | null;
 
 const createWindow = () => {
+    const iconPath = app.isPackaged
+        ? path.join(process.resourcesPath, "icon.png")
+        : path.join(app.getAppPath(), 'build/icons/icon.png');
+
     mainWindow = new BrowserWindow({
         width: 1200,
         height: 800,
         backgroundColor: '#000000', // Vylos Black
+        icon: iconPath, // Vylos Icon
         titleBarStyle: 'hidden', // Custom title bar if needed
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
@@ -58,7 +63,13 @@ app.on('window-all-closed', () => {
 });
 
 // IPC Handlers will be added here
-const { PtyService } = require('./pty-service'); // Use require or import depending on tsconfig
+let PtyService: any = null;
+try {
+    const ptyModule = require('./pty-service');
+    PtyService = ptyModule.PtyService;
+} catch (e) {
+    console.error('Failed to load PtyService:', e);
+}
 
 let ptyService: any = null;
 
@@ -103,12 +114,15 @@ ipcMain.handle('window:toggle-maximize', () => {
 
 
 ipcMain.on('terminal:create', (event) => {
-    const sender = event.sender;
-    if (!ptyService) {
-        ptyService = new PtyService((data: string) => {
-            sender.send('terminal:data', data);
-        });
+    if (!PtyService) {
+        event.reply('terminal:data', '\r\n\x1b[31mError: Terminal backend (node-pty) could not be loaded.\x1b[0m\r\n\x1b[33mThis usually means build tools are missing on your system.\x1b[0m\r\n');
+        return;
     }
+    if (ptyService) return;
+
+    ptyService = new PtyService((data: string) => {
+        mainWindow?.webContents.send('terminal:data', data);
+    });
     ptyService.create();
 });
 
@@ -121,7 +135,122 @@ ipcMain.on('terminal:resize', (event, { cols, rows }) => {
 });
 
 // File System Handlers
+const { dialog } = require('electron');
 const fs = require('fs/promises');
+
+ipcMain.handle('dialog:openFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+        properties: ['openFile'],
+        filters: [
+            { name: 'All Files', extensions: ['*'] },
+            { name: 'JavaScript', extensions: ['js', 'jsx'] },
+            { name: 'TypeScript', extensions: ['ts', 'tsx'] }
+        ]
+    });
+    if (canceled) return null;
+    return filePaths[0];
+});
+
+ipcMain.handle('dialog:openDirectory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+        properties: ['openDirectory']
+    });
+    if (canceled) return null;
+    return filePaths[0];
+});
+
+ipcMain.handle('dialog:saveFile', async (event, content: string, defaultPath?: string) => {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
+        defaultPath: defaultPath,
+        filters: [{ name: 'All Files', extensions: ['*'] }]
+    });
+    if (canceled || !filePath) return null;
+    await fs.writeFile(filePath, content, 'utf-8');
+    return filePath;
+});
+
+ipcMain.handle('find:search', async (event, query: string, rootDir: string) => {
+    const results: { path: string; name: string; line: number; text: string }[] = [];
+    const MAX_RESULTS = 100;
+    const MAX_FILE_SIZE = 1024 * 1024; // 1MB
+
+    async function searchDir(currentDir: string) {
+        if (results.length >= MAX_RESULTS) return;
+
+        try {
+            const files = await fs.readdir(currentDir, { withFileTypes: true });
+            for (const file of files) {
+                if (results.length >= MAX_RESULTS) break;
+
+                const fullPath = path.join(currentDir, file.name);
+                if (file.isDirectory()) {
+                    if (['node_modules', '.git', '.next', 'dist', '.venv', 'target', 'bin'].includes(file.name)) continue;
+                    await searchDir(fullPath);
+                } else {
+                    // Skip files that are likely binary or too large
+                    const ext = path.extname(file.name).toLowerCase();
+                    const binaryExts = ['.exe', '.dll', '.bin', '.png', '.jpg', '.jpeg', '.gif', '.pdf', '.zip', '.tar', '.gz', '.mp4', '.mp3'];
+                    if (binaryExts.includes(ext)) continue;
+
+                    try {
+                        const stats = await fs.stat(fullPath);
+                        if (stats.size > MAX_FILE_SIZE) continue;
+
+                        const content = await fs.readFile(fullPath, 'utf-8');
+                        const lines = content.split('\n');
+                        for (let i = 0; i < lines.length; i++) {
+                            const line = lines[i];
+                            if (line.toLowerCase().includes(query.toLowerCase())) {
+                                results.push({
+                                    path: fullPath,
+                                    name: file.name,
+                                    line: i + 1,
+                                    text: line.trim()
+                                });
+                                if (results.length >= MAX_RESULTS) break;
+                            }
+                        }
+                    } catch (err) {
+                        // Skip files that fail to read (e.g. permission issues or binary data errors)
+                        continue;
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(`Error reading directory ${currentDir}:`, e);
+        }
+    }
+
+    try {
+        const absoluteRoot = path.isAbsolute(rootDir) ? rootDir : path.resolve(rootDir);
+        await searchDir(absoluteRoot);
+        return results;
+    } catch (e) {
+        console.error("Search failed:", e);
+        return [];
+    }
+});
+ipcMain.handle('fs:listAll', async (event, dirPath) => {
+    const results: string[] = [];
+    async function recurse(current: string) {
+        const entries = await fs.readdir(current, { withFileTypes: true });
+        for (const entry of entries) {
+            const full = path.join(current, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.next' || entry.name === 'dist') continue;
+                await recurse(full);
+            } else {
+                results.push(full);
+            }
+        }
+    }
+    try {
+        await recurse(dirPath);
+        return results;
+    } catch (e) {
+        return [];
+    }
+});
 
 ipcMain.handle('fs:list', async (event, dirPath) => {
     try {
@@ -129,7 +258,7 @@ ipcMain.handle('fs:list', async (event, dirPath) => {
         return dirents.map((dirent: any) => ({
             name: dirent.name,
             isDirectory: dirent.isDirectory(),
-            path: path.join(dirPath, dirent.name)
+            path: require('path').join(dirPath, dirent.name)
         }));
     } catch (e) {
         console.error("FS List Error", e);
@@ -151,5 +280,60 @@ ipcMain.handle('fs:write', async (event, filePath, content) => {
         return true;
     } catch (e) {
         return false;
+    }
+});
+
+// Git Handlers
+const { exec } = require('child_process');
+const util = require('util');
+const execAsync = util.promisify(exec);
+
+ipcMain.handle('git:status', async (event, rootDir: string) => {
+    try {
+        const { stdout } = await execAsync('git status --porcelain', { cwd: rootDir });
+        const lines = stdout.split('\n').filter(Boolean);
+        return lines.map((line: string) => {
+            const status = line.slice(0, 2);
+            const path = line.slice(3).trim();
+            return { status, path };
+        });
+    } catch (e) {
+        return [];
+    }
+});
+
+ipcMain.handle('git:stage', async (event, rootDir: string, filePath: string) => {
+    try {
+        await execAsync(`git add "${filePath}"`, { cwd: rootDir });
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('git:unstage', async (event, rootDir: string, filePath: string) => {
+    try {
+        await execAsync(`git reset HEAD "${filePath}"`, { cwd: rootDir });
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('git:commit', async (event, rootDir: string, message: string) => {
+    try {
+        await execAsync(`git commit -m "${message}"`, { cwd: rootDir });
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('git:branch', async (event, rootDir: string) => {
+    try {
+        const { stdout } = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: rootDir });
+        return stdout.trim();
+    } catch (e) {
+        return null;
     }
 });

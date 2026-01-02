@@ -27,12 +27,30 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         write: (data) => electron_1.ipcRenderer.send('terminal:write', data),
         resize: (cols, rows) => electron_1.ipcRenderer.send('terminal:resize', { cols, rows }),
         onData: (callback) => {
-            electron_1.ipcRenderer.on('terminal:data', (_event, data) => callback(data));
+            const subscription = (_event, data) => callback(data);
+            electron_1.ipcRenderer.on('terminal:data', subscription);
+            return () => electron_1.ipcRenderer.removeListener('terminal:data', subscription);
         }
     },
     fs: {
+        listAll: (path) => electron_1.ipcRenderer.invoke('fs:listAll', path),
         list: (path) => electron_1.ipcRenderer.invoke('fs:list', path),
         read: (path) => electron_1.ipcRenderer.invoke('fs:read', path),
         write: (path, content) => electron_1.ipcRenderer.invoke('fs:write', path, content)
+    },
+    dialog: {
+        openFile: () => electron_1.ipcRenderer.invoke('dialog:openFile'),
+        openDirectory: () => electron_1.ipcRenderer.invoke('dialog:openDirectory'),
+        saveFile: (content, defaultPath) => electron_1.ipcRenderer.invoke('dialog:saveFile', content, defaultPath)
+    },
+    find: {
+        search: (query, rootDir) => electron_1.ipcRenderer.invoke('find:search', query, rootDir)
+    },
+    git: {
+        status: (rootDir) => electron_1.ipcRenderer.invoke('git:status', rootDir),
+        stage: (rootDir, filePath) => electron_1.ipcRenderer.invoke('git:stage', rootDir, filePath),
+        unstage: (rootDir, filePath) => electron_1.ipcRenderer.invoke('git:unstage', rootDir, filePath),
+        commit: (rootDir, message) => electron_1.ipcRenderer.invoke('git:commit', rootDir, message),
+        branch: (rootDir) => electron_1.ipcRenderer.invoke('git:branch', rootDir)
     }
 });

@@ -46,3 +46,29 @@ body {
 .text-balance {
   text-wrap: balance;
 }
+
+@keyframes progress-timer {
+  0% {
+    transform: scaleX(1);
+  }
+
+  100% {
+    transform: scaleX(0);
+  }
+}
+
+.animate-progress-timer {
+  animation: progress-timer 5s linear forwards;
+  transform-origin: left;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
