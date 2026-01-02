@@ -1,9 +1,12 @@
 'use client';
 
+import React, { useEffect, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
-import { useState, useEffect, useRef } from "react";
 import { vylosTheme } from '@/app/lib/theme';
 import { useConfigStore } from '@/app/lib/stores/config-store';
+import { useFileStore } from '@/app/lib/useFileStore';
+import ContextMenu from './ContextMenu';
+import { Sparkles, Save, Search, Code, GraduationCap } from 'lucide-react';
 
 interface MonacoEditorProps {
     language?: string;
@@ -12,8 +15,6 @@ interface MonacoEditorProps {
     onChange?: (value: string | undefined) => void;
 }
 
-import { useFileStore } from '@/app/lib/useFileStore';
-
 export default function MonacoEditor({
     language = 'javascript',
     defaultValue = '// Start coding...',
@@ -21,7 +22,16 @@ export default function MonacoEditor({
     onChange
 }: MonacoEditorProps) {
     const monaco = useMonaco();
-    const { fontSize } = useConfigStore();
+    const {
+        fontSize,
+        minimapEnabled,
+        lineNumbers,
+        wordWrap,
+        autoSave
+    } = useConfigStore();
+    const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
+    const [showMenu, setShowMenu] = useState(false);
+
     const {
         saveActiveFile,
         saveActiveFileAs,
@@ -38,6 +48,31 @@ export default function MonacoEditor({
     } = useFileStore();
 
     const editorRef = useRef<any>(null);
+
+    // Autosave logic
+    useEffect(() => {
+        if (!autoSave || !value) return;
+
+        const timeout = setTimeout(() => {
+            saveActiveFile();
+        }, 1500); // 1.5s debounce for auto-save
+
+        return () => clearTimeout(timeout);
+    }, [value, autoSave, saveActiveFile]);
+
+    const handleContextMenu = (e: any) => {
+        e.event.preventDefault();
+        setMenuPos({ x: e.event.posx, y: e.event.posy });
+        setShowMenu(true);
+    };
+
+    const contextActions = [
+        { label: 'Ask Vylos AI', icon: Sparkles, onClick: () => setActiveView('ai'), shortcut: 'Ctrl+L' },
+        { label: 'Learning Context', icon: GraduationCap, onClick: () => setActiveView('learning'), shortcut: 'Ctrl+Shift+L' },
+        { label: 'Format Document', icon: Code, onClick: () => editorRef.current?.trigger('any', 'editor.action.formatDocument') },
+        { label: 'Save', icon: Save, onClick: () => saveActiveFile(), shortcut: 'Ctrl+S' },
+        { label: 'Search Workspace', icon: Search, onClick: () => setActiveView('search'), shortcut: 'Ctrl+Shift+F' },
+    ];
 
     useEffect(() => {
         if (monaco) {
@@ -57,32 +92,42 @@ export default function MonacoEditor({
     useEffect(() => {
         if (searchMetadata && editorRef.current && monaco) {
             const { query, line } = searchMetadata;
-            const model = editorRef.current.getModel();
-            if (!model) return;
 
-            // Find all matches
-            const matches = model.findMatches(query, false, false, false, null, true);
+            // Add a slight delay to ensure the model has updated with the new 'value'
+            const timeout = setTimeout(() => {
+                const model = editorRef.current.getModel();
+                if (!model) return;
 
-            if (matches.length > 0) {
-                // Try to find the match on the specific line if provided
-                let match = matches[0];
-                if (line) {
-                    const lineMatch = matches.find((m: any) => m.range.startLineNumber === line);
-                    if (lineMatch) match = lineMatch;
+                // Find all matches
+                const matches = model.findMatches(query, false, false, false, null, true);
+
+                if (matches.length > 0) {
+                    // Try to find the match on the specific line if provided
+                    let match = matches[0];
+                    if (line) {
+                        const lineMatch = matches.find((m: any) => m.range.startLineNumber === line);
+                        if (lineMatch) match = lineMatch;
+                    }
+
+                    // Highlight and scroll
+                    editorRef.current.revealLineInCenter(match.range.startLineNumber);
+                    editorRef.current.setSelection(match.range);
+                    editorRef.current.focus();
                 }
 
-                // Highlight and scroll
-                editorRef.current.revealLineInCenter(match.range.startLineNumber);
-                editorRef.current.setSelection(match.range);
-                editorRef.current.focus();
-            }
+                clearSearchMetadata();
+            }, 100);
 
-            clearSearchMetadata();
+            return () => clearTimeout(timeout);
         }
-    }, [searchMetadata, monaco, clearSearchMetadata]);
+    }, [searchMetadata, monaco, clearSearchMetadata, value]);
 
     const handleEditorDidMount = (editor: any, monaco: any) => {
         editorRef.current = editor;
+
+        // Register custom context menu
+        editor.onContextMenu(handleContextMenu);
+
         // Register keybindings within Monaco to prevent them from being swallowed
 
         // Ctrl+P: Quick Open
@@ -181,25 +226,38 @@ export default function MonacoEditor({
     };
 
     return (
-        <Editor
-            height="100%"
-            language={language}
-            value={value}
-            onChange={onChange}
-            theme="vylos"
-            onMount={handleEditorDidMount}
-            options={{
-                minimap: { enabled: true },
-                fontFamily: "'Geist Mono', monospace",
-                fontSize: fontSize,
-                padding: { top: 16 },
-                scrollBeyondLastLine: false,
-                smoothScrolling: true,
-                cursorBlinking: 'smooth',
-                cursorSmoothCaretAnimation: 'on',
-                renderLineHighlight: 'all',
-                automaticLayout: true,
-            }}
-        />
+        <div className="relative h-full w-full">
+            <Editor
+                height="100%"
+                language={language}
+                value={value}
+                onChange={onChange}
+                theme="vylos"
+                onMount={handleEditorDidMount}
+                options={{
+                    minimap: { enabled: minimapEnabled },
+                    fontFamily: "'Geist Mono', monospace",
+                    fontSize: fontSize,
+                    lineNumbers: lineNumbers,
+                    wordWrap: wordWrap,
+                    padding: { top: 16 },
+                    scrollBeyondLastLine: false,
+                    smoothScrolling: true,
+                    cursorBlinking: 'smooth',
+                    cursorSmoothCaretAnimation: 'on',
+                    renderLineHighlight: 'all',
+                    automaticLayout: true,
+                    contextmenu: false,
+                }}
+            />
+            {showMenu && (
+                <ContextMenu
+                    x={menuPos.x}
+                    y={menuPos.y}
+                    actions={contextActions}
+                    onClose={() => setShowMenu(false)}
+                />
+            )}
+        </div>
     );
 }

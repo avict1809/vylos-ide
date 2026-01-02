@@ -30,9 +30,7 @@ export default function SidePanel() {
                 {activeView === 'git' && <GitView />}
                 {activeView === 'ai' && <AIChatView />}
                 {activeView === 'learning' && <RoadmapView />}
-                {activeView === 'settings' && (
-                    <div className="p-4 text-sm text-gray-500 text-center">Settings are not implemented yet.</div>
-                )}
+                {activeView === 'settings' && <SettingsView />}
             </div>
         </div>
     );

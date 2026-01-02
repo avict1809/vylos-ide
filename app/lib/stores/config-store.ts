@@ -6,13 +6,19 @@ import { persist } from 'zustand/middleware';
 interface ConfigStore {
     theme: 'dark' | 'light';
     fontSize: number;
+    terminalFontSize: number;
     autoSave: boolean;
-    voiceTutorEnabled: boolean;
+    minimapEnabled: boolean;
+    lineNumbers: 'on' | 'off';
+    wordWrap: 'on' | 'off';
 
     setTheme: (theme: 'dark' | 'light') => void;
     setFontSize: (size: number) => void;
+    setTerminalFontSize: (size: number) => void;
     setAutoSave: (enabled: boolean) => void;
-    setVoiceTutorEnabled: (enabled: boolean) => void;
+    setMinimapEnabled: (enabled: boolean) => void;
+    setLineNumbers: (value: 'on' | 'off') => void;
+    setWordWrap: (value: 'on' | 'off') => void;
 }
 
 export const useConfigStore = create<ConfigStore>()(
@@ -20,13 +26,19 @@ export const useConfigStore = create<ConfigStore>()(
         (set) => ({
             theme: 'dark',
             fontSize: 14,
+            terminalFontSize: 12,
             autoSave: false,
-            voiceTutorEnabled: true,
+            minimapEnabled: true,
+            lineNumbers: 'on',
+            wordWrap: 'on',
 
             setTheme: (theme) => set({ theme }),
             setFontSize: (fontSize) => set({ fontSize }),
+            setTerminalFontSize: (terminalFontSize) => set({ terminalFontSize }),
             setAutoSave: (autoSave) => set({ autoSave }),
-            setVoiceTutorEnabled: (voiceTutorEnabled) => set({ voiceTutorEnabled }),
+            setMinimapEnabled: (minimapEnabled) => set({ minimapEnabled }),
+            setLineNumbers: (lineNumbers) => set({ lineNumbers }),
+            setWordWrap: (wordWrap) => set({ wordWrap }),
         }),
         {
             name: 'vylos-config',

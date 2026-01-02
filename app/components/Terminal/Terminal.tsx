@@ -3,12 +3,14 @@
 import { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
+import { useConfigStore } from '@/app/lib/stores/config-store';
 import 'xterm/css/xterm.css';
 
 export default function Terminal() {
     const terminalRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<XTerm | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
+    const { terminalFontSize } = useConfigStore();
 
     useEffect(() => {
         if (!terminalRef.current || xtermRef.current) return;
@@ -29,7 +31,7 @@ export default function Terminal() {
                 white: '#ffffff',
             },
             fontFamily: "'Geist Mono', monospace",
-            fontSize: 13,
+            fontSize: terminalFontSize,
             allowProposedApi: true
         });
 
@@ -64,6 +66,14 @@ export default function Terminal() {
             };
         }
     }, []);
+
+    // Reactive Font Size Update
+    useEffect(() => {
+        if (xtermRef.current) {
+            xtermRef.current.options.fontSize = terminalFontSize;
+            fitAddonRef.current?.fit();
+        }
+    }, [terminalFontSize]);
 
     useEffect(() => {
         const handleResize = () => {
