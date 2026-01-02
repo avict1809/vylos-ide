@@ -6,6 +6,7 @@ import RoadmapView from "./learning/RoadmapView";
 import SearchView from "./SearchView";
 import GitView from "./GitView";
 import SettingsView from "./SettingsView";
+import AccountView from "./AccountView";
 import { useFileStore } from "../lib/useFileStore";
 import { useRoadmapStore } from "../lib/stores/roadmap-store";
 import { useEffect } from "react";
@@ -31,6 +32,7 @@ export default function SidePanel() {
                 {activeView === 'ai' && <AIChatView />}
                 {activeView === 'learning' && <RoadmapView />}
                 {activeView === 'settings' && <SettingsView />}
+                {activeView === 'account' && <AccountView />}
             </div>
         </div>
     );

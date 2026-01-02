@@ -49,7 +49,10 @@ contextBridge.exposeInMainWorld('electron', {
         status: (rootDir: string) => ipcRenderer.invoke('git:status', rootDir),
         stage: (rootDir: string, filePath: string) => ipcRenderer.invoke('git:stage', rootDir, filePath),
         unstage: (rootDir: string, filePath: string) => ipcRenderer.invoke('git:unstage', rootDir, filePath),
+        stageAll: (rootDir: string) => ipcRenderer.invoke('git:stageAll', rootDir),
+        unstageAll: (rootDir: string) => ipcRenderer.invoke('git:unstageAll', rootDir),
         commit: (rootDir: string, message: string) => ipcRenderer.invoke('git:commit', rootDir, message),
-        branch: (rootDir: string) => ipcRenderer.invoke('git:branch', rootDir)
+        branch: (rootDir: string) => ipcRenderer.invoke('git:branch', rootDir),
+        push: (rootDir: string) => ipcRenderer.invoke('git:push', rootDir)
     }
 });

@@ -18,7 +18,7 @@ interface FileStore {
     openFiles: FileTab[];
     activeFileIndex: number | null;
     isReading: boolean;
-    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git';
+    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account';
     projectRoot: string | null;
     fileToClose: FileTab | null;
     showTerminal: boolean;
@@ -39,7 +39,7 @@ interface FileStore {
     updateActiveContent: (content: string) => void;
     saveActiveFile: () => Promise<void>;
     saveActiveFileAs: () => Promise<void>;
-    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git') => void;
+    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account') => void;
     toggleTerminal: () => void;
     setShowQuickOpen: (show: boolean) => void;
     setShowAbout: (show: boolean) => void;

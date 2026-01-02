@@ -1,5 +1,5 @@
 'use client';
- 
+
 import {
   Separator,
   Panel,
@@ -14,11 +14,19 @@ import EditorArea from "./components/EditorArea";
 import StatusBar from "./components/StatusBar";
 import VoiceOrb from "./components/voice/VoiceOrb";
 
-const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
 import { useFileStore } from "./lib/useFileStore";
+import { useAuthStore } from "./lib/stores/auth-store";
+import Onboarding from "./components/Onboarding";
+
+const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
 
 export default function Home() {
   const { showTerminal } = useFileStore();
+  const { hasCompletedOnboarding } = useAuthStore();
+
+  if (!hasCompletedOnboarding) {
+    return <Onboarding />;
+  }
 
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-[var(--vylos-black)] text-[var(--vylos-text-primary)]">
