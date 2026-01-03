@@ -1,12 +1,17 @@
 import { Send, Loader2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useChatStore } from "../lib/stores/chat-store";
+import { useFileStore } from "../lib/useFileStore";
 import { generateContent } from "../lib/ai/gemini-client";
+import { cn } from "../lib/utils";
 
 export default function AIChatView() {
     const { messages, addMessage } = useChatStore();
+    const { openFiles, activeFileIndex } = useFileStore();
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
+    const activeFile = activeFileIndex !== null ? openFiles[activeFileIndex] : null;
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -27,8 +32,13 @@ export default function AIChatView() {
         addMessage('user', userMessage);
         setIsLoading(true);
 
+        let prompt = userMessage;
+        if (activeFile) {
+            prompt = `I am working on a file named "${activeFile.name}" with the following content:\n\n\`\`\`\n${activeFile.content}\n\`\`\`\n\nUser Question: ${userMessage}`;
+        }
+
         try {
-            const response = await generateContent(userMessage);
+            const response = await generateContent(prompt);
             addMessage('assistant', response);
         } catch (error) {
             console.error("AI Error:", error);
@@ -51,13 +61,16 @@ export default function AIChatView() {
                     </div>
                 ) : (
                     messages.map((msg, i) => (
-                        <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                            <div className={`
-                                max-w-[90%] p-3 rounded-lg text-sm
-                                ${msg.role === 'user'
-                                    ? 'bg-[var(--vylos-green)] text-black font-medium'
-                                    : 'bg-[var(--vylos-grey-medium)] text-[var(--vylos-text-primary)] border border-[var(--vylos-grey-border)]'}
-                            `}>
+                        <div key={i} className={cn(
+                            "flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-300",
+                            msg.role === 'user' ? 'items-end' : 'items-start'
+                        )}>
+                            <div className={cn(
+                                "max-w-[90%] p-3 rounded-2xl text-[13px] leading-relaxed",
+                                msg.role === 'user'
+                                    ? "bg-[var(--vylos-green)] text-black font-semibold shadow-[0_4px_12px_rgba(0,255,0,0.1)] rounded-tr-none"
+                                    : "bg-[#18181b] text-gray-200 border border-[#27272a] rounded-tl-none"
+                            )}>
                                 {msg.content}
                             </div>
                         </div>

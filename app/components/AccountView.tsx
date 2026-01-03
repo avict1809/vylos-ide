@@ -18,10 +18,17 @@ export default function AccountView() {
                     <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--vylos-text-secondary)]">Account</h2>
                 </div>
                 <button
-                    onClick={() => logout()}
-                    className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-colors"
+                    onClick={async () => {
+                        // Adding a slight delay for better UX feel
+                        logout();
+                    }}
+                    className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-colors group relative"
+                    title="Logout"
                 >
                     <LogOut size={14} />
+                    <span className="absolute right-full mr-2 py-0.5 px-1.5 bg-red-500 text-white text-[9px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                        Sign Out
+                    </span>
                 </button>
             </div>
 

@@ -36,7 +36,7 @@ export const useAuthStore = create<AuthStore>()(
                     subscription: 'enterprise'
                 }
             }),
-            logout: () => set({ isAuthenticated: false, user: null }),
+            logout: () => set({ isAuthenticated: false, user: null, hasCompletedOnboarding: false }),
             setHasCompletedOnboarding: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),
         }),
         {

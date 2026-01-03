@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, ChevronDown, File, Folder } from 'lucide-react';
+import { ChevronRight, ChevronDown, File, Folder, RefreshCw } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { cn } from '@/app/lib/utils';
 import { useFileStore } from '@/app/lib/useFileStore';
@@ -153,10 +153,26 @@ export function FileExplorer() {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="p-2 flex items-center border-b border-[var(--vylos-grey-border)] mb-1">
+            <div className="p-2 flex items-center justify-between border-b border-[var(--vylos-grey-border)] mb-1">
                 <span className="text-[10px] text-[var(--vylos-text-secondary)] opacity-50 truncate uppercase tracking-tighter" title={path || ''}>
                     {path?.split(/[\\/]/).pop() || path}
                 </span>
+                <button
+                    onClick={() => {
+                        if (path) {
+                            const currentPath = path;
+                            setPath(null);
+                            setTimeout(() => setPath(currentPath), 10);
+                        }
+                    }}
+                    className={cn(
+                        "p-1 hover:bg-[var(--vylos-grey-medium)] rounded transition-colors text-gray-400 hover:text-white",
+                        loading && "animate-spin"
+                    )}
+                    title="Refresh Explorer"
+                >
+                    <RefreshCw size={12} />
+                </button>
             </div>
             <div className="flex-1 overflow-y-auto">
                 {files.map(item => (

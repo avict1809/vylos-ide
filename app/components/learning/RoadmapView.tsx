@@ -1,7 +1,7 @@
 'use client';
 
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
-import { CheckCircle, Circle } from 'lucide-react';
+import { CheckCircle, Circle, Trophy, ArrowRight, Target } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import RoadmapCreator from './RoadmapCreator';
 
@@ -12,49 +12,98 @@ export default function RoadmapView() {
         return <RoadmapCreator />;
     }
 
-    return (
-        <div className="h-full overflow-y-auto p-4">
-            <h2 className="text-xl font-bold text-[var(--vylos-green)] mb-1">{currentRoadmap.goal}</h2>
-            <p className="text-sm text-[var(--vylos-text-secondary)] mb-4">Learning Path</p>
+    const completedCount = currentRoadmap.milestones.filter(m => m.completed).length;
+    const progress = (completedCount / currentRoadmap.milestones.length) * 100;
 
-            <div className="space-y-4">
+    return (
+        <div className="h-full flex flex-col bg-[var(--vylos-black)]">
+            {/* Header Content */}
+            <div className="p-6 border-b border-[var(--vylos-grey-border)] bg-gradient-to-br from-[#09090b] to-black">
+                <div className="flex items-center gap-2 mb-2">
+                    <Target size={14} className="text-[var(--vylos-green)]" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vylos-text-secondary)]">Current Objective</span>
+                </div>
+                <h2 className="text-xl font-black text-white leading-tight mb-4">{currentRoadmap.goal}</h2>
+
+                {/* Progress Bar */}
+                <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{completedCount} / {currentRoadmap.milestones.length} Milestones</span>
+                        <span className="text-xs font-mono text-[var(--vylos-green)]">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="h-1.5 w-full bg-[#18181b] rounded-full overflow-hidden border border-[#27272a]">
+                        <div
+                            className="h-full bg-[var(--vylos-green)] transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(0,255,0,0.3)]"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            {/* Milestones List */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {currentRoadmap.milestones.map((milestone, index) => (
-                    <div key={milestone.id} className="relative pl-6 border-l-2 border-[var(--vylos-grey-border)]">
+                    <div key={milestone.id} className="group relative pl-8 border-l border-[#27272a] last:border-transparent pb-2">
+                        {/* Connecting Line Enhancement */}
+                        <div className="absolute left-[-1px] top-0 bottom-0 w-px bg-gradient-to-b from-[var(--vylos-green)] to-transparent opacity-0 group-hover:opacity-20 transition-opacity" />
+
+                        {/* Status Icon */}
                         <div
                             className={cn(
-                                "absolute -left-[9px] top-0 bg-[var(--vylos-black)] rounded-full",
-                                milestone.completed ? "text-[var(--vylos-green)]" : "text-[var(--vylos-grey-light)]"
+                                "absolute -left-[9px] top-0 w-[18px] h-[18px] flex items-center justify-center rounded-full border border-[var(--vylos-black)] transition-all duration-300",
+                                milestone.completed
+                                    ? "bg-[var(--vylos-green)] text-black"
+                                    : "bg-[#18181b] text-gray-600 border-[#27272a]"
                             )}
                         >
-                            {milestone.completed ? <CheckCircle size={16} /> : <Circle size={16} />}
+                            {milestone.completed ? <CheckCircle size={12} strokeWidth={3} /> : <Circle size={10} />}
                         </div>
 
-                        <div className="bg-[var(--vylos-grey-medium)] p-3 rounded-md border border-[var(--vylos-grey-border)]">
-                            <div className="flex justify-between items-start">
-                                <h3 className="font-bold text-[var(--vylos-text-primary)]">{milestone.title}</h3>
-                                <button
-                                    onClick={() => completeMilestone(milestone.id)}
-                                    className="text-xs text-[var(--vylos-green-accent)] hover:underline"
-                                >
-                                    {milestone.completed ? 'Completed' : 'Mark as Done'}
-                                </button>
+                        <div className={cn(
+                            "p-4 rounded-xl border transition-all duration-300",
+                            milestone.completed
+                                ? "bg-[var(--vylos-green-dark)]/5 border-[var(--vylos-green-dark)]/20"
+                                : "bg-[#09090b] border-[#27272a] hover:border-[#3f3f46]"
+                        )}>
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className={cn(
+                                    "text-sm font-bold tracking-tight",
+                                    milestone.completed ? "text-[var(--vylos-green-accent)]" : "text-gray-200"
+                                )}>
+                                    {milestone.title}
+                                </h3>
+                                {!milestone.completed && (
+                                    <button
+                                        onClick={() => completeMilestone(milestone.id)}
+                                        className="text-[10px] font-bold uppercase tracking-widest text-[var(--vylos-green)] hover:text-white transition-colors flex items-center gap-1 group/btn"
+                                    >
+                                        Verify <ArrowRight size={10} className="group-hover/btn:translate-x-1 transition-transform" />
+                                    </button>
+                                )}
                             </div>
-                            <p className="text-xs text-[var(--vylos-text-secondary)] mt-1">{milestone.description}</p>
+                            <p className="text-xs text-gray-500 leading-relaxed mb-3">{milestone.description}</p>
 
                             {milestone.tasks.length > 0 && (
-                                <ul className="mt-2 space-y-1">
+                                <div className="space-y-1.5 border-t border-[#27272a]/50 pt-3 mt-3">
                                     {milestone.tasks.map((task, i) => (
-                                        <li key={i} className="text-xs text-[var(--vylos-text-secondary)] flex items-center">
-                                            <span className="w-1 h-1 bg-[var(--vylos-green-dark)] rounded-full mr-2"></span>
-                                            {task}
-                                        </li>
+                                        <div key={i} className="flex items-start gap-2 text-[11px] text-gray-400">
+                                            <div className="w-1 h-1 rounded-full bg-[var(--vylos-green)] mt-1.5 shrink-0 opacity-40" />
+                                            <span>{task}</span>
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             )}
                         </div>
                     </div>
                 ))}
             </div>
+
+            {progress === 100 && (
+                <div className="p-4 bg-[var(--vylos-green-dark)]/20 border-t border-[var(--vylos-green-dark)]/30 flex items-center justify-center gap-2 animate-bounce">
+                    <Trophy size={16} className="text-[var(--vylos-green)]" />
+                    <span className="text-[10px] font-black text-[var(--vylos-green)] uppercase tracking-[0.2em]">Mastery Achieved</span>
+                </div>
+            )}
         </div>
     );
 }

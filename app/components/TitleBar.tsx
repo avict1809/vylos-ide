@@ -1,7 +1,7 @@
 "use client";
 
-import { X, Minus, Square, Copy } from "lucide-react";
-import { useState, useEffect } from "react";
+import { X, Minus, Square, Copy, ChevronRight } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { useFileStore } from "../lib/useFileStore";
 import { cn } from "@/app/lib/utils";
 import Image from "next/image";
@@ -136,7 +136,6 @@ export function TitleBar() {
             ]
         },
         { label: "Go", items: [{ label: "Go to File...", shortcut: "Ctrl+P" }] },
-        { label: "Run", items: [{ label: "Start Debugging", shortcut: "F5" }] },
         { label: "Terminal", items: [{ label: "New Terminal", shortcut: "Ctrl+Shift+`" }] },
         { label: "Help", items: [{ label: "About Vylos" }] }
     ];
@@ -262,9 +261,29 @@ export function TitleBar() {
                     ))}
                 </div>
 
-                {/* CENTER: TITLE */}
-                <div className="flex-1 text-center truncate pointer-events-none text-gray-400">
-                    vylos — ai {activeFile && `— ${activeFile.name}`}
+                {/* CENTER: TITLE & BREADCRUMBS */}
+                <div className="flex-1 flex items-center justify-center overflow-hidden px-4 gap-2">
+                    <div className="flex items-center text-gray-400 text-[11px] overflow-hidden">
+                        <span className="opacity-50">vylos</span>
+                        {activeFile && (
+                            <>
+                                <span className="mx-1 opacity-30">—</span>
+                                <div className="flex items-center gap-1 overflow-hidden">
+                                    {activeFile.path.split(/[\\/]/).filter(p => p && !p.includes(':')).slice(-3).map((part, i, arr) => (
+                                        <React.Fragment key={i}>
+                                            <span className={cn(
+                                                "truncate max-w-[100px]",
+                                                i === arr.length - 1 ? "text-gray-200 font-medium" : "opacity-60"
+                                            )}>
+                                                {part}
+                                            </span>
+                                            {i < arr.length - 1 && <ChevronRight size={10} className="opacity-30 shrink-0" />}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 {/* RIGHT: WINDOW CONTROLS */}
