@@ -25,7 +25,7 @@ const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
   const { showTerminal } = useFileStore();
-  const { hasCompletedOnboarding } = useAuthStore();
+  const { hasCompletedOnboarding, isAuthenticated } = useAuthStore();
 
   React.useEffect(() => {
     setMounted(true);
@@ -35,7 +35,7 @@ export default function Home() {
     return <div className="h-full w-full bg-black" />;
   }
 
-  if (!hasCompletedOnboarding) {
+  if (!isAuthenticated || !hasCompletedOnboarding) {
     return <Onboarding />;
   }
 
