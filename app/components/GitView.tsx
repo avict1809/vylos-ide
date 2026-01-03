@@ -167,7 +167,7 @@ export default function GitView() {
                 <button
                     onClick={handleCommit}
                     disabled={!commitMessage.trim() || stagedFiles.length === 0 || loading}
-                    className="w-full py-2.5 bg-[#10b981] hover:bg-[#34d399] disabled:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed text-black text-[11px] font-black rounded-xl transition-all uppercase tracking-widest shadow-lg active:scale-[0.98]"
+                    className="w-full py-2.5 bg-[#10b981] hover:bg-[#34d399] disabled:bg-gray-400 disabled:opacity-30 disabled:cursor-not-allowed text-black text-[11px] font-black rounded-xl transition-all uppercase tracking-widest shadow-lg active:scale-[0.98]"
                 >
                     {loading ? 'Processing...' : 'Commit Changes'}
                 </button>
