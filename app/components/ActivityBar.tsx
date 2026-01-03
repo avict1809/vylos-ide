@@ -27,8 +27,8 @@ export function ActivityBar() {
             className={cn(
                 "p-3 w-12 h-12 flex items-center justify-center transition-colors relative",
                 activeView === id
-                    ? "text-[var(--vylos-green)] border-l-2 border-[var(--vylos-green)] bg-[var(--vylos-grey-dark)]"
-                    : "text-[var(--vylos-text-secondary)] hover:text-[var(--vylos-text-primary)]"
+                    ? "text-[var(--vylos-green)] border-l-2 border-[var(--vylos-green)] bg-[#000000] shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
+                    : "text-[var(--vylos-text-secondary)] hover:text-[var(--vylos-text-primary)] hover:bg-white/5"
             )}
             title={label}
         >
@@ -42,7 +42,7 @@ export function ActivityBar() {
     );
 
     return (
-        <div className="w-12 h-full bg-[var(--vylos-black)] border-r border-[var(--vylos-grey-border)] flex flex-col justify-between z-50">
+        <div className="w-12 h-full bg-[#050505] border-r border-[#1a1a1a] flex flex-col justify-between z-50">
             <div className="flex flex-col">
                 <ActivityIcon id="explorer" icon={Files} label="Explorer" />
                 <ActivityIcon id="search" icon={Search} label="Search" />

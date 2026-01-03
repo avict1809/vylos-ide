@@ -55,58 +55,62 @@ export default function SearchView() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[var(--vylos-black)] text-[var(--vylos-text-primary)]">
-            <div className="p-3 border-b border-[var(--vylos-grey-border)]">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--vylos-text-secondary)]">Search</h2>
-            </div>
-
-            <div className="p-3">
-                <form onSubmit={handleSearch} className="flex flex-col gap-2">
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            placeholder="Search..."
-                            className="w-full bg-[var(--vylos-grey-dark)] border border-[var(--vylos-grey-border)] rounded px-8 py-1.5 text-sm outline-none focus:border-[var(--vylos-green)] transition-all"
-                        />
-                        <SearchIcon size={14} className="absolute left-2.5 top-2.5 text-gray-500" />
-                    </div>
+        <div className="h-full flex flex-col bg-[#000000]">
+            <div className="p-4 border-b border-[#1a1a1a] bg-gradient-to-br from-[#050505] to-black">
+                <div className="flex items-center gap-2 mb-3">
+                    <SearchIcon size={14} className="text-[var(--vylos-green)]" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Global Search</span>
+                </div>
+                <form onSubmit={handleSearch} className="relative group">
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Search files..."
+                        className="w-full bg-[#09090b] border border-[#1a1a1a] focus:border-[var(--vylos-green-dark)] text-[13px] text-white rounded-xl px-9 py-2 outline-none transition-all placeholder:text-gray-600 shadow-xl"
+                    />
+                    <SearchIcon size={14} className="absolute left-3 top-2.5 text-gray-500 group-focus-within:text-[var(--vylos-green)] transition-colors" />
                 </form>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 pb-3">
+
+
+            <div className="flex-1 overflow-y-auto px-2 pb-3 custom-scrollbar">
                 {isSearching ? (
-                    <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
-                        <Loader2 size={16} className="animate-spin text-[var(--vylos-green)]" />
-                        <span className="text-sm">Searching files...</span>
+                    <div className="flex flex-col items-center justify-center py-20 gap-3">
+                        <Loader2 size={24} className="animate-spin text-[var(--vylos-green)]" />
+                        <span className="text-[10px] text-[var(--vylos-green)] font-black uppercase tracking-widest animate-pulse">Scanning Files...</span>
                     </div>
                 ) : results.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1 pt-2">
                         {results.map((res, i) => (
                             <div
                                 key={i}
-                                className="p-2 border border-[var(--vylos-grey-border)] rounded hover:bg-[var(--vylos-grey-medium)] cursor-pointer group transition-colors"
+                                className="p-3 bg-black border border-transparent hover:border-[#1a1a1a] hover:bg-[#050505] rounded-xl cursor-pointer group transition-all"
                                 onClick={() => handleResultClick(res)}
                             >
-                                <div className="flex items-center gap-2 mb-1">
-                                    <FileText size={14} className="text-gray-400" />
-                                    <span className="text-sm font-medium truncate">{res.name}</span>
-                                    <span className="text-[10px] text-gray-500 ml-auto">Line {res.line}</span>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FileText size={12} className="text-[var(--vylos-green)] opacity-50" />
+                                    <span className="text-[12px] font-bold text-gray-300 truncate group-hover:text-white transition-colors">{res.name}</span>
+                                    <span className="text-[9px] text-gray-600 ml-auto font-mono uppercase">L{res.line}</span>
                                 </div>
-                                <div className="text-xs text-gray-500 truncate group-hover:text-gray-300 italic">
+                                <div className="text-[11px] text-gray-500 truncate group-hover:text-gray-400 italic font-mono bg-[#09090b]/50 p-2 rounded-lg border border-[#111]">
                                     {res.text}
                                 </div>
                             </div>
                         ))}
                     </div>
                 ) : query && !isSearching ? (
-                    <div className="text-center py-10 text-gray-500 text-sm">
-                        No results found for "{query}"
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-12 h-12 bg-[#09090b] rounded-2xl flex items-center justify-center mb-4 border border-[#1a1a1a]">
+                            <SearchIcon size={20} className="text-gray-700" />
+                        </div>
+                        <h3 className="text-gray-400 text-sm font-bold">No results found</h3>
+                        <p className="text-[10px] text-gray-600 mt-1 uppercase tracking-widest">Try a broader term</p>
                     </div>
                 ) : (
-                    <div className="text-center py-10 text-gray-500 text-sm opacity-50">
-                        Type something to search across your workspace
+                    <div className="flex flex-col items-center justify-center py-20 opacity-30">
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">Enter Query Above</div>
                     </div>
                 )}
             </div>

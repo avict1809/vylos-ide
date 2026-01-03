@@ -11,11 +11,11 @@ export default function AccountView() {
     if (!user) return null;
 
     return (
-        <div className="h-full flex flex-col bg-[var(--vylos-black)] text-[var(--vylos-text-primary)]">
-            <div className="p-4 border-b border-[var(--vylos-grey-border)] flex items-center justify-between">
+        <div className="h-full flex flex-col bg-[#000000]">
+            <div className="p-6 border-b border-[#1a1a1a] flex items-center justify-between bg-gradient-to-br from-[#050505] to-black">
                 <div className="flex items-center gap-2">
-                    <User size={16} className="text-[var(--vylos-green)]" />
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-[var(--vylos-text-secondary)]">Account</h2>
+                    <User size={14} className="text-[var(--vylos-green)]" />
+                    <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Profile Center</span>
                 </div>
                 <button
                     onClick={async () => {
@@ -95,8 +95,8 @@ export default function AccountView() {
                 )}
             </div>
 
-            <div className="p-4 border-t border-[var(--vylos-grey-border)]/50 bg-[#0d0d0d]">
-                <p className="text-[9px] text-center text-gray-600 uppercase tracking-widest font-medium">Vylos Account v1.0.0-stable</p>
+            <div className="p-8 border-t border-[#1a1a1a] bg-black">
+                <p className="text-[9px] text-center text-gray-700 uppercase tracking-[0.4em] font-black italic">Vylos AI // Identity v2.1</p>
             </div>
         </div>
     );

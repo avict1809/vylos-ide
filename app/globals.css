@@ -3,10 +3,10 @@
 :root {
   /* Vylos Theme Colors */
   --vylos-black: #000000;
-  --vylos-grey-dark: #1e1e1e;
-  --vylos-grey-medium: #252526;
-  --vylos-grey-light: #2d2d30;
-  --vylos-grey-border: #3e3e42;
+  --vylos-grey-dark: #09090b;
+  --vylos-grey-medium: #121214;
+  --vylos-grey-light: #18181b;
+  --vylos-grey-border: #27272a;
   --vylos-green: #00ff00;
   --vylos-green-accent: #4ec9b0;
   --vylos-green-dark: #0d7a5f;

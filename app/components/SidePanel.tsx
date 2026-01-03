@@ -23,7 +23,7 @@ export default function SidePanel() {
     }, [activeView, currentRoadmap, setActiveView]);
 
     return (
-        <div className="h-full flex flex-col bg-[var(--vylos-grey-dark)] animate-in slide-in-from-left-2 duration-300">
+        <div className="h-full flex flex-col bg-[#000000] animate-in slide-in-from-left-2 duration-300">
             {/* Content */}
             <div className="flex-1 overflow-hidden">
                 {activeView === 'explorer' && <FileExplorer />}

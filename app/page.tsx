@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import {
   Separator,
   Panel,
@@ -21,8 +23,17 @@ import Onboarding from "./components/Onboarding";
 const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
 
 export default function Home() {
+  const [mounted, setMounted] = React.useState(false);
   const { showTerminal } = useFileStore();
   const { hasCompletedOnboarding } = useAuthStore();
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="h-full w-full bg-black" />;
+  }
 
   if (!hasCompletedOnboarding) {
     return <Onboarding />;

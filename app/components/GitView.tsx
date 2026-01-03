@@ -122,105 +122,154 @@ export default function GitView() {
     }
 
     return (
-        <div className="h-full flex flex-col bg-[var(--vylos-grey-dark)]">
-            <div className="p-3 border-b border-[var(--vylos-grey-border)] flex items-center justify-between">
+        <div className="h-full flex flex-col bg-[#000000]">
+            <div className="p-4 border-b border-[#1a1a1a] flex items-center justify-between bg-gradient-to-br from-[#050505] to-black">
                 <div className="flex items-center gap-2">
                     <GitBranch size={16} className="text-[var(--vylos-green)]" />
-                    <span className="text-xs font-bold text-white uppercase tracking-widest">{branchName || 'No Branch'}</span>
+                    <span className="text-[11px] font-black text-white uppercase tracking-[0.2em]">{branchName || 'main'}</span>
                 </div>
                 <div className="flex items-center gap-1">
                     <button
                         onClick={handlePush}
                         title="Push Changes"
-                        className={cn("p-1.5 hover:bg-[var(--vylos-grey-medium)] rounded transition-colors text-gray-400 hover:text-[var(--vylos-green)]", pushing && "animate-pulse")}
+                        className={cn(
+                            "p-2 hover:bg-[#1a1a1a] rounded-lg transition-all text-gray-500 hover:text-[var(--vylos-green)]",
+                            pushing && "animate-pulse"
+                        )}
                         disabled={loading || pushing}
                     >
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10M12 2l-4 4M12 2l4 4M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /></svg>
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v10M12 2l-4 4M12 2l4 4M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7" /></svg>
                     </button>
                     <button
                         onClick={refreshGit}
-                        className={cn("p-1.5 hover:bg-[var(--vylos-grey-medium)] rounded transition-colors text-gray-400 hover:text-white", loading && "animate-spin")}
+                        className={cn("p-2 hover:bg-[#1a1a1a] rounded-lg transition-all text-gray-500 hover:text-white", loading && "animate-spin")}
                         disabled={loading || pushing}
+                        title="Refresh Status"
                     >
                         <RefreshCw size={14} />
                     </button>
                 </div>
             </div>
 
-            <div className="p-3 bg-[var(--vylos-grey-dark)] border-b border-[var(--vylos-grey-border)]">
-                <textarea
-                    value={commitMessage}
-                    onChange={(e) => setCommitMessage(e.target.value)}
-                    placeholder="Commit message..."
-                    className="w-full h-16 bg-[var(--vylos-black)] border border-[var(--vylos-grey-border)] rounded p-2 text-xs text-white focus:outline-none focus:border-[var(--vylos-green)] resize-none"
-                />
+            <div className="p-4 bg-black space-y-3">
+                <div className="relative group">
+                    <textarea
+                        value={commitMessage}
+                        onChange={(e) => setCommitMessage(e.target.value)}
+                        placeholder="Message (Ctrl+Enter to commit)"
+                        className="w-full h-24 bg-[#09090b] border border-[#1a1a1a] rounded-xl p-3 text-[13px] text-white focus:outline-none focus:border-[var(--vylos-green-dark)] resize-none transition-all placeholder:text-gray-600"
+                        onKeyDown={(e) => (e.ctrlKey || e.metaKey) && e.key === 'Enter' && handleCommit()}
+                    />
+                    <div className="absolute bottom-3 right-3 opacity-0 group-focus-within:opacity-100 transition-opacity">
+                        <span className="text-[9px] text-gray-500 font-mono uppercase">Ctrl+Enter</span>
+                    </div>
+                </div>
                 <button
                     onClick={handleCommit}
                     disabled={!commitMessage.trim() || stagedFiles.length === 0 || loading}
-                    className="w-full mt-2 py-2 bg-[var(--vylos-green-dark)] hover:bg-[var(--vylos-green)] disabled:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed text-[var(--vylos-black)] text-[10px] font-bold rounded transition-colors uppercase tracking-widest"
+                    className="w-full py-2.5 bg-[#10b981] hover:bg-[#34d399] disabled:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed text-black text-[11px] font-black rounded-xl transition-all uppercase tracking-widest shadow-lg active:scale-[0.98]"
                 >
-                    {loading ? 'Committing...' : 'Commit'}
+                    {loading ? 'Processing...' : 'Commit Changes'}
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-                <div className="group flex items-center justify-between px-3 py-2 text-[10px] font-bold text-[var(--vylos-text-secondary)] uppercase tracking-widest opacity-50 bg-[var(--vylos-grey-medium)]/30">
-                    <span>Changes ({unstagedFiles.length})</span>
-                    <button
-                        onClick={handleStageAll}
-                        title="Stage All"
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[var(--vylos-green)] transition-all"
-                    >
-                        <Plus size={12} />
-                    </button>
-                </div>
-                {unstagedFiles.map((file, i) => (
-                    <div key={i} className="group flex items-center justify-between px-3 py-1.5 hover:bg-[var(--vylos-grey-medium)] transition-colors cursor-default">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <span className={cn(
-                                "text-[10px] font-bold w-4",
-                                file.status === 'A' ? "text-green-500" : "text-yellow-500"
-                            )}>
-                                {file.status}
-                            </span>
-                            <span className="text-xs text-gray-300 truncate" title={file.path}>{file.path}</span>
-                        </div>
-                        <button
-                            onClick={() => handleStage(file.path)}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--vylos-grey-dark)] rounded text-[var(--vylos-green)] transition-all"
-                        >
-                            <Plus size={14} />
-                        </button>
+            <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {/* Changes Header */}
+                <div className="flex items-center justify-between px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-[0.15em] bg-[#050505] border-y border-[#1a1a1a]">
+                    <div className="flex items-center gap-2">
+                        <span>Changes</span>
+                        <span className="px-1.5 py-0.5 bg-[#111] border border-[#222] rounded text-[9px]">{unstagedFiles.length}</span>
                     </div>
-                ))}
+                    {unstagedFiles.length > 0 && (
+                        <button
+                            onClick={handleStageAll}
+                            className="px-2 py-1 bg-[var(--vylos-green-dark)]/10 hover:bg-[var(--vylos-green-dark)]/20 border border-[var(--vylos-green-dark)]/30 rounded text-[9px] text-[var(--vylos-green)] font-black transition-all active:scale-95"
+                        >
+                            STAGE ALL
+                        </button>
+                    )}
+                </div>
 
-                <div className="group flex items-center justify-between px-3 py-2 text-[10px] font-bold text-[var(--vylos-text-secondary)] uppercase tracking-widest opacity-50 bg-[var(--vylos-grey-medium)]/30 mt-2">
-                    <span>Staged Changes ({stagedFiles.length})</span>
-                    <button
-                        onClick={handleUnstageAll}
-                        title="Unstage All"
-                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-red-500 transition-all"
-                    >
-                        <Minus size={12} />
-                    </button>
+                {/* Unstaged Files */}
+                <div className="mb-4">
+                    {unstagedFiles.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-[11px] text-gray-600 italic">No pending changes</div>
+                    ) : (
+                        unstagedFiles.map((file, i) => (
+                            <GitFileItem
+                                key={i}
+                                file={file}
+                                onAction={() => handleStage(file.path)}
+                                actionIcon={<Plus size={14} />}
+                                actionTitle="Stage Change"
+                            />
+                        ))
+                    )}
                 </div>
-                {stagedFiles.map((file, i) => (
-                    <div key={i} className="group flex items-center justify-between px-3 py-1.5 hover:bg-[var(--vylos-grey-medium)] transition-colors cursor-default">
-                        <div className="flex items-center gap-2 overflow-hidden">
-                            <span className="text-[10px] font-bold w-4 text-green-500">
-                                {file.status}
-                            </span>
-                            <span className="text-xs text-gray-300 truncate" title={file.path}>{file.path}</span>
-                        </div>
-                        <button
-                            onClick={() => handleUnstage(file.path)}
-                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[var(--vylos-grey-dark)] rounded text-red-500 transition-all"
-                        >
-                            <Minus size={14} />
-                        </button>
+
+                {/* Staged Header */}
+                <div className="flex items-center justify-between px-4 py-2 text-[10px] font-black text-gray-500 uppercase tracking-[0.15em] bg-[#050505] border-y border-[#1a1a1a]">
+                    <div className="flex items-center gap-2">
+                        <span>Staged</span>
+                        <span className="px-1.5 py-0.5 bg-[#111] border border-[#222] rounded text-[9px]">{stagedFiles.length}</span>
                     </div>
-                ))}
+                    {stagedFiles.length > 0 && (
+                        <button
+                            onClick={handleUnstageAll}
+                            className="px-2 py-1 hover:bg-red-500/10 border border-transparent hover:border-red-500/30 rounded text-[9px] text-gray-500 hover:text-red-500 font-black transition-all"
+                        >
+                            UNSTAGE ALL
+                        </button>
+                    )}
+                </div>
+
+                {/* Staged Files */}
+                <div>
+                    {stagedFiles.map((file, i) => (
+                        <GitFileItem
+                            key={i}
+                            file={file}
+                            onAction={() => handleUnstage(file.path)}
+                            actionIcon={<Minus size={14} />}
+                            actionTitle="Unstage Change"
+                            isStaged
+                        />
+                    ))}
+                </div>
             </div>
+        </div>
+    );
+}
+
+function GitFileItem({ file, onAction, actionIcon, actionTitle, isStaged }: { file: GitFile; onAction: () => void; actionIcon: any; actionTitle: string; isStaged?: boolean }) {
+    return (
+        <div className="group flex items-center justify-between px-4 py-2 hover:bg-[#09090b] transition-colors cursor-default border-b border-white/[0.02]">
+            <div className="flex items-center gap-3 overflow-hidden">
+                <div className={cn(
+                    "w-5 h-5 rounded flex items-center justify-center text-[10px] font-black",
+                    file.status === 'A' ? "bg-green-500/10 text-green-500" :
+                        file.status === 'D' ? "bg-red-500/10 text-red-500" :
+                            "bg-yellow-500/10 text-yellow-500"
+                )}>
+                    {file.status}
+                </div>
+                <span className="text-[13px] text-gray-400 group-hover:text-gray-200 truncate transition-colors" title={file.path}>
+                    {file.path.split(/[\\/]/).pop()}
+                    <span className="ml-2 text-[10px] opacity-40 font-normal">
+                        {file.path.split(/[\\/]/).slice(0, -1).join('/')}
+                    </span>
+                </span>
+            </div>
+            <button
+                onClick={onAction}
+                title={actionTitle}
+                className={cn(
+                    "opacity-0 group-hover:opacity-100 p-1.5 hover:bg-black rounded-lg transition-all active:scale-90",
+                    isStaged ? "text-red-500/70 hover:text-red-500" : "text-[var(--vylos-green)]"
+                )}
+            >
+                {actionIcon}
+            </button>
         </div>
     );
 }

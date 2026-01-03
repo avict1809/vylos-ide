@@ -36,8 +36,8 @@ const FileItem = ({ item, depth = 0, onToggle, activePath }: { item: FileNode; d
         <div>
             <div
                 className={cn(
-                    "flex items-center py-1 px-2 hover:bg-[var(--vylos-grey-medium)] cursor-pointer text-sm",
-                    isActive ? "bg-[var(--vylos-green-dark)]/20 border-l-2 border-[var(--vylos-green)] text-[var(--vylos-green)]" : "text-[var(--vylos-text-primary)]"
+                    "flex items-center py-1.5 px-3 hover:bg-[#050505] cursor-pointer text-sm group/item transition-all",
+                    isActive ? "bg-[var(--vylos-green-dark)]/10 border-l-2 border-[var(--vylos-green)] text-[var(--vylos-green)]" : "text-gray-400 hover:text-gray-200"
                 )}
                 style={{ paddingLeft: `${depth * 12 + 8}px` }}
                 onClick={handleClick}
@@ -152,9 +152,9 @@ export function FileExplorer() {
     }
 
     return (
-        <div className="h-full flex flex-col">
-            <div className="p-2 flex items-center justify-between border-b border-[var(--vylos-grey-border)] mb-1">
-                <span className="text-[10px] text-[var(--vylos-text-secondary)] opacity-50 truncate uppercase tracking-tighter" title={path || ''}>
+        <div className="h-full flex flex-col bg-[#000000]">
+            <div className="p-4 flex items-center justify-between border-b border-[#1a1a1a] bg-gradient-to-br from-[#050505] to-black">
+                <span className="text-[10px] text-white font-black uppercase tracking-[0.2em] opacity-40 truncate" title={path || ''}>
                     {path?.split(/[\\/]/).pop() || path}
                 </span>
                 <button
@@ -166,15 +166,15 @@ export function FileExplorer() {
                         }
                     }}
                     className={cn(
-                        "p-1 hover:bg-[var(--vylos-grey-medium)] rounded transition-colors text-gray-400 hover:text-white",
+                        "p-1.5 hover:bg-[#1a1a1a] rounded-lg transition-all text-gray-500 hover:text-[var(--vylos-green)]",
                         loading && "animate-spin"
                     )}
                     title="Refresh Explorer"
                 >
-                    <RefreshCw size={12} />
+                    <RefreshCw size={14} />
                 </button>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto px-1 pt-2 custom-scrollbar">
                 {files.map(item => (
                     <FileItem key={item.path} item={item} onToggle={handleToggle} activePath={activePath} />
                 ))}
