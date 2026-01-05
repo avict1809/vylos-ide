@@ -1,6 +1,7 @@
 export class AudioProcessor {
-    private mediaRecorder: MediaRecorder | null = null;
     private audioContext: AudioContext | null = null;
+    private stream: MediaStream | null = null;
+    private processor: ScriptProcessorNode | null = null;
     private onAudioData: (data: string) => void;
 
     constructor(onAudioData: (data: string) => void) {
@@ -9,29 +10,45 @@ export class AudioProcessor {
 
     async start() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.audioContext = new AudioContext({ sampleRate: 16000 });
 
-            const source = this.audioContext.createMediaStreamSource(stream);
-            // Further processing to PCM 16kHz mono would go here using AudioWorklet or ScriptProcessor
-            // For simplicity in this plan, accessing MediaRecorder
-            this.mediaRecorder = new MediaRecorder(stream);
-            this.mediaRecorder.ondataavailable = async (e) => {
-                if (e.data.size > 0) {
-                    const buffer = await e.data.arrayBuffer();
-                    const base64 = this.arrayBufferToBase64(buffer);
-                    this.onAudioData(base64);
+            const source = this.audioContext.createMediaStreamSource(this.stream);
+            // ScriptProcessorNode is used for downsampling and PCM conversion
+            // 4096 buffer size is a good balance for latency and stability
+            this.processor = this.audioContext.createScriptProcessor(4096, 1, 1);
+
+            source.connect(this.processor);
+            this.processor.connect(this.audioContext.destination);
+
+            this.processor.onaudioprocess = (e) => {
+                const inputData = e.inputBuffer.getChannelData(0);
+                // Convert Float32Array to Int16Array (PCM 16-bit)
+                const pcmData = new Int16Array(inputData.length);
+                for (let i = 0; i < inputData.length; i++) {
+                    // Clamp and scale to 16-bit integer range
+                    const s = Math.max(-1, Math.min(1, inputData[i]));
+                    pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
                 }
+
+                // Convert to Base64
+                const base64 = this.arrayBufferToBase64(pcmData.buffer);
+                this.onAudioData(base64);
             };
-            this.mediaRecorder.start(100); // 100ms chunks
+
         } catch (e) {
-            console.error("Microphone access denied", e);
+            console.error("Microphone access denied or error", e);
         }
     }
 
     stop() {
-        this.mediaRecorder?.stop();
+        this.processor?.disconnect();
+        this.stream?.getTracks().forEach(track => track.stop());
         this.audioContext?.close();
+
+        this.processor = null;
+        this.stream = null;
+        this.audioContext = null;
     }
 
     private arrayBufferToBase64(buffer: ArrayBuffer) {

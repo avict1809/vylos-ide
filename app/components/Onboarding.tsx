@@ -51,13 +51,13 @@ export default function Onboarding() {
                             <div className="animate-in slide-in-from-right duration-500">
                                 <h2 className="text-2xl font-bold text-white mb-4">Welcome to the future of coding.</h2>
                                 <p className="text-sm text-gray-400 leading-relaxed mb-6">
-                                    Vylos is more than just an editor. It's an intelligent learning environment designed to help you master programming while you build.
+                                    Vylos is more than just an editor. It's an intelligent learning environment designed to help you master programming.
                                 </p>
                                 <div className="space-y-4">
                                     <FeatureItem
                                         icon={<Sparkles className="text-[var(--vylos-green)]" size={18} />}
                                         title="AI-Powered Context"
-                                        desc="Gemini-driven insights directly in your editor."
+                                        desc="AI insights directly in your editor."
                                     />
                                     <FeatureItem
                                         icon={<GraduationCap className="text-[var(--vylos-green)]" size={18} />}
