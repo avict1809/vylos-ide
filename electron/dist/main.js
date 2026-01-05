@@ -36,9 +36,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-/* eslint-disable @typescript-eslint/no-unused-vars */
 const electron_1 = require("electron");
 const path_1 = __importDefault(require("path"));
+const chokidar_1 = __importDefault(require("chokidar"));
+const promises_1 = __importDefault(require("fs/promises"));
+const fs_extra_1 = __importDefault(require("fs-extra"));
 let mainWindow;
 const createWindow = () => {
     const iconPath = electron_1.app.isPackaged
@@ -151,7 +153,57 @@ electron_1.ipcMain.on('terminal:resize', (event, { cols, rows }) => {
 });
 // File System Handlers
 const { dialog } = require('electron');
-const fs = require('fs/promises');
+let watcher = null;
+electron_1.ipcMain.handle('fs:watch', (event, rootDir) => {
+    if (watcher) {
+        watcher.close();
+    }
+    watcher = chokidar_1.default.watch(rootDir, {
+        ignored: /(^|[\/\\])\..|node_modules|\.next|dist/, // ignore dotfiles and common big dirs
+        persistent: true,
+        ignoreInitial: true
+    });
+    watcher.on('all', (event, path) => {
+        mainWindow?.webContents.send('fs:changed', { event, path });
+    });
+    return true;
+});
+electron_1.ipcMain.handle('fs:createFile', async (event, filePath) => {
+    try {
+        await promises_1.default.writeFile(filePath, '');
+        return true;
+    }
+    catch (e) {
+        return false;
+    }
+});
+electron_1.ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
+    try {
+        await promises_1.default.mkdir(dirPath, { recursive: true });
+        return true;
+    }
+    catch (e) {
+        return false;
+    }
+});
+electron_1.ipcMain.handle('fs:delete', async (event, targetPath) => {
+    try {
+        await fs_extra_1.default.remove(targetPath);
+        return true;
+    }
+    catch (e) {
+        return false;
+    }
+});
+electron_1.ipcMain.handle('fs:rename', async (event, oldPath, newPath) => {
+    try {
+        await promises_1.default.rename(oldPath, newPath);
+        return true;
+    }
+    catch (e) {
+        return false;
+    }
+});
 electron_1.ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
@@ -180,7 +232,7 @@ electron_1.ipcMain.handle('dialog:saveFile', async (event, content, defaultPath)
     });
     if (canceled || !filePath)
         return null;
-    await fs.writeFile(filePath, content, 'utf-8');
+    await promises_1.default.writeFile(filePath, content, 'utf-8');
     return filePath;
 });
 electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
@@ -191,7 +243,7 @@ electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
         if (results.length >= MAX_RESULTS)
             return;
         try {
-            const files = await fs.readdir(currentDir, { withFileTypes: true });
+            const files = await promises_1.default.readdir(currentDir, { withFileTypes: true });
             for (const file of files) {
                 if (results.length >= MAX_RESULTS)
                     break;
@@ -208,10 +260,10 @@ electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
                     if (binaryExts.includes(ext))
                         continue;
                     try {
-                        const stats = await fs.stat(fullPath);
+                        const stats = await promises_1.default.stat(fullPath);
                         if (stats.size > MAX_FILE_SIZE)
                             continue;
-                        const content = await fs.readFile(fullPath, 'utf-8');
+                        const content = await promises_1.default.readFile(fullPath, 'utf-8');
                         const lines = content.split('\n');
                         for (let i = 0; i < lines.length; i++) {
                             const line = lines[i];
@@ -251,7 +303,7 @@ electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
 electron_1.ipcMain.handle('fs:listAll', async (event, dirPath) => {
     const results = [];
     async function recurse(current) {
-        const entries = await fs.readdir(current, { withFileTypes: true });
+        const entries = await promises_1.default.readdir(current, { withFileTypes: true });
         for (const entry of entries) {
             const full = path_1.default.join(current, entry.name);
             if (entry.isDirectory()) {
@@ -274,7 +326,7 @@ electron_1.ipcMain.handle('fs:listAll', async (event, dirPath) => {
 });
 electron_1.ipcMain.handle('fs:list', async (event, dirPath) => {
     try {
-        const dirents = await fs.readdir(dirPath, { withFileTypes: true });
+        const dirents = await promises_1.default.readdir(dirPath, { withFileTypes: true });
         return dirents.map((dirent) => ({
             name: dirent.name,
             isDirectory: dirent.isDirectory(),
@@ -288,7 +340,7 @@ electron_1.ipcMain.handle('fs:list', async (event, dirPath) => {
 });
 electron_1.ipcMain.handle('fs:read', async (event, filePath) => {
     try {
-        return await fs.readFile(filePath, 'utf-8');
+        return await promises_1.default.readFile(filePath, 'utf-8');
     }
     catch (e) {
         return null;
@@ -296,7 +348,7 @@ electron_1.ipcMain.handle('fs:read', async (event, filePath) => {
 });
 electron_1.ipcMain.handle('fs:write', async (event, filePath, content) => {
     try {
-        await fs.writeFile(filePath, content, 'utf-8');
+        await promises_1.default.writeFile(filePath, content, 'utf-8');
         return true;
     }
     catch (e) {
@@ -305,7 +357,6 @@ electron_1.ipcMain.handle('fs:write', async (event, filePath, content) => {
 });
 // Git Handlers with isomorphic-git
 const git = __importStar(require("isomorphic-git"));
-const fs_extra_1 = __importDefault(require("fs-extra"));
 electron_1.ipcMain.handle('git:status', async (event, dir) => {
     try {
         const matrix = await git.statusMatrix({ fs: fs_extra_1.default, dir });

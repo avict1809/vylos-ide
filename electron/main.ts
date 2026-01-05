@@ -1,6 +1,8 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import chokidar, { FSWatcher } from 'chokidar';
+import fs from 'fs/promises';
+import fse from 'fs-extra';
 
 let mainWindow: BrowserWindow | null;
 
@@ -136,7 +138,62 @@ ipcMain.on('terminal:resize', (event, { cols, rows }) => {
 
 // File System Handlers
 const { dialog } = require('electron');
-const fs = require('fs/promises');
+
+let watcher: FSWatcher | null = null;
+
+ipcMain.handle('fs:watch', (event, rootDir: string) => {
+    if (watcher) {
+        watcher.close();
+    }
+
+    watcher = chokidar.watch(rootDir, {
+        ignored: /(^|[\/\\])\..|node_modules|\.next|dist/, // ignore dotfiles and common big dirs
+        persistent: true,
+        ignoreInitial: true
+    });
+
+    watcher.on('all', (event: string, path: string) => {
+        mainWindow?.webContents.send('fs:changed', { event, path });
+    });
+
+    return true;
+});
+
+ipcMain.handle('fs:createFile', async (event, filePath: string) => {
+    try {
+        await fs.writeFile(filePath, '');
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('fs:createDirectory', async (event, dirPath: string) => {
+    try {
+        await fs.mkdir(dirPath, { recursive: true });
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('fs:delete', async (event, targetPath: string) => {
+    try {
+        await fse.remove(targetPath);
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
+ipcMain.handle('fs:rename', async (event, oldPath: string, newPath: string) => {
+    try {
+        await fs.rename(oldPath, newPath);
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
 
 ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
@@ -285,7 +342,6 @@ ipcMain.handle('fs:write', async (event, filePath, content) => {
 
 // Git Handlers with isomorphic-git
 import * as git from 'isomorphic-git';
-import fse from 'fs-extra';
 
 ipcMain.handle('git:status', async (event, dir: string) => {
     try {

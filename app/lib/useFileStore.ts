@@ -26,8 +26,20 @@ interface FileStore {
     showAbout: boolean;
     monacoAction: string | null;
     searchMetadata: { query: string; line?: number } | null;
+    fileTree: FileNode[];
+    selectedNode: FileNode | null;
+    expandedPaths: Set<string>;
 
     // Actions
+    setFileTree: (tree: FileNode[]) => void;
+    setSelectedNode: (node: FileNode | null) => void;
+    togglePathExpansion: (path: string) => void;
+    refreshFileTree: () => Promise<void>;
+    watchProjectRoot: () => void;
+    createFile: (dirPath: string, fileName: string) => Promise<boolean>;
+    createFolder: (dirPath: string, folderName: string) => Promise<boolean>;
+    deletePath: (path: string) => Promise<boolean>;
+    renamePath: (oldPath: string, newPath: string) => Promise<boolean>;
     openFile: (file: FileNode, content: string, searchMetadata?: { query: string; line?: number }) => void;
     openFileByPath: (path: string) => Promise<void>;
     openExternalFile: () => Promise<void>;
@@ -59,6 +71,94 @@ export const useFileStore = create<FileStore>((set, get) => ({
     showAbout: false,
     monacoAction: null,
     searchMetadata: null,
+    fileTree: [],
+    selectedNode: null,
+    expandedPaths: new Set<string>(),
+
+    setFileTree: (tree) => set({ fileTree: tree }),
+    setSelectedNode: (node) => set({ selectedNode: node }),
+
+    togglePathExpansion: (path) => {
+        const { expandedPaths } = get();
+        const newPaths = new Set(expandedPaths);
+        if (newPaths.has(path)) {
+            newPaths.delete(path);
+        } else {
+            newPaths.add(path);
+        }
+        set({ expandedPaths: newPaths });
+    },
+
+    refreshFileTree: async () => {
+        const { projectRoot, fileTree } = get();
+        const electron = (window as any).electron;
+        if (!projectRoot || !electron) return;
+
+        try {
+            const items = await electron.fs.list(projectRoot);
+            const newList = items.map((f: any) => ({ ...f, children: [], isExpanded: false }));
+
+            // Merge with existing tree to preserve expansion states
+            const merged = newList.map((newNode: FileNode) => {
+                const existing = fileTree.find(n => n.path === newNode.path);
+                if (existing) {
+                    return { ...newNode, isExpanded: existing.isExpanded, children: existing.children };
+                }
+                return newNode;
+            });
+
+            set({ fileTree: merged });
+        } catch (e) {
+            console.error("Failed to refresh file tree", e);
+        }
+    },
+
+    watchProjectRoot: () => {
+        const { projectRoot, refreshFileTree } = get();
+        const electron = (window as any).electron;
+        if (!projectRoot || !electron) return;
+
+        electron.fs.watch(projectRoot);
+        electron.fs.onChanged(({ event, path: changedPath }: { event: string; path: string }) => {
+            console.log(`FS Change: ${event} on ${changedPath}`);
+            // For now, simple full refresh on structure changes
+            // A more optimized approach would be to update only the affected branch
+            if (['add', 'unlink', 'addDir', 'unlinkDir'].includes(event)) {
+                refreshFileTree();
+            }
+        });
+    },
+
+    createFile: async (dirPath, fileName) => {
+        const electron = (window as any).electron;
+        if (!electron) return false;
+        const filePath = `${dirPath}/${fileName}`.replace(/\/+/g, '/');
+        const success = await electron.fs.createFile(filePath);
+        if (success) {
+            // Auto open the new file
+            get().openFileByPath(filePath);
+        }
+        return success;
+    },
+
+    createFolder: async (dirPath, folderName) => {
+        const electron = (window as any).electron;
+        if (!electron) return false;
+        const folderPath = `${dirPath}/${folderName}`;
+        return await electron.fs.createDirectory(folderPath);
+    },
+
+    deletePath: async (targetPath) => {
+        const electron = (window as any).electron;
+        if (!electron) return false;
+        return await electron.fs.delete(targetPath);
+    },
+
+    renamePath: async (oldPath, newPath) => {
+        const electron = (window as any).electron;
+        if (!electron) return false;
+        return await electron.fs.rename(oldPath, newPath);
+    },
 
     openFile: (file, content, searchMetadata) => {
         const { openFiles } = get();
@@ -101,6 +201,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
         const dirPath = await electron.dialog.openDirectory();
         if (dirPath) {
             set({ projectRoot: dirPath, activeView: 'explorer' });
+            get().refreshFileTree();
+            get().watchProjectRoot();
         }
     },
 

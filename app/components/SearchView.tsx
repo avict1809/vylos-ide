@@ -110,7 +110,7 @@ export default function SearchView() {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-20 opacity-30">
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">Enter Query Above</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-300">Enter Query Above</div>
                     </div>
                 )}
             </div>

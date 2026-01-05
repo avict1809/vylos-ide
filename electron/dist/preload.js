@@ -36,7 +36,17 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         listAll: (path) => electron_1.ipcRenderer.invoke('fs:listAll', path),
         list: (path) => electron_1.ipcRenderer.invoke('fs:list', path),
         read: (path) => electron_1.ipcRenderer.invoke('fs:read', path),
-        write: (path, content) => electron_1.ipcRenderer.invoke('fs:write', path, content)
+        write: (path, content) => electron_1.ipcRenderer.invoke('fs:write', path, content),
+        watch: (path) => electron_1.ipcRenderer.invoke('fs:watch', path),
+        createFile: (path) => electron_1.ipcRenderer.invoke('fs:createFile', path),
+        createDirectory: (path) => electron_1.ipcRenderer.invoke('fs:createDirectory', path),
+        delete: (path) => electron_1.ipcRenderer.invoke('fs:delete', path),
+        rename: (oldPath, newPath) => electron_1.ipcRenderer.invoke('fs:rename', oldPath, newPath),
+        onChanged: (callback) => {
+            const subscription = (_event, data) => callback(data);
+            electron_1.ipcRenderer.on('fs:changed', subscription);
+            return () => electron_1.ipcRenderer.removeListener('fs:changed', subscription);
+        }
     },
     dialog: {
         openFile: () => electron_1.ipcRenderer.invoke('dialog:openFile'),
