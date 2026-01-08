@@ -59,19 +59,29 @@
     "files": [
       "electron/dist/**/*",
       "out/**/*",
-      "package.json"
+      "public/**/*",
+      "package.json",
+      "node_modules/**/*"
     ],
-    "mac": {
-      "icon": "build/icons/icon.png"
-    },
     "win": {
-      "icon": "build/icons/icon.png"
+      "target": "nsis",
+      "icon": "build/icons/win/icon.ico",
+      "publisherName": "Vylos AI"
+    },
+    "mac": {
+      "icon": "build/icons/mac/icon.icns"
     },
     "linux": {
       "icon": "build/icons/icon.png",
       "target": [
         "AppImage"
       ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
     }
   }
 }
