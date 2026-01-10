@@ -121,3 +121,12 @@ body {
 .monaco-editor .find-widget .monaco-checkbox {
   margin-right: 4px !important;
 }
+
+/* Electron window drag/no-drag regions */
+.app-region-drag {
+  -webkit-app-region: drag;
+}
+
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+}

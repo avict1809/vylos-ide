@@ -6,7 +6,6 @@ import { persist } from 'zustand/middleware';
 interface ConfigStore {
     theme: 'dark' | 'light';
     fontSize: number;
-    terminalFontSize: number;
     autoSave: boolean;
     minimapEnabled: boolean;
     lineNumbers: 'on' | 'off';
@@ -14,7 +13,6 @@ interface ConfigStore {
 
     setTheme: (theme: 'dark' | 'light') => void;
     setFontSize: (size: number) => void;
-    setTerminalFontSize: (size: number) => void;
     setAutoSave: (enabled: boolean) => void;
     setMinimapEnabled: (enabled: boolean) => void;
     setLineNumbers: (value: 'on' | 'off') => void;
@@ -26,7 +24,6 @@ export const useConfigStore = create<ConfigStore>()(
         (set) => ({
             theme: 'dark',
             fontSize: 14,
-            terminalFontSize: 12,
             autoSave: false,
             minimapEnabled: true,
             lineNumbers: 'on',
@@ -34,7 +31,6 @@ export const useConfigStore = create<ConfigStore>()(
 
             setTheme: (theme) => set({ theme }),
             setFontSize: (fontSize) => set({ fontSize }),
-            setTerminalFontSize: (terminalFontSize) => set({ terminalFontSize }),
             setAutoSave: (autoSave) => set({ autoSave }),
             setMinimapEnabled: (minimapEnabled) => set({ minimapEnabled }),
             setLineNumbers: (lineNumbers) => set({ lineNumbers }),

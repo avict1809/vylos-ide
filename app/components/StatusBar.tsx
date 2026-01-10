@@ -50,7 +50,7 @@ export default function StatusBar() {
 
                 <div className="flex items-center gap-1.5 hover:bg-[var(--vylos-green-dark)]/20 hover:text-[var(--vylos-green)] px-3 h-full cursor-pointer transition-colors border-l border-[#27272a]">
                     <Cpu size={12} />
-                    <span className="font-black uppercase tracking-tighter italic">Vylos 2.0</span>
+                    <span className="font-black uppercase tracking-tighter italic">Vylos 0.1.0</span>
                 </div>
             </div>
         </div>

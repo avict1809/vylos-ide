@@ -21,16 +21,6 @@ contextBridge.exposeInMainWorld('electron', {
             return () => ipcRenderer.removeListener('window:unmaximized', subscription);
         }
     },
-    terminal: {
-        create: () => ipcRenderer.send('terminal:create'),
-        write: (data: string) => ipcRenderer.send('terminal:write', data),
-        resize: (cols: number, rows: number) => ipcRenderer.send('terminal:resize', { cols, rows }),
-        onData: (callback: (data: string) => void) => {
-            const subscription = (_event: any, data: string) => callback(data);
-            ipcRenderer.on('terminal:data', subscription);
-            return () => ipcRenderer.removeListener('terminal:data', subscription);
-        }
-    },
     fs: {
         listAll: (path: string) => ipcRenderer.invoke('fs:listAll', path),
         list: (path: string) => ipcRenderer.invoke('fs:list', path),

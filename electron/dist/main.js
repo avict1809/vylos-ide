@@ -41,8 +41,16 @@ const path_1 = __importDefault(require("path"));
 const chokidar_1 = __importDefault(require("chokidar"));
 const promises_1 = __importDefault(require("fs/promises"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
+const electron_serve_1 = __importDefault(require("electron-serve"));
 let mainWindow;
-const createWindow = () => {
+const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
+// CRITICAL: Initialize electron-serve at module level BEFORE app.whenReady()
+// This registers the 'app://' protocol handler early enough for it to work
+const loadURL = isDev ? null : (0, electron_serve_1.default)({
+    directory: 'out',
+    scheme: 'app'
+});
+const createWindow = async () => {
     const iconPath = electron_1.app.isPackaged
         ? path_1.default.join(process.resourcesPath, "icon.png")
         : path_1.default.join(electron_1.app.getAppPath(), 'build/icons/icon.png');
@@ -51,20 +59,28 @@ const createWindow = () => {
         height: 800,
         backgroundColor: '#000000', // Vylos Black
         icon: iconPath, // Vylos Icon
-        titleBarStyle: 'hidden', // Custom title bar if needed
+        titleBarStyle: 'hidden', //Replace with Custom title bar
         webPreferences: {
             preload: path_1.default.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false // Needed for some node-pty interactions later, though we should try to keep it secure
+            sandbox: false,
+            devTools: true,
         },
     });
-    const startUrl = process.env.NODE_ENV === 'development'
-        ? 'http://localhost:3000'
-        : `file://${path_1.default.join(__dirname, '../../out/index.html')}`;
-    mainWindow.loadURL(startUrl);
-    if (process.env.NODE_ENV === 'development') {
-        mainWindow.webContents.openDevTools();
+    // Only open DevTools in development mode
+    if (isDev) {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+    }
+    if (isDev) {
+        // Development: Load from Next.js dev server
+        await mainWindow.loadURL('http://localhost:3000');
+    }
+    else {
+        // Production: Use the pre-initialized electron-serve
+        if (loadURL) {
+            await loadURL(mainWindow);
+        }
     }
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -76,11 +92,11 @@ const createWindow = () => {
         mainWindow?.webContents.send('window:unmaximized');
     });
 };
-electron_1.app.whenReady().then(() => {
-    createWindow();
-    electron_1.app.on('activate', () => {
+electron_1.app.whenReady().then(async () => {
+    await createWindow();
+    electron_1.app.on('activate', async () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
+            await createWindow();
         }
     });
 });
@@ -90,15 +106,6 @@ electron_1.app.on('window-all-closed', () => {
     }
 });
 // IPC Handlers will be added here
-let PtyService = null;
-try {
-    const ptyModule = require('./pty-service');
-    PtyService = ptyModule.PtyService;
-}
-catch (e) {
-    console.error('Failed to load PtyService:', e);
-}
-let ptyService = null;
 electron_1.ipcMain.handle('app:get-version', () => electron_1.app.getVersion());
 electron_1.ipcMain.handle('app:get-path', (event, name) => electron_1.app.getPath(name));
 // Window Controls
@@ -126,30 +133,6 @@ electron_1.ipcMain.handle('window:toggle-maximize', () => {
     else {
         mainWindow?.maximize();
     }
-});
-// Window Event Emitters
-// Note: We need to set these up after mainWindow is created, or ensure mainWindow is available
-// Moving this logic to createWindow would be better, but we can hook into the existing mainWindow if it's global
-// The listeners below this block are outside createWindow, relying on mainWindow variable.
-// However, callbacks for 'maximize' should be set on the window instance.
-// Let's modify createWindow instead to ensure listeners are modifying the correct instance
-electron_1.ipcMain.on('terminal:create', (event) => {
-    if (!PtyService) {
-        event.reply('terminal:data', '\r\n\x1b[31mError: Terminal backend (node-pty) could not be loaded.\x1b[0m\r\n\x1b[33mThis usually means build tools are missing on your system.\x1b[0m\r\n');
-        return;
-    }
-    if (ptyService)
-        return;
-    ptyService = new PtyService((data) => {
-        mainWindow?.webContents.send('terminal:data', data);
-    });
-    ptyService.create();
-});
-electron_1.ipcMain.on('terminal:write', (event, data) => {
-    ptyService?.write(data);
-});
-electron_1.ipcMain.on('terminal:resize', (event, { cols, rows }) => {
-    ptyService?.resize(cols, rows);
 });
 // File System Handlers
 const { dialog } = require('electron');

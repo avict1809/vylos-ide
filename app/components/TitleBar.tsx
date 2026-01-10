@@ -195,12 +195,11 @@ export function TitleBar() {
 
             {/* TITLE BAR ROOT */}
             <div
-                className="h-8 flex items-center bg-[#09090b] border-b border-[#27272a] text-[12.5px] text-gray-300 select-none"
-                style={{ WebkitAppRegion: "drag" }}
+                className="h-8 flex items-center bg-[#09090b] border-b border-[#27272a] text-[12.5px] text-gray-300 select-none app-region-drag"
                 onDoubleClick={() => window.electron?.window.toggleMaximize()}
             >
                 {/* LEFT: LOGO + MENUS */}
-                <div className="flex items-center h-full" style={{ WebkitAppRegion: "no-drag" }}>
+                <div className="flex items-center h-full app-region-no-drag">
                     <div className="flex items-center px-2">
                         <Image
                             src="/logo.svg"
@@ -231,8 +230,7 @@ export function TitleBar() {
 
                             {activeMenu === menu.label && (
                                 <div
-                                    className="absolute top-full left-0 mt-1 w-64 bg-[#18181b] border border-[#27272a] shadow-2xl rounded-md z-[100] py-1"
-                                    style={{ WebkitAppRegion: "no-drag" }}
+                                    className="absolute top-full left-0 mt-1 w-64 bg-[#18181b] border border-[#27272a] shadow-2xl rounded-md z-[100] py-1 app-region-no-drag"
                                 >
                                     {menu.items.map((item: any, i) =>
                                         item.type === "separator" ? (
@@ -288,8 +286,7 @@ export function TitleBar() {
 
                 {/* RIGHT: WINDOW CONTROLS */}
                 <div
-                    className="flex items-center h-full"
-                    style={{ WebkitAppRegion: "no-drag" }}
+                    className="flex items-center h-full app-region-no-drag"
                 >
                     <TitleButton onClick={() => window.electron?.window.minimize()}>
                         <Minus size={14} />

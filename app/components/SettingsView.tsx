@@ -4,7 +4,6 @@ import React from 'react';
 import {
     Monitor,
     Type,
-    Terminal as TerminalIcon,
     Layout,
     Eye,
     EyeOff,
@@ -20,7 +19,6 @@ import { cn } from '@/app/lib/utils';
 export default function SettingsView() {
     const {
         fontSize, setFontSize,
-        terminalFontSize, setTerminalFontSize,
         autoSave, setAutoSave,
         minimapEnabled, setMinimapEnabled,
         lineNumbers, setLineNumbers,
@@ -63,31 +61,11 @@ export default function SettingsView() {
                             <ToggleSetting label="Word Wrap" description="Wrap long lines to viewport" enabled={wordWrap === 'on'} onChange={(val) => setWordWrap(val ? 'on' : 'off')} icon={<WrapText size={14} />} />
                         </div>
                     </section>
-
-                    <section>
-                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <span className="w-1 h-1 bg-[var(--vylos-green)] rounded-full" />
-                            Terminal & Shell
-                        </h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between py-2">
-                                <div>
-                                    <h4 className="text-[13px] font-bold text-gray-200">Terminal Font</h4>
-                                    <p className="text-[11px] text-gray-500">Integrated console scale</p>
-                                </div>
-                                <div className="flex items-center gap-3 bg-[#09090b] border border-[#1a1a1a] rounded-lg p-1 px-3">
-                                    <button onClick={() => setTerminalFontSize(Math.max(8, terminalFontSize - 1))} className="p-1 hover:text-[var(--vylos-green)] transition-colors"><Minus size={12} /></button>
-                                    <span className="text-[11px] font-mono text-[var(--vylos-green)] w-8 text-center">{terminalFontSize}</span>
-                                    <button onClick={() => setTerminalFontSize(Math.min(24, terminalFontSize + 1))} className="p-1 hover:text-[var(--vylos-green)] transition-colors"><Plus size={12} /></button>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                 </div>
 
                 <div className="mt-12 px-8 py-8 border-t border-[#1a1a1a] flex flex-col items-center gap-3">
                     <div className="px-3 py-1 bg-[var(--vylos-green-dark)]/10 border border-[var(--vylos-green-dark)]/30 rounded-full text-[var(--vylos-green)] font-black text-[9px] uppercase tracking-widest animate-pulse">
-                        Vylos System v2.1.0 // ENTERPRISE
+                        Vylos System v0.1.0 // ENTERPRISE
                     </div>
                     <span className="text-[9px] text-gray-700 font-black uppercase tracking-[0.2em] italic">Architected for Professional Mastery</span>
                 </div>

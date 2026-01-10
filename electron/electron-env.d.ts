@@ -14,12 +14,6 @@ declare global {
                 onMaximize: (callback: () => void) => () => void;
                 onUnmaximize: (callback: () => void) => () => void;
             };
-            terminal: {
-                create: () => void;
-                write: (data: string) => void;
-                resize: (cols: number, rows: number) => void;
-                onData: (callback: (data: string) => void) => void;
-            };
             fs: {
                 list: (path: string) => Promise<{ name: string; isDirectory: boolean; path: string }[]>;
                 read: (path: string) => Promise<string | null>;

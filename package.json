@@ -2,6 +2,8 @@
   "name": "vylos",
   "version": "0.1.0",
   "private": true,
+  "description": "Vylos AI - An intelligent learning IDE for programming education",
+  "author": "Vylos Team",
   "main": "electron/dist/main.js",
   "scripts": {
     "dev": "next dev",
@@ -9,7 +11,6 @@
     "start": "next start",
     "lint": "eslint",
     "build:electron": "tsc -p electron/tsconfig.json",
-    "rebuild": "electron-rebuild -f -w node-pty",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && npm run build:electron && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && npm run build:electron && electron-builder"
   },
@@ -19,17 +20,15 @@
     "@types/fs-extra": "^11.0.4",
     "chokidar": "^5.0.0",
     "clsx": "^2.1.1",
+    "electron-serve": "^3.0.0",
     "fs-extra": "^11.3.3",
     "isomorphic-git": "^1.36.1",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
-    "node-pty": "^1.1.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-resizable-panels": "^4.2.0",
     "tailwind-merge": "^3.4.0",
-    "xterm": "^5.3.0",
-    "xterm-addon-fit": "^0.8.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -43,7 +42,6 @@
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
     "electron-icon-builder": "^2.0.1",
-    "electron-rebuild": "^3.2.9",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "tailwindcss": "^4",
@@ -51,8 +49,8 @@
     "wait-on": "^9.0.3"
   },
   "build": {
+    "productName": "Vylos AI",
     "appId": "ai.vylos.app",
-    "productName": "Vylos",
     "directories": {
       "buildResources": "build"
     },
@@ -63,10 +61,11 @@
       "package.json",
       "node_modules/**/*"
     ],
+    "npmRebuild": false,
+    "buildDependenciesFromSource": false,
     "win": {
       "target": "nsis",
-      "icon": "build/icons/win/icon.ico",
-      "publisherName": "Vylos AI"
+      "icon": "build/icons/win/icon.ico"
     },
     "mac": {
       "icon": "build/icons/mac/icon.icns"
