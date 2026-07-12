@@ -1,27 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Sparkles, Code, GraduationCap, ArrowRight, CheckCircle2, Layout, Zap, Globe } from 'lucide-react';
-import { useAuthStore } from '@/app/lib/stores/auth-store';
+import React, { useEffect, useState } from 'react';
+import { Sparkles, GraduationCap, ArrowRight, Layout, Zap, Globe, AlertTriangle, ExternalLink, X, UserPlus } from 'lucide-react';
+import { useAuthStore, isSupabaseConfigured } from '@/app/lib/stores/auth-store';
 import { cn } from '@/app/lib/utils';
 
 export default function Onboarding() {
     const [step, setStep] = useState(1);
-    const { login, setHasCompletedOnboarding } = useAuthStore();
-    const [email, setEmail] = useState('');
+    const { isAuthenticated, setHasCompletedOnboarding } = useAuthStore();
 
     const nextStep = () => {
         if (step < 3) setStep(step + 1);
     };
 
-    const handleComplete = () => {
-        if (!email) {
-            alert('Please enter your email to sign in.');
-            return;
+    // Once a real session exists, finish onboarding
+    useEffect(() => {
+        if (isAuthenticated && step === 3) {
+            setHasCompletedOnboarding(true);
         }
-        login(email);
-        setHasCompletedOnboarding(true);
-    };
+    }, [isAuthenticated, step, setHasCompletedOnboarding]);
 
     return (
         <div className="fixed inset-0 z-50 bg-[var(--vylos-black)] flex items-center justify-center p-6">
@@ -89,34 +86,7 @@ export default function Onboarding() {
                             </div>
                         )}
 
-                        {step === 3 && (
-                            <div className="animate-in slide-in-from-right duration-500">
-                                <h2 className="text-2xl font-bold text-white mb-2">Ready to start?</h2>
-                                <p className="text-sm text-gray-400 mb-8">Sign in with your Vylos account to sync your progress and access premium AI features.</p>
-
-                                <div className="space-y-4">
-                                    <div className="flex flex-col gap-2">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase">Email Address</label>
-                                        <input
-                                            type="email"
-                                            placeholder="you@example.com"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            className="w-full bg-black border border-[var(--vylos-grey-border)] rounded-lg px-4 py-3 text-sm focus:border-[var(--vylos-green)] outline-none transition-colors"
-                                        />
-                                    </div>
-                                    <button
-                                        onClick={handleComplete}
-                                        className="w-full bg-[var(--vylos-green)] hover:bg-[var(--vylos-green-accent)] text-black font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-[0_0_15px_rgba(0,255,0,0.2)]"
-                                    >
-                                        Sign In & Start Coding <Globe size={18} />
-                                    </button>
-                                    <p className="text-[10px] text-center text-gray-600">
-                                        By signing in, you agree to our Terms of Service.
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                        {step === 3 && <AuthStep />}
                     </div>
 
                     {step < 3 && (
@@ -131,6 +101,85 @@ export default function Onboarding() {
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+function AuthStep() {
+    const { signInViaBrowser, cancelBrowserSignIn, isWaitingForBrowser, error } = useAuthStore();
+
+    if (!isSupabaseConfigured) {
+        return (
+            <div className="animate-in slide-in-from-right duration-500">
+                <h2 className="text-2xl font-bold text-white mb-4">Almost there.</h2>
+                <div className="p-4 bg-yellow-500/5 border border-yellow-500/30 rounded-xl flex items-start gap-3">
+                    <AlertTriangle size={16} className="text-yellow-500 mt-0.5 shrink-0" />
+                    <div>
+                        <p className="text-xs font-bold text-yellow-500 mb-1">Supabase is not configured</p>
+                        <p className="text-[11px] text-gray-400 leading-relaxed">
+                            Add <code className="text-yellow-200">NEXT_PUBLIC_SUPABASE_URL</code> and{' '}
+                            <code className="text-yellow-200">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> to your{' '}
+                            <code className="text-yellow-200">.env</code> file (see .env.example), then restart the app.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (isWaitingForBrowser) {
+        return (
+            <div className="animate-in fade-in duration-300 flex flex-col items-center justify-center h-full text-center">
+                <div className="w-16 h-16 rounded-full border border-[var(--vylos-green)]/30 flex items-center justify-center mb-6 relative">
+                    <Globe size={22} className="text-[var(--vylos-green)]" />
+                    <div className="absolute inset-0 rounded-full border-2 border-[var(--vylos-green)] border-t-transparent animate-spin" />
+                </div>
+                <h2 className="text-lg font-bold text-white mb-2">Continue in your browser</h2>
+                <p className="text-xs text-gray-500 leading-relaxed mb-6 max-w-[260px]">
+                    Finish signing in on the page we just opened. You'll be brought back here automatically.
+                </p>
+                <button
+                    onClick={cancelBrowserSignIn}
+                    className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 hover:text-red-400 transition-colors"
+                >
+                    <X size={12} /> Cancel
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="animate-in slide-in-from-right duration-500 flex flex-col h-full">
+            <h2 className="text-2xl font-bold text-white mb-2">Ready to start?</h2>
+            <p className="text-sm text-gray-400 mb-8">
+                Sign in with your Vylos account to sync your progress and access premium AI features. Authentication happens securely in your browser.
+            </p>
+
+            {error && (
+                <div className="mb-4 p-3 bg-red-500/5 border border-red-500/30 rounded-lg flex items-start gap-2">
+                    <AlertTriangle size={13} className="text-red-400 mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-red-400 leading-snug">{error}</p>
+                </div>
+            )}
+
+            <div className="space-y-3">
+                <button
+                    onClick={() => signInViaBrowser('signin')}
+                    className="w-full bg-[var(--vylos-green)] hover:bg-[var(--vylos-green-accent)] text-black font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-[0_0_15px_rgba(0,255,0,0.2)]"
+                >
+                    Sign In <ExternalLink size={15} />
+                </button>
+                <button
+                    onClick={() => signInViaBrowser('signup')}
+                    className="w-full py-3 border border-[var(--vylos-grey-border)] hover:border-[var(--vylos-green)]/50 rounded-lg text-sm font-bold text-gray-300 flex items-center justify-center gap-2 transition-colors"
+                >
+                    <UserPlus size={15} /> Create Account
+                </button>
+            </div>
+
+            <p className="mt-6 text-[10px] text-center text-gray-600">
+                By continuing, you agree to our Terms of Service.
+            </p>
         </div>
     );
 }

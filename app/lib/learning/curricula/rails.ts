@@ -1,0 +1,142 @@
+import { Course } from '../types';
+
+export const rails: Course = {
+    id: 'rails',
+    title: 'Ruby on Rails Mastery',
+    tagline: 'Convention over configuration — full web apps at startup speed.',
+    level: 'Intermediate (Ruby required)',
+    hours: 26,
+    accent: '#CC0000',
+    badge: 'ROR',
+    category: 'framework',
+    stack: 'Ruby',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'The Rails way, and a running app in minutes.',
+            lessons: [
+                'The Rails philosophy: convention over configuration',
+                'Installing Rails and rails new',
+                'Project structure tour',
+                'The MVC request cycle in Rails',
+                'rails server, console, and generators',
+            ],
+        },
+        {
+            title: 'Routes & Controllers',
+            description: 'RESTful routing and the controller layer.',
+            lessons: [
+                'routes.rb and RESTful resources',
+                'The seven controller actions',
+                'Params and strong parameters',
+                'Redirects and renders',
+                'Flash messages',
+                'rails routes and debugging routing',
+            ],
+        },
+        {
+            title: 'Views with ERB',
+            description: 'Server-rendered HTML, the Rails way.',
+            lessons: [
+                'ERB templates and layouts',
+                'Partials and collections',
+                'View helpers (link_to, form_with)',
+                'Asset pipeline / importmaps overview',
+                'Exercise: styled index and show pages',
+            ],
+        },
+        {
+            title: 'Models & Active Record',
+            description: 'The ORM that made ORMs popular.',
+            lessons: [
+                'Migrations and schema',
+                'CRUD with Active Record',
+                'Validations',
+                'Associations: belongs_to, has_many, through',
+                'Query interface: where, order, joins, includes',
+                'Scopes',
+                'Callbacks (and their dangers)',
+                'The N+1 problem and bullet',
+            ],
+        },
+        {
+            title: 'CRUD End to End',
+            description: 'A full resource, built by hand (no scaffold mystery).',
+            lessons: [
+                'New/create with form_with',
+                'Edit/update and PATCH',
+                'Destroy with confirmation',
+                'Nested resources',
+                'Exercise: posts with comments',
+            ],
+        },
+        {
+            title: 'Authentication',
+            description: 'Sessions and secure passwords.',
+            lessons: [
+                'has_secure_password and bcrypt',
+                'Signup, login, logout with sessions',
+                'current_user and helpers',
+                'Authorization checks (ownership)',
+                'Devise: the popular alternative (overview)',
+            ],
+        },
+        {
+            title: 'Hotwire: Turbo & Stimulus',
+            description: 'Modern interactivity without a JS framework.',
+            lessons: [
+                'Why Hotwire exists',
+                'Turbo Drive (free speed)',
+                'Turbo Frames for partial updates',
+                'Turbo Streams for live changes',
+                'Stimulus controllers for sprinkles of JS',
+                'Exercise: inline editing with frames',
+            ],
+        },
+        {
+            title: 'The Rails Toolbox',
+            description: 'Uploads, email, and background work — all built in.',
+            lessons: [
+                'Active Storage: file uploads',
+                'Action Mailer: sending email',
+                'Active Job and background queues',
+                'Caching basics',
+                'Internationalization (i18n) overview',
+            ],
+        },
+        {
+            title: 'Testing',
+            description: 'The test culture Rails is famous for.',
+            lessons: [
+                'Minitest vs RSpec (course uses Minitest)',
+                'Model tests',
+                'Controller/integration tests',
+                'System tests with Capybara',
+                'Fixtures',
+            ],
+        },
+        {
+            title: 'Deployment',
+            description: 'Take it live.',
+            lessons: [
+                'Production config and credentials',
+                'PostgreSQL setup',
+                'Deploying with Kamal (or Render)',
+                'Migrations in production',
+                'Logs and error monitoring',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A polished, deployed Rails application.',
+            lessons: [
+                'Scoping: marketplace or forum',
+                'Models and associations',
+                'Auth and authorization',
+                'Hotwire-powered UX',
+                'Uploads and email',
+                'Tests and deploy',
+            ],
+        },
+    ],
+};

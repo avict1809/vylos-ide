@@ -22,6 +22,10 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
             return () => electron_1.ipcRenderer.removeListener('window:unmaximized', subscription);
         }
     },
+    auth: {
+        signInViaBrowser: (config) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', config),
+        cancel: () => electron_1.ipcRenderer.invoke('auth:cancel'),
+    },
     fs: {
         listAll: (path) => electron_1.ipcRenderer.invoke('fs:listAll', path),
         list: (path) => electron_1.ipcRenderer.invoke('fs:list', path),
@@ -45,6 +49,25 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
     },
     find: {
         search: (query, rootDir) => electron_1.ipcRenderer.invoke('find:search', query, rootDir)
+    },
+    term: {
+        run: (opts) => electron_1.ipcRenderer.invoke('term:run', opts),
+        kill: (runId) => electron_1.ipcRenderer.invoke('term:kill', runId),
+        onStarted: (callback) => {
+            const subscription = (_event, data) => callback(data);
+            electron_1.ipcRenderer.on('term:started', subscription);
+            return () => electron_1.ipcRenderer.removeListener('term:started', subscription);
+        },
+        onOutput: (callback) => {
+            const subscription = (_event, data) => callback(data);
+            electron_1.ipcRenderer.on('term:output', subscription);
+            return () => electron_1.ipcRenderer.removeListener('term:output', subscription);
+        },
+        onExit: (callback) => {
+            const subscription = (_event, data) => callback(data);
+            electron_1.ipcRenderer.on('term:exit', subscription);
+            return () => electron_1.ipcRenderer.removeListener('term:exit', subscription);
+        },
     },
     git: {
         status: (rootDir) => electron_1.ipcRenderer.invoke('git:status', rootDir),

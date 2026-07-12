@@ -1,4 +1,4 @@
-import { Files, Search, Settings, Sparkles, GitGraph, UserCircle, BookOpen } from "lucide-react";
+import { Files, Search, Settings, Sparkles, GitGraph, UserCircle, BookOpen, AudioLines } from "lucide-react";
 import { useFileStore } from "../lib/useFileStore";
 import { cn } from "@/app/lib/utils";
 import { useState, useEffect } from 'react';
@@ -48,6 +48,7 @@ export function ActivityBar() {
                 <ActivityIcon id="search" icon={Search} label="Search" />
                 <ActivityIcon id="learning" icon={BookOpen} label="Learning Path" />
                 <ActivityIcon id="ai" icon={Sparkles} label="Vylos AI" />
+                <ActivityIcon id="tutor" icon={AudioLines} label="Voice Tutor" />
                 <ActivityIcon id="git" icon={GitGraph} label="Source Control" badge={gitChanges} />
             </div>
             <div className="flex flex-col">

@@ -1,0 +1,143 @@
+import { Course } from '../types';
+
+export const spring: Course = {
+    id: 'spring',
+    title: 'Spring Boot Mastery',
+    tagline: 'The framework that runs enterprise Java — REST, JPA, and security.',
+    level: 'Intermediate (Java required)',
+    hours: 28,
+    accent: '#6DB33F',
+    badge: 'SPR',
+    category: 'framework',
+    stack: 'Java',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'Spring vs Spring Boot, and a running app in minutes.',
+            lessons: [
+                'What Spring solves (and what Boot adds)',
+                'Spring Initializr: generating a project',
+                'Project anatomy: Maven/Gradle, application class',
+                'Running the app and hot reload (devtools)',
+                'application.properties / application.yml',
+            ],
+        },
+        {
+            title: 'Core Concepts: IoC & DI',
+            description: 'The container behind every Spring app.',
+            lessons: [
+                'Inversion of Control explained',
+                'Beans and the application context',
+                'Component scanning (@Component, @Service)',
+                'Constructor injection (the right way)',
+                '@Configuration and @Bean',
+                'Profiles and environment-specific config',
+                '@Value and @ConfigurationProperties',
+            ],
+        },
+        {
+            title: 'Web with Spring MVC',
+            description: 'Controllers, requests, and responses.',
+            lessons: [
+                '@RestController and @RequestMapping',
+                'Path variables and request params',
+                'Request bodies with @RequestBody',
+                'ResponseEntity and status codes',
+                'Content negotiation (JSON)',
+                'Exercise: first endpoints',
+            ],
+        },
+        {
+            title: 'Data with Spring Data JPA',
+            description: 'Entities, repositories, and queries without boilerplate.',
+            lessons: [
+                'JPA and Hibernate in two minutes',
+                'Entities and @Id generation',
+                'Repositories: CrudRepository / JpaRepository',
+                'Derived query methods',
+                '@Query and JPQL',
+                'Relationships (@OneToMany, @ManyToMany)',
+                'Lazy vs eager loading (and the classic traps)',
+                'H2 for dev, PostgreSQL for real',
+            ],
+        },
+        {
+            title: 'Validation & Error Handling',
+            description: 'Consistent, client-friendly failures.',
+            lessons: [
+                'Bean Validation (@NotNull, @Size, custom)',
+                '@Valid in controllers',
+                '@ControllerAdvice and @ExceptionHandler',
+                'A standard error response shape',
+                'Problem details (RFC 7807)',
+            ],
+        },
+        {
+            title: 'Designing the REST API',
+            description: 'DTOs, mapping, and pagination like production code.',
+            lessons: [
+                'Entities vs DTOs (never expose entities)',
+                'Mapping with MapStruct or manual mappers',
+                'Pagination and sorting with Pageable',
+                'Versioning strategies',
+                'OpenAPI docs with springdoc',
+            ],
+        },
+        {
+            title: 'Security',
+            description: 'Spring Security without the fear.',
+            lessons: [
+                'How the security filter chain works',
+                'Configuring SecurityFilterChain',
+                'Password encoding',
+                'JWT authentication end to end',
+                'Method security (@PreAuthorize)',
+                'CORS configuration',
+            ],
+        },
+        {
+            title: 'Testing',
+            description: 'The Spring testing toolkit.',
+            lessons: [
+                'Unit tests vs slice tests vs integration tests',
+                '@WebMvcTest and MockMvc',
+                '@DataJpaTest',
+                '@SpringBootTest',
+                'Testcontainers for a real database',
+            ],
+        },
+        {
+            title: 'Beyond the Basics',
+            description: 'The features you meet in real codebases.',
+            lessons: [
+                'Actuator: health and metrics',
+                'Caching with @Cacheable',
+                'Scheduling with @Scheduled',
+                'Application events',
+                'Calling other services (RestClient/WebClient)',
+            ],
+        },
+        {
+            title: 'Deployment',
+            description: 'From fat jar to container.',
+            lessons: [
+                'Building an executable jar',
+                'Externalized configuration',
+                'Dockerizing a Spring Boot app',
+                'Deploying and health checks',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A production-grade REST service.',
+            lessons: [
+                'Scoping: library or orders service',
+                'Entities, repositories, and migrations (Flyway)',
+                'Service layer and DTOs',
+                'JWT security with roles',
+                'Test suite with Testcontainers',
+                'Docker deploy and docs',
+            ],
+        },
+    ],
+};

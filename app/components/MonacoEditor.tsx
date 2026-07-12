@@ -5,6 +5,9 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import { vylosTheme } from '@/app/lib/theme';
 import { useConfigStore } from '@/app/lib/stores/config-store';
 import { useFileStore } from '@/app/lib/useFileStore';
+import { registerEditor, unregisterEditor } from '@/app/lib/editor-bridge';
+import { setupAiCodeHints } from '@/app/lib/ai/code-hover';
+import { setupStepGuide } from '@/app/lib/ai/step-guide';
 import ContextMenu from './ContextMenu';
 import { Sparkles, Save, Search, Code, GraduationCap } from 'lucide-react';
 
@@ -124,6 +127,16 @@ export default function MonacoEditor({
 
     const handleEditorDidMount = (editor: any, monaco: any) => {
         editorRef.current = editor;
+
+        // Give the voice tutor access for highlighting/scrolling
+        registerEditor(editor, monaco);
+        editor.onDidDispose?.(() => unregisterEditor(editor));
+
+        // AI hover hints: underline functions/classes, explain them on hover
+        setupAiCodeHints(editor, monaco);
+
+        // Step-by-step problem solving: comment a problem, get graded hints via CodeLens
+        setupStepGuide(editor, monaco);
 
         // Register custom context menu
         editor.onContextMenu(handleContextMenu);

@@ -1,0 +1,130 @@
+import { Course } from '../types';
+
+export const aspnet: Course = {
+    id: 'aspnet',
+    title: 'ASP.NET Core Mastery',
+    tagline: 'Fast, cross-platform web APIs and apps with C# and .NET.',
+    level: 'Intermediate (C# required)',
+    hours: 24,
+    accent: '#8B7CF6',
+    badge: '.NET',
+    category: 'framework',
+    stack: 'C#',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'The modern .NET web stack, mapped out.',
+            lessons: [
+                'ASP.NET Core: minimal APIs, MVC, Razor, Blazor — what’s what',
+                'dotnet new webapi and project anatomy',
+                'Program.cs: the builder pattern',
+                'Kestrel and how requests arrive',
+                'Hot reload and launch profiles',
+            ],
+        },
+        {
+            title: 'Minimal APIs',
+            description: 'Endpoints with almost no ceremony.',
+            lessons: [
+                'MapGet/MapPost and route patterns',
+                'Route parameters and binding',
+                'Reading bodies and returning Results',
+                'Route groups',
+                'TypedResults and OpenAPI',
+                'Exercise: first CRUD endpoints',
+            ],
+        },
+        {
+            title: 'Dependency Injection & Configuration',
+            description: 'The built-in container every service flows through.',
+            lessons: [
+                'Service lifetimes: singleton, scoped, transient',
+                'Registering and consuming services',
+                'appsettings.json and environments',
+                'The options pattern (IOptions)',
+                'User secrets for development',
+            ],
+        },
+        {
+            title: 'Entity Framework Core',
+            description: 'Data access with LINQ and migrations.',
+            lessons: [
+                'DbContext and DbSet',
+                'Migrations workflow',
+                'Querying with LINQ',
+                'Tracking vs no-tracking',
+                'Relationships and navigation properties',
+                'Loading strategies (Include, the N+1 trap)',
+                'SQLite for dev, PostgreSQL/SQL Server for prod',
+            ],
+        },
+        {
+            title: 'Designing the REST API',
+            description: 'Contracts your clients can rely on.',
+            lessons: [
+                'DTOs and mapping',
+                'Validation (data annotations / FluentValidation)',
+                'Consistent errors with ProblemDetails',
+                'Pagination, filtering, sorting',
+                'API versioning',
+                'Swagger/OpenAPI polish',
+            ],
+        },
+        {
+            title: 'Middleware Pipeline',
+            description: 'What happens between request and response.',
+            lessons: [
+                'The pipeline model (Use, Map, Run)',
+                'Built-in middleware order',
+                'Writing custom middleware',
+                'Exception handling middleware',
+                'CORS',
+            ],
+        },
+        {
+            title: 'Authentication & Authorization',
+            description: 'Identity, JWTs, and policies.',
+            lessons: [
+                'AuthN vs AuthZ in ASP.NET Core',
+                'JWT bearer authentication setup',
+                'Issuing tokens (login endpoint)',
+                'ASP.NET Core Identity overview',
+                'Authorization policies and roles',
+                'Protecting endpoints',
+            ],
+        },
+        {
+            title: 'Testing',
+            description: 'Fast in-memory tests of the real pipeline.',
+            lessons: [
+                'xUnit refresher',
+                'WebApplicationFactory integration tests',
+                'Testing with a test database',
+                'Mocking services in tests',
+            ],
+        },
+        {
+            title: 'Deployment',
+            description: 'Containers and cloud.',
+            lessons: [
+                'Publishing (dotnet publish)',
+                'Dockerizing a .NET API',
+                'Configuration in production',
+                'Health checks and logging',
+                'Deploying to a host / Azure overview',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A production-shaped API with auth and tests.',
+            lessons: [
+                'Scoping: ticketing or store API',
+                'Data model + EF migrations',
+                'Endpoints with validation and ProblemDetails',
+                'JWT auth with policies',
+                'Integration test suite',
+                'Docker deploy',
+            ],
+        },
+    ],
+};

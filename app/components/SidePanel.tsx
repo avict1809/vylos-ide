@@ -7,20 +7,23 @@ import SearchView from "./SearchView";
 import GitView from "./GitView";
 import SettingsView from "./SettingsView";
 import AccountView from "./AccountView";
+import TutorPanel from "./voice/TutorPanel";
 import { useFileStore } from "../lib/useFileStore";
 import { useRoadmapStore } from "../lib/stores/roadmap-store";
+import { useCourseStore } from "../lib/stores/course-store";
 import { useEffect } from "react";
 
 export default function SidePanel() {
     const { activeView, setActiveView } = useFileStore();
     const { currentRoadmap } = useRoadmapStore();
+    const { activeCourseId } = useCourseStore();
 
-    // Feature Gating: If user tries to access AI without a roadmap, redirect to Learning
+    // Feature Gating: If user tries to access AI without a learning path (course or roadmap), redirect to Learning
     useEffect(() => {
-        if (activeView === 'ai' && !currentRoadmap) {
+        if (activeView === 'ai' && !currentRoadmap && !activeCourseId) {
             setActiveView('learning');
         }
-    }, [activeView, currentRoadmap, setActiveView]);
+    }, [activeView, currentRoadmap, activeCourseId, setActiveView]);
 
     return (
         <div className="h-full flex flex-col bg-[#000000] animate-in slide-in-from-left-2 duration-300">
@@ -33,6 +36,7 @@ export default function SidePanel() {
                 {activeView === 'learning' && <RoadmapView />}
                 {activeView === 'settings' && <SettingsView />}
                 {activeView === 'account' && <AccountView />}
+                {activeView === 'tutor' && <TutorPanel />}
             </div>
         </div>
     );

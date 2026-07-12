@@ -1,4 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { spawn, ChildProcess } from 'child_process';
+import http from 'http';
 import path from 'path';
 import chokidar, { FSWatcher } from 'chokidar';
 import fs from 'fs/promises';
@@ -78,6 +80,115 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+// Auth: full web sign-in. The system browser opens a Vylos auth page served
+// from this localhost server; the page talks to Supabase (email + OAuth) and
+// POSTs the resulting session tokens back to /auth/complete.
+const AUTH_PORT = 51735;
+const AUTH_PAGE_URL = `http://localhost:${AUTH_PORT}/`;
+const AUTH_TIMEOUT_MS = 10 * 60 * 1000;
+
+interface AuthResult {
+    access_token?: string;
+    refresh_token?: string;
+    error?: string;
+}
+
+let authServer: http.Server | null = null;
+let settleAuth: ((result: AuthResult) => void) | null = null;
+
+const closeAuthServer = () => {
+    if (authServer) {
+        authServer.close();
+        authServer = null;
+    }
+};
+
+const readBody = (req: http.IncomingMessage): Promise<string> =>
+    new Promise((resolve, reject) => {
+        let body = '';
+        req.on('data', (chunk) => {
+            body += chunk;
+            if (body.length > 64 * 1024) reject(new Error('Body too large'));
+        });
+        req.on('end', () => resolve(body));
+        req.on('error', reject);
+    });
+
+ipcMain.handle('auth:signInViaBrowser', (event, config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) => {
+    // Supersede any in-flight attempt
+    settleAuth?.({ error: 'cancelled' });
+    closeAuthServer();
+
+    return new Promise<AuthResult>((resolve) => {
+        let settled = false;
+        const settle = (result: AuthResult) => {
+            if (settled) return;
+            settled = true;
+            settleAuth = null;
+            clearTimeout(timer);
+            // Let the success page's fetch response flush before closing
+            setTimeout(closeAuthServer, 2000);
+            resolve(result);
+        };
+        settleAuth = settle;
+
+        const timer = setTimeout(() => settle({ error: 'Sign-in timed out. Please try again.' }), AUTH_TIMEOUT_MS);
+
+        authServer = http.createServer(async (req, res) => {
+            const url = new URL(req.url ?? '/', AUTH_PAGE_URL);
+
+            try {
+                if (req.method === 'GET' && url.pathname === '/') {
+                    const template = await fs.readFile(path.join(__dirname, '../auth-page.html'), 'utf-8');
+                    const page = template.replace('__VYLOS_AUTH_CONFIG__', JSON.stringify({
+                        url: config.supabaseUrl,
+                        anonKey: config.supabaseAnonKey,
+                        mode: config.mode === 'signup' ? 'signup' : 'signin',
+                        pageUrl: AUTH_PAGE_URL,
+                    }));
+                    res.writeHead(200, { 'Content-Type': 'text/html' }).end(page);
+                } else if (req.method === 'GET' && url.pathname === '/supabase.js') {
+                    const lib = await fs.readFile(require.resolve('@supabase/supabase-js/dist/umd/supabase.js'));
+                    res.writeHead(200, { 'Content-Type': 'application/javascript' }).end(lib);
+                } else if (req.method === 'POST' && url.pathname === '/auth/complete') {
+                    const { access_token, refresh_token } = JSON.parse(await readBody(req));
+                    if (typeof access_token !== 'string' || typeof refresh_token !== 'string') {
+                        res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"ok":false}');
+                        return;
+                    }
+                    res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
+
+                    // Bring the app back to the front
+                    if (mainWindow) {
+                        if (mainWindow.isMinimized()) mainWindow.restore();
+                        mainWindow.show();
+                        mainWindow.focus();
+                    }
+                    settle({ access_token, refresh_token });
+                } else {
+                    res.writeHead(404).end();
+                }
+            } catch (e) {
+                res.writeHead(500).end();
+            }
+        });
+
+        authServer.on('error', (e: NodeJS.ErrnoException) => {
+            settle({ error: e.code === 'EADDRINUSE' ? `Port ${AUTH_PORT} is already in use by another program.` : e.message });
+        });
+
+        authServer.listen(AUTH_PORT, '127.0.0.1', () => {
+            shell.openExternal(AUTH_PAGE_URL);
+        });
+    });
+});
+
+ipcMain.handle('auth:cancel', () => {
+    settleAuth?.({ error: 'cancelled' });
+    closeAuthServer();
+    return true;
 });
 
 // IPC Handlers will be added here
@@ -313,6 +424,79 @@ ipcMain.handle('fs:write', async (event, filePath, content) => {
     } catch (e) {
         return false;
     }
+});
+
+// Terminal runner: executes shell commands (e.g. python3/node interpreters),
+// streaming output live to the renderer. Used by both the terminal panel and
+// the AI voice tutor's run_command tool.
+const TERM_MAX_OUTPUT = 200 * 1024;
+const TERM_DEFAULT_TIMEOUT_MS = 30_000;
+const TERM_MAX_TIMEOUT_MS = 120_000;
+
+const termProcs = new Map<number, ChildProcess>();
+let nextRunId = 1;
+
+ipcMain.handle('term:run', (event, opts: { command: string; cwd?: string; timeoutMs?: number }) => {
+    const runId = nextRunId++;
+    const command = String(opts.command ?? '').trim();
+    if (!command) return { runId, exitCode: -1, output: '', error: 'Empty command' };
+
+    return new Promise((resolve) => {
+        let output = '';
+        let truncated = false;
+        let timedOut = false;
+
+        mainWindow?.webContents.send('term:started', { runId, command, cwd: opts.cwd ?? null });
+
+        const child = spawn(command, {
+            shell: true,
+            cwd: opts.cwd || undefined,
+            env: process.env,
+        });
+        termProcs.set(runId, child);
+
+        const timeoutMs = Math.min(Math.max(opts.timeoutMs ?? TERM_DEFAULT_TIMEOUT_MS, 1000), TERM_MAX_TIMEOUT_MS);
+        const timer = setTimeout(() => {
+            timedOut = true;
+            child.kill('SIGKILL');
+        }, timeoutMs);
+
+        const onChunk = (stream: 'stdout' | 'stderr') => (data: Buffer) => {
+            const text = data.toString();
+            if (output.length < TERM_MAX_OUTPUT) {
+                output += text;
+            } else {
+                truncated = true;
+            }
+            mainWindow?.webContents.send('term:output', { runId, chunk: text, stream });
+        };
+        child.stdout?.on('data', onChunk('stdout'));
+        child.stderr?.on('data', onChunk('stderr'));
+
+        child.on('error', (err) => {
+            clearTimeout(timer);
+            termProcs.delete(runId);
+            mainWindow?.webContents.send('term:exit', { runId, exitCode: -1, timedOut: false, error: err.message });
+            resolve({ runId, exitCode: -1, output, truncated, timedOut: false, error: err.message });
+        });
+
+        child.on('close', (code) => {
+            clearTimeout(timer);
+            termProcs.delete(runId);
+            const exitCode = code ?? -1;
+            mainWindow?.webContents.send('term:exit', { runId, exitCode, timedOut });
+            resolve({ runId, exitCode, output, truncated, timedOut });
+        });
+    });
+});
+
+ipcMain.handle('term:kill', (event, runId: number) => {
+    const child = termProcs.get(runId);
+    if (child) {
+        child.kill('SIGKILL');
+        return true;
+    }
+    return false;
 });
 
 // Git Handlers with isomorphic-git

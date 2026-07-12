@@ -1,0 +1,142 @@
+import { Course } from '../types';
+
+export const fastapi: Course = {
+    id: 'fastapi',
+    title: 'FastAPI Mastery',
+    tagline: 'Modern async Python APIs with automatic docs and type-driven validation.',
+    level: 'Intermediate (Python required)',
+    hours: 18,
+    accent: '#009688',
+    badge: 'FA',
+    category: 'framework',
+    stack: 'Python',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'Why FastAPI became the default for Python APIs.',
+            lessons: [
+                'FastAPI, Starlette, and Pydantic: the stack',
+                'Installing and running with uvicorn',
+                'Your first endpoint',
+                'Automatic interactive docs (/docs, /redoc)',
+                'How type hints drive everything',
+            ],
+        },
+        {
+            title: 'Path & Query Parameters',
+            description: 'Typed inputs, validated for free.',
+            lessons: [
+                'Path parameters and converters',
+                'Query parameters and defaults',
+                'Optional parameters',
+                'Validation with Path() and Query()',
+                'Enums for fixed choices',
+                'Exercise: filtering endpoint with rich params',
+            ],
+        },
+        {
+            title: 'Request Bodies & Pydantic',
+            description: 'Model your data once; validate everywhere.',
+            lessons: [
+                'Pydantic BaseModel',
+                'Request body endpoints',
+                'Field validation and constraints',
+                'Nested models',
+                'response_model and output shaping',
+                'model_config and examples for the docs',
+            ],
+        },
+        {
+            title: 'Building a CRUD API',
+            description: 'Professional endpoint design.',
+            lessons: [
+                'Organizing with APIRouter',
+                'CRUD endpoints for a resource',
+                'Status codes and HTTPException',
+                'Consistent error responses',
+                'Tags and metadata for the docs',
+                'Exercise: in-memory items API',
+            ],
+        },
+        {
+            title: 'Dependency Injection',
+            description: 'FastAPI’s superpower for clean, testable code.',
+            lessons: [
+                'Depends() basics',
+                'Dependencies with parameters',
+                'Class-based dependencies',
+                'Sub-dependencies',
+                'Dependencies for auth and DB sessions',
+                'Global dependencies',
+            ],
+        },
+        {
+            title: 'Databases',
+            description: 'SQL persistence with SQLModel/SQLAlchemy.',
+            lessons: [
+                'Choosing SQLModel vs SQLAlchemy',
+                'Engine, sessions, and models',
+                'CRUD with a real database',
+                'Session-per-request via dependencies',
+                'Migrations with Alembic',
+                'Async database access overview',
+            ],
+        },
+        {
+            title: 'Authentication & Security',
+            description: 'OAuth2 password flow with JWTs, step by step.',
+            lessons: [
+                'Security schemes in FastAPI',
+                'Password hashing',
+                'OAuth2PasswordBearer and the token endpoint',
+                'Creating and verifying JWTs',
+                'The current-user dependency',
+                'Scopes and role checks',
+            ],
+        },
+        {
+            title: 'Async, Background & WebSockets',
+            description: 'The concurrent side of FastAPI.',
+            lessons: [
+                'async def vs def endpoints (what actually happens)',
+                'Calling async libraries (httpx)',
+                'Background tasks',
+                'WebSockets basics',
+                'Streaming responses',
+            ],
+        },
+        {
+            title: 'Testing',
+            description: 'Fast, isolated API tests.',
+            lessons: [
+                'TestClient with pytest',
+                'Testing CRUD and auth flows',
+                'Overriding dependencies in tests',
+                'Test database setup',
+            ],
+        },
+        {
+            title: 'Deployment & Production',
+            description: 'Serve it fast and safely.',
+            lessons: [
+                'Settings management (pydantic-settings)',
+                'CORS and middleware',
+                'Docker for FastAPI',
+                'uvicorn workers behind a proxy',
+                'Logging and monitoring basics',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A documented, tested, deployed API.',
+            lessons: [
+                'Scoping: bookings or inventory API',
+                'Models and routers',
+                'Database layer with dependencies',
+                'JWT auth with roles',
+                'Full test suite',
+                'Dockerize and deploy',
+            ],
+        },
+    ],
+};

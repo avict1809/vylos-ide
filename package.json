@@ -17,6 +17,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@monaco-editor/react": "^4.7.0",
+    "@supabase/supabase-js": "^2.110.2",
     "@types/fs-extra": "^11.0.4",
     "chokidar": "^5.0.0",
     "clsx": "^2.1.1",
@@ -56,6 +57,7 @@
     },
     "files": [
       "electron/dist/**/*",
+      "electron/auth-page.html",
       "out/**/*",
       "public/**/*",
       "package.json",

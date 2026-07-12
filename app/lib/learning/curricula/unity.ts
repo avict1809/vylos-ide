@@ -1,0 +1,140 @@
+import { Course } from '../types';
+
+export const unity: Course = {
+    id: 'unity',
+    title: 'Unity Game Development',
+    tagline: 'Build and ship real games with C# and the world’s most popular engine.',
+    level: 'Intermediate (C# required)',
+    hours: 30,
+    accent: '#cccccc',
+    badge: 'UN',
+    category: 'framework',
+    stack: 'C#',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'The editor, scenes, and how Unity thinks.',
+            lessons: [
+                'Installing Unity Hub and an editor version',
+                'Editor tour: Scene, Game, Hierarchy, Inspector, Project',
+                'GameObjects and Components: the core model',
+                'Scenes and saving your work',
+                'Navigating the scene view like a pro',
+            ],
+        },
+        {
+            title: 'C# Scripting in Unity',
+            description: 'Bring objects to life with MonoBehaviours.',
+            lessons: [
+                'Creating and attaching scripts',
+                'The lifecycle: Awake, Start, Update, FixedUpdate',
+                'SerializeField and the Inspector',
+                'Time.deltaTime (frame independence)',
+                'Finding and referencing other objects',
+                'Debug.Log and the console',
+                'Exercise: rotating collectible',
+            ],
+        },
+        {
+            title: 'Movement & Physics',
+            description: 'Transforms, rigidbodies, and collisions.',
+            lessons: [
+                'Moving with Transform',
+                'Rigidbody physics (2D and 3D)',
+                'Colliders and physics materials',
+                'Collisions vs triggers (OnCollisionEnter / OnTriggerEnter)',
+                'Layers and the collision matrix',
+                'Exercise: player that collects coins',
+            ],
+        },
+        {
+            title: 'Input',
+            description: 'Responsive controls with the Input System.',
+            lessons: [
+                'The Input System package',
+                'Actions and action maps',
+                'Keyboard, mouse, and gamepad',
+                'A reusable player controller',
+                'Jumping and ground checks',
+            ],
+        },
+        {
+            title: 'Prefabs & Spawning',
+            description: 'Reusable objects and runtime instantiation.',
+            lessons: [
+                'Creating and editing prefabs',
+                'Prefab variants',
+                'Instantiate and Destroy',
+                'Spawners (enemies, pickups)',
+                'Object pooling (why and a simple version)',
+            ],
+        },
+        {
+            title: 'User Interface',
+            description: 'Menus, HUDs, and text that doesn’t look terrible.',
+            lessons: [
+                'Canvas and anchoring',
+                'TextMeshPro',
+                'Buttons and events',
+                'Health bars and score displays',
+                'Pause menu and scene flow',
+            ],
+        },
+        {
+            title: 'Audio & Effects',
+            description: 'Juice: the difference between a demo and a game.',
+            lessons: [
+                'AudioSource and AudioListener',
+                'Sound effects and music',
+                'Particle systems basics',
+                'Camera shake and feedback',
+                'Simple screen transitions',
+            ],
+        },
+        {
+            title: 'Game Architecture',
+            description: 'Keep the project sane as it grows.',
+            lessons: [
+                'GameManager and singletons (used carefully)',
+                'ScriptableObjects for data',
+                'Events and decoupling (UnityEvent / C# events)',
+                'Scene loading and persistence between scenes',
+                'Saving and loading (PlayerPrefs / JSON)',
+            ],
+        },
+        {
+            title: 'Animation',
+            description: 'The Animator and bringing characters to life.',
+            lessons: [
+                'Animation clips and the Animation window',
+                'Animator controller and states',
+                'Transitions and parameters',
+                'Blending and layers overview',
+                'Animating UI',
+            ],
+        },
+        {
+            title: 'Project: A Complete 2D Game',
+            description: 'Everything so far, combined into one shippable game.',
+            lessons: [
+                'Designing the game (platformer or top-down)',
+                'Player, enemies, and hazards',
+                'Levels and checkpoints',
+                'Score, lives, and game over flow',
+                'Menus and audio pass',
+                'Playtesting and tuning',
+            ],
+        },
+        {
+            title: 'Build & Publish',
+            description: 'Get your game into players’ hands.',
+            lessons: [
+                'Build settings per platform',
+                'PC builds and WebGL',
+                'Performance basics (profiler first look)',
+                'Publishing to itch.io',
+                'Next steps: mobile and consoles',
+            ],
+        },
+    ],
+};

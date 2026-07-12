@@ -18,10 +18,7 @@ export default function AccountView() {
                     <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Profile Center</span>
                 </div>
                 <button
-                    onClick={async () => {
-                        // Adding a slight delay for better UX feel
-                        logout();
-                    }}
+                    onClick={() => logout()}
                     className="p-1.5 hover:bg-red-500/10 hover:text-red-500 rounded transition-colors group relative"
                     title="Logout"
                 >
@@ -35,8 +32,12 @@ export default function AccountView() {
             <div className="flex-1 overflow-y-auto">
                 {/* Profile Header */}
                 <div className="p-6 flex flex-col items-center border-b border-[var(--vylos-grey-border)]/50">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--vylos-green-dark)] to-[var(--vylos-black)] border-2 border-[var(--vylos-green)] mb-4 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,0,0.1)]">
-                        <span className="text-3xl font-black text-white">{user.name.charAt(0).toUpperCase()}</span>
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--vylos-green-dark)] to-[var(--vylos-black)] border-2 border-[var(--vylos-green)] mb-4 flex items-center justify-center shadow-[0_0_20px_rgba(0,255,0,0.1)] overflow-hidden">
+                        {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <span className="text-3xl font-black text-white">{user.name.charAt(0).toUpperCase()}</span>
+                        )}
                     </div>
                     <h3 className="text-lg font-bold text-white">{user.name}</h3>
                     <p className="text-xs text-gray-500">{user.email}</p>

@@ -1,9 +1,15 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { useAuthStore } from './lib/stores/auth-store';
 
 export function Providers({ children }: { children: ReactNode }) {
-    // Add contexts here if needed (e.g. Theme, Auth)
+    const initialize = useAuthStore((s) => s.initialize);
+
+    useEffect(() => {
+        initialize();
+    }, [initialize]);
+
     return (
         <>
             {children}

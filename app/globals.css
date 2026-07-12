@@ -130,3 +130,23 @@ body {
 .app-region-no-drag {
   -webkit-app-region: no-drag;
 }
+/* Voice tutor line highlight ("pointing at" code) */
+.monaco-editor .vylos-tutor-highlight {
+  background: rgba(16, 185, 129, 0.12) !important;
+}
+
+.monaco-editor .vylos-tutor-highlight-gutter {
+  background: var(--vylos-green);
+  width: 3px !important;
+  margin-left: 3px;
+}
+
+/* AI code hints: hover an underlined definition for an explanation */
+.monaco-editor .vylos-ai-hint {
+  border-bottom: 1px dotted rgba(0, 255, 0, 0.35);
+}
+
+.monaco-editor .vylos-ai-hint:hover {
+  border-bottom-color: var(--vylos-green);
+  border-bottom-style: solid;
+}

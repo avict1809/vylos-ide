@@ -1,0 +1,131 @@
+import { Course } from '../types';
+
+export const flask: Course = {
+    id: 'flask',
+    title: 'Flask Mastery',
+    tagline: 'Python’s micro-framework — small core, total control, real apps.',
+    level: 'Intermediate (Python required)',
+    hours: 18,
+    accent: '#cccccc',
+    badge: 'FL',
+    category: 'framework',
+    stack: 'Python',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'Micro-framework philosophy and a first app in 10 lines.',
+            lessons: [
+                'Flask vs Django: choosing the right tool',
+                'Installing Flask in a virtual environment',
+                'Your first app and the dev server',
+                'Debug mode and the interactive debugger',
+                'How WSGI fits underneath',
+            ],
+        },
+        {
+            title: 'Routing & Views',
+            description: 'URLs, methods, and the request/response cycle.',
+            lessons: [
+                'Route decorators',
+                'Variable rules (<int:id>)',
+                'HTTP methods on routes',
+                'The request object (args, form, json)',
+                'Responses, status codes, and redirects',
+                'url_for',
+            ],
+        },
+        {
+            title: 'Templates with Jinja2',
+            description: 'Server-rendered HTML with Python-friendly syntax.',
+            lessons: [
+                'Rendering templates',
+                'Expressions, filters, and control structures',
+                'Template inheritance',
+                'Static files',
+                'Flash messages',
+                'Exercise: layout + three pages',
+            ],
+        },
+        {
+            title: 'Forms',
+            description: 'Safe form handling with Flask-WTF.',
+            lessons: [
+                'Handling POST data manually (and its limits)',
+                'Flask-WTF and form classes',
+                'Validators',
+                'Rendering and re-displaying forms with errors',
+                'CSRF protection',
+            ],
+        },
+        {
+            title: 'Databases with SQLAlchemy',
+            description: 'Models, sessions, and migrations.',
+            lessons: [
+                'Flask-SQLAlchemy setup',
+                'Defining models',
+                'Create, query, update, delete',
+                'Relationships',
+                'Migrations with Flask-Migrate (Alembic)',
+                'Exercise: notes with categories',
+            ],
+        },
+        {
+            title: 'Authentication',
+            description: 'Sessions and logins with Flask-Login.',
+            lessons: [
+                'Password hashing (werkzeug)',
+                'Registration and login routes',
+                'Flask-Login: user loader and login_required',
+                'Sessions and remember-me',
+                'Protecting routes and ownership checks',
+            ],
+        },
+        {
+            title: 'Blueprints & Application Factory',
+            description: 'The structure that keeps Flask apps maintainable.',
+            lessons: [
+                'Why single-file apps stop scaling',
+                'The application factory pattern',
+                'Blueprints for features',
+                'Configuration classes per environment',
+                'Extensions initialization',
+            ],
+        },
+        {
+            title: 'Building JSON APIs',
+            description: 'Flask as a lightweight API backend.',
+            lessons: [
+                'JSON responses and jsonify',
+                'RESTful route design',
+                'Validating payloads (pydantic/marshmallow)',
+                'Error handlers returning JSON',
+                'CORS for frontend clients',
+                'Token auth for APIs',
+            ],
+        },
+        {
+            title: 'Testing & Deployment',
+            description: 'Prove it works, then ship it.',
+            lessons: [
+                'pytest with the Flask test client',
+                'Fixtures and a test database',
+                'Testing auth flows',
+                'Gunicorn and production config',
+                'Docker for Flask',
+                'Deploying to a host',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A full Flask application, structured like the pros do it.',
+            lessons: [
+                'Scoping: task manager or blog with API',
+                'Factory + blueprints skeleton',
+                'Models and migrations',
+                'Auth and forms',
+                'JSON API endpoints',
+                'Tests and deploy',
+            ],
+        },
+    ],
+};

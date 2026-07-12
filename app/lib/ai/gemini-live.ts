@@ -3,9 +3,34 @@ import { AudioProcessor } from './audio-processor';
 const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const HOST = 'generativelanguage.googleapis.com';
 const URI = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
+// NOTE: the -12-2025 preview build is broken for this app's configuration:
+// it accepts the session, then kills it mid-response with 1007
+// "The audio content type (CONTENT_TYPE_AUDIO) is not supported for this
+// model configuration" once real mic audio streams during a model turn.
+// The -09-2025 build handles the identical session correctly (verified 2026-07-12).
+const MODEL = 'models/gemini-2.5-flash-native-audio-preview-09-2025';
 
 // Constants for Gemini's audio format
 const RESPONSE_SAMPLE_RATE = 24000;
+
+export type TutorEvent =
+    | { type: 'connected' }
+    | { type: 'closed'; reason?: string }
+    | { type: 'error'; message: string }
+    | { type: 'tutor-transcript'; text: string }
+    | { type: 'user-transcript'; text: string }
+    | { type: 'tool-start'; name: string; args: Record<string, any> }
+    | { type: 'tool-done'; name: string }
+    | { type: 'turn-complete' }
+    | { type: 'interrupted' };
+
+export interface VoiceSessionOptions {
+    voiceName: string;
+    systemInstruction: string;
+    toolDeclarations: object[];
+    executeTool: (name: string, args: Record<string, any>) => Promise<object>;
+    onEvent: (event: TutorEvent) => void;
+}
 
 let ws: WebSocket | null = null;
 let audioProcessor: AudioProcessor | null = null;
@@ -54,35 +79,35 @@ class PCMPlayer {
         const currentTime = this.audioContext.currentTime;
         if (this.nextStartTime < currentTime) {
             this.nextStartTime = currentTime;
-            console.log(`PCMPlayer: nextStartTime adjusted to current time: ${this.nextStartTime.toFixed(3)}s`);
         }
 
         source.start(this.nextStartTime);
         this.nextStartTime += audioBuffer.duration;
-        console.log(`PCMPlayer: Scheduled chunk (duration: ${audioBuffer.duration.toFixed(3)}s) to start at ${this.nextStartTime.toFixed(3)}s.`);
     }
 
     reset() {
-        console.log("PCMPlayer: Resetting audio playback schedule due to interruption.");
         // Reset the schedule so new audio plays immediately
         this.nextStartTime = this.audioContext.currentTime;
     }
 
     stop() {
         if (this.audioContext.state !== 'closed') {
-            console.log("PCMPlayer: Closing AudioContext.");
             this.audioContext.close();
         }
     }
 }
 
-export async function startVoiceSession(onMessage: (text: string) => void) {
+export async function startVoiceSession(options: VoiceSessionOptions) {
+    const { voiceName, systemInstruction, toolDeclarations, executeTool, onEvent } = options;
+
     if (!API_KEY) {
-        console.error("API Key missing");
+        onEvent({ type: 'error', message: 'Gemini API key missing. Add NEXT_PUBLIC_GEMINI_API_KEY to .env.' });
         return;
     }
 
-    // Initialize the player
+    // Tear down any previous session first
+    stopVoiceSession();
+
     pcmPlayer = new PCMPlayer();
 
     const startMic = () => {
@@ -91,7 +116,7 @@ export async function startVoiceSession(onMessage: (text: string) => void) {
                 ws.send(JSON.stringify({
                     realtime_input: {
                         media_chunks: [{
-                            mime_type: "audio/pcm;rate=16000",
+                            mime_type: 'audio/pcm;rate=16000',
                             data: base64Audio
                         }]
                     }
@@ -101,75 +126,107 @@ export async function startVoiceSession(onMessage: (text: string) => void) {
         audioProcessor.start();
     };
 
+    const handleToolCall = async (toolCall: any) => {
+        const functionCalls: any[] = toolCall.functionCalls || toolCall.function_calls || [];
+        const responses = [];
+
+        for (const fc of functionCalls) {
+            onEvent({ type: 'tool-start', name: fc.name, args: fc.args || {} });
+            let result: object;
+            try {
+                result = await executeTool(fc.name, fc.args || {});
+            } catch (e) {
+                result = { error: e instanceof Error ? e.message : 'Tool execution failed' };
+            }
+            onEvent({ type: 'tool-done', name: fc.name });
+            responses.push({ id: fc.id, name: fc.name, response: { result } });
+        }
+
+        if (ws?.readyState === WebSocket.OPEN && responses.length > 0) {
+            ws.send(JSON.stringify({ tool_response: { function_responses: responses } }));
+        }
+    };
+
     try {
         ws = new WebSocket(URI);
 
         ws.onopen = () => {
-            console.log("WebSocket opened, checking state...");
-
-            // Guard: Wait until the state is explicitly OPEN (1)
             const sendSetup = () => {
                 if (ws && ws.readyState === WebSocket.OPEN) {
-                    console.log("Connection verified OPEN. Sending setup...");
                     ws.send(JSON.stringify({
                         setup: {
-                            model: "models/gemini-2.5-flash-native-audio-preview-12-2025",
+                            model: MODEL,
                             generation_config: {
-                                response_modalities: ["AUDIO"],
+                                response_modalities: ['AUDIO'],
                                 speech_config: {
                                     voice_config: {
                                         prebuilt_voice_config: {
-                                            voice_name: "Zephyr"
+                                            voice_name: voiceName
                                         }
                                     }
                                 }
-                            }
+                            },
+                            system_instruction: {
+                                parts: [{ text: systemInstruction }]
+                            },
+                            tools: [{ function_declarations: toolDeclarations }],
+                            // Transcribe the tutor's speech (for captions) and the learner's
+                            output_audio_transcription: {},
+                            input_audio_transcription: {},
                         }
                     }));
                 } else {
-                    console.warn("Socket not ready yet, retrying in 100ms...");
                     setTimeout(sendSetup, 100);
                 }
             };
-
             sendSetup();
         };
 
         ws.onmessage = async (event) => {
             // Handle both text (JSON) and binary (Blob) messages
             let msg;
-
             if (event.data instanceof Blob) {
-                // Convert Blob to text for JSON parsing
                 const text = await event.data.text();
                 try {
                     msg = JSON.parse(text);
                 } catch (e) {
-                    console.warn("Received non-JSON Blob, treating as binary audio data");
-                    // If it's not JSON, it might be raw audio - skip for now
-                    return;
+                    return; // Non-JSON blob; ignore
                 }
             } else {
                 msg = JSON.parse(event.data);
             }
 
-            console.log("Gemini Live Message:", msg);
-
-            if (msg.setupComplete) {
-                console.log("Gemini Live Setup Complete!");
+            if (msg.setupComplete || msg.setup_complete) {
                 startMic();
+                onEvent({ type: 'connected' });
+                return;
+            }
+
+            const toolCall = msg.toolCall || msg.tool_call;
+            if (toolCall) {
+                handleToolCall(toolCall);
+                return;
             }
 
             const serverContent = msg.serverContent || msg.server_content;
-            if (serverContent?.modelTurn?.parts || serverContent?.model_turn?.parts) {
-                const parts = serverContent.modelTurn?.parts || serverContent.model_turn.parts;
-                for (const part of parts) {
-                    // 1. Handle Transcripts
+            if (!serverContent) return;
+
+            // Captions for what the tutor is saying
+            const outTranscript = serverContent.outputTranscription || serverContent.output_transcription;
+            if (outTranscript?.text) {
+                onEvent({ type: 'tutor-transcript', text: outTranscript.text });
+            }
+            const inTranscript = serverContent.inputTranscription || serverContent.input_transcription;
+            if (inTranscript?.text) {
+                onEvent({ type: 'user-transcript', text: inTranscript.text });
+            }
+
+            const modelTurn = serverContent.modelTurn || serverContent.model_turn;
+            if (modelTurn?.parts) {
+                for (const part of modelTurn.parts) {
                     if (part.text) {
-                        console.log("Gemini Transcript:", part.text);
-                        onMessage(part.text);
+                        onEvent({ type: 'tutor-transcript', text: part.text });
                     }
-                    // 2. Handle Audio Playback
                     const audioData = part.inlineData?.data || part.inline_data?.data;
                     if (audioData) {
                         pcmPlayer?.playChunk(audioData);
@@ -177,41 +234,43 @@ export async function startVoiceSession(onMessage: (text: string) => void) {
                 }
             }
 
-            // Handle Server-side interruptions (Stops playback if you start talking)
-            if (serverContent?.interrupted) {
-                console.log("Interrupted by user");
+            // Server-side interruption: user started talking over the tutor
+            if (serverContent.interrupted) {
                 pcmPlayer?.reset();
+                onEvent({ type: 'interrupted' });
+            }
+
+            if (serverContent.turnComplete || serverContent.turn_complete) {
+                onEvent({ type: 'turn-complete' });
             }
         };
 
-        ws.onerror = (e) => {
-            console.error("WebSocket Error:", e);
-            console.error("WebSocket State:", ws?.readyState);
-            console.error("API Key Present:", !!API_KEY);
-            console.error("Connection URI:", URI.replace(API_KEY || '', 'API_KEY_HIDDEN'));
+        ws.onerror = () => {
+            onEvent({ type: 'error', message: 'Voice connection error. Check your internet and API key.' });
         };
 
         ws.onclose = (e) => {
-            console.log(`Voice Session Ended. Code: ${e.code}, Reason: ${e.reason}`);
-            if (e.code === 1006) {
-                console.error("Connection closed abnormally. This usually indicates:");
-                console.error("1. Invalid API key");
-                console.error("2. Network/firewall blocking WebSocket");
-                console.error("3. API endpoint unavailable");
-            }
+            const reason = e.code === 1006
+                ? 'Connection closed unexpectedly (check API key / network).'
+                : e.reason || undefined;
             stopVoiceSession();
+            onEvent({ type: 'closed', reason });
         };
 
     } catch (e) {
-        console.error("Failed to start voice session", e);
+        onEvent({ type: 'error', message: e instanceof Error ? e.message : 'Failed to start voice session' });
     }
 }
 
 export function stopVoiceSession() {
     audioProcessor?.stop();
     pcmPlayer?.stop();
-    if (ws && ws.readyState !== WebSocket.CLOSED) {
-        ws.close();
+    if (ws) {
+        // Prevent the close handler from re-entering stopVoiceSession
+        ws.onclose = null;
+        if (ws.readyState !== WebSocket.CLOSED) {
+            ws.close();
+        }
     }
     ws = null;
     audioProcessor = null;

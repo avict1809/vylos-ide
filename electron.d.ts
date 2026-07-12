@@ -13,22 +13,35 @@ declare global {
                 onMaximize: (callback: () => void) => () => void;
                 onUnmaximize: (callback: () => void) => () => void;
             };
+            auth: {
+                signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
+                    Promise<{ access_token?: string; refresh_token?: string; error?: string }>;
+                cancel: () => Promise<boolean>;
+            };
             fs: {
                 listAll: (path: string) => Promise<string[]>;
                 list: (path: string) => Promise<any[]>;
                 read: (path: string) => Promise<string | null>;
                 write: (path: string, content: string) => Promise<boolean>;
+                watch: (path: string) => Promise<boolean>;
+                createFile: (path: string) => Promise<boolean>;
+                createDirectory: (path: string) => Promise<boolean>;
+                delete: (path: string) => Promise<boolean>;
+                rename: (oldPath: string, newPath: string) => Promise<boolean>;
+                onChanged: (callback: (data: { event: string; path: string }) => void) => () => void;
             };
             dialog: {
                 openFile: () => Promise<string | null>;
                 openDirectory: () => Promise<string | null>;
                 saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
             };
-            terminal: {
-                create: () => void;
-                write: (data: string) => void;
-                resize: (cols: number, rows: number) => void;
-                onData: (callback: (data: string) => void) => () => void;
+            term: {
+                run: (opts: { command: string; cwd?: string; timeoutMs?: number }) =>
+                    Promise<{ runId: number; exitCode: number; output: string; truncated?: boolean; timedOut?: boolean; error?: string }>;
+                kill: (runId: number) => Promise<boolean>;
+                onStarted: (callback: (data: { runId: number; command: string; cwd: string | null }) => void) => () => void;
+                onOutput: (callback: (data: { runId: number; chunk: string; stream: 'stdout' | 'stderr' }) => void) => () => void;
+                onExit: (callback: (data: { runId: number; exitCode: number; timedOut: boolean; error?: string }) => void) => () => void;
             };
             find: {
                 search: (query: string, rootDir: string) => Promise<any[]>;

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in to Vylos</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        background: #000;
+        color: #e5e5e5;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+    .glow {
+        position: fixed; inset: 0; pointer-events: none;
+        background: radial-gradient(circle at 50% 0%, rgba(16,185,129,.08) 0%, transparent 55%);
+    }
+    .card {
+        position: relative;
+        width: 100%;
+        max-width: 380px;
+        background: #0d0d0d;
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 36px 32px;
+        box-shadow: 0 25px 60px rgba(0,0,0,.6);
+    }
+    .brand { text-align: center; margin-bottom: 28px; }
+    .brand h1 { font-size: 26px; font-weight: 900; letter-spacing: -1px; color: #fff; }
+    .brand h1 span { color: #10b981; }
+    .brand p { font-size: 9px; letter-spacing: 4px; text-transform: uppercase; color: #666; font-weight: 700; margin-top: 6px; }
+    .tabs { display: flex; background: #000; border: 1px solid #1f1f1f; border-radius: 10px; padding: 3px; margin-bottom: 20px; }
+    .tabs button {
+        flex: 1; padding: 8px; border: 0; border-radius: 8px; background: transparent;
+        color: #888; font-size: 12px; font-weight: 700; cursor: pointer; transition: all .2s;
+    }
+    .tabs button.active { background: #10b981; color: #000; }
+    .field { margin-bottom: 12px; }
+    input {
+        width: 100%; background: #000; border: 1px solid #262626; border-radius: 10px;
+        padding: 12px 14px; color: #fff; font-size: 14px; outline: none; transition: border-color .2s;
+    }
+    input:focus { border-color: #10b981; }
+    .primary {
+        width: 100%; padding: 12px; border: 0; border-radius: 10px; background: #10b981;
+        color: #000; font-size: 14px; font-weight: 800; cursor: pointer; margin-top: 4px;
+        box-shadow: 0 0 18px rgba(16,185,129,.25); transition: all .15s;
+    }
+    .primary:hover { background: #0ea371; }
+    .primary:disabled { opacity: .55; cursor: default; }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: #555; font-size: 9px; letter-spacing: 2px; font-weight: 700; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #1f1f1f; }
+    .oauth {
+        width: 100%; padding: 11px; border: 1px solid #262626; border-radius: 10px; background: #111;
+        color: #ddd; font-size: 13px; font-weight: 700; cursor: pointer; display: flex;
+        align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px; transition: all .15s;
+    }
+    .oauth:hover { border-color: #3a3a3a; background: #161616; }
+    .error {
+        display: none; background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.35);
+        color: #f87171; border-radius: 10px; padding: 10px 12px; font-size: 12px; margin-bottom: 14px; line-height: 1.4;
+    }
+    .state { display: none; text-align: center; padding: 12px 0; }
+    .state .icon {
+        width: 60px; height: 60px; margin: 0 auto 18px; border-radius: 50%;
+        background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.35);
+        display: flex; align-items: center; justify-content: center; font-size: 26px;
+    }
+    .state h2 { font-size: 17px; color: #fff; margin-bottom: 8px; }
+    .state p { font-size: 12.5px; color: #888; line-height: 1.5; }
+    .state button { margin-top: 18px; background: none; border: 0; color: #10b981; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .foot { text-align: center; font-size: 10px; color: #555; margin-top: 20px; }
+    .spinner {
+        width: 16px; height: 16px; border: 2px solid rgba(0,0,0,.3); border-top-color: #000;
+        border-radius: 50%; display: inline-block; vertical-align: -3px; margin-right: 8px;
+        animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="glow"></div>
+<div class="card">
+    <div class="brand">
+        <h1>VYLOS<span>AI</span></h1>
+        <p>Next Gen Learning IDE</p>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <div id="auth-forms">
+        <div class="tabs">
+            <button id="tab-signin" onclick="setMode('signin')">Sign In</button>
+            <button id="tab-signup" onclick="setMode('signup')">Create Account</button>
+        </div>
+
+        <button class="oauth" onclick="oauth('google')">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            Continue with Google
+        </button>
+        <button class="oauth" onclick="oauth('github')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.55v-2.15c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.28-1.68-1.28-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.75 2.69 1.25 3.34.95.1-.74.4-1.25.72-1.54-2.55-.29-5.23-1.28-5.23-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.1 11.1 0 0 1 5.78 0c2.21-1.49 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.67.41.35.77 1.05.77 2.12v3.14c0 .3.21.66.8.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5z"/></svg>
+            Continue with GitHub
+        </button>
+
+        <div class="divider">OR</div>
+
+        <form id="email-form" onsubmit="return submitEmail(event)">
+            <div class="field" id="name-field" style="display:none">
+                <input type="text" id="name" placeholder="Your name" autocomplete="name">
+            </div>
+            <div class="field">
+                <input type="email" id="email" placeholder="you@example.com" required autocomplete="email">
+            </div>
+            <div class="field">
+                <input type="password" id="password" placeholder="Password" required minlength="6" autocomplete="current-password">
+            </div>
+            <button type="submit" class="primary" id="submit-btn">Sign In</button>
+        </form>
+    </div>
+
+    <div id="state-done" class="state">
+        <div class="icon">&#10003;</div>
+        <h2>You're signed in</h2>
+        <p>You can close this tab and return to <strong style="color:#10b981">Vylos</strong>.</p>
+    </div>
+
+    <div id="state-confirm" class="state">
+        <div class="icon">&#9993;</div>
+        <h2>Check your email</h2>
+        <p>We sent a confirmation link to <span id="confirm-email" style="color:#ddd"></span>.<br>Confirm it, then come back here to sign in.</p>
+        <button onclick="backToSignIn()">Back to sign in</button>
+    </div>
+
+    <div id="state-continue" class="state">
+        <div class="icon">&#128075;</div>
+        <h2>Welcome back</h2>
+        <p>Continue as <span id="continue-email" style="color:#ddd"></span>?</p>
+        <button class="primary" style="margin-top:18px" onclick="continueSession()">Continue to Vylos</button>
+        <button onclick="useAnotherAccount()">Use another account</button>
+    </div>
+
+    <div class="foot">By continuing, you agree to the Vylos Terms of Service.</div>
+</div>
+
+<script src="/supabase.js"></script>
+<script>
+    var cfg = __VYLOS_AUTH_CONFIG__;
+    var sb = supabase.createClient(cfg.url, cfg.anonKey, {
+        auth: { flowType: 'pkce', persistSession: true, detectSessionInUrl: true }
+    });
+
+    var mode = cfg.mode === 'signup' ? 'signup' : 'signin';
+    var delivered = false;
+    var existingSession = null;
+
+    function el(id) { return document.getElementById(id); }
+    function show(id, on) { el(id).style.display = on ? 'block' : 'none'; }
+
+    function setMode(m) {
+        mode = m;
+        el('tab-signin').className = m === 'signin' ? 'active' : '';
+        el('tab-signup').className = m === 'signup' ? 'active' : '';
+        el('name-field').style.display = m === 'signup' ? 'block' : 'none';
+        el('name').required = m === 'signup';
+        el('password').placeholder = m === 'signup' ? 'Create a password (6+ characters)' : 'Password';
+        el('password').autocomplete = m === 'signup' ? 'new-password' : 'current-password';
+        el('submit-btn').textContent = m === 'signup' ? 'Create Account' : 'Sign In';
+        showError('');
+    }
+
+    function showError(msg) {
+        el('error').textContent = msg;
+        el('error').style.display = msg ? 'block' : 'none';
+    }
+
+    function setBusy(busy) {
+        var b = el('submit-btn');
+        b.disabled = busy;
+        b.innerHTML = busy
+            ? '<span class="spinner"></span>' + (mode === 'signup' ? 'Creating account…' : 'Signing in…')
+            : (mode === 'signup' ? 'Create Account' : 'Sign In');
+    }
+
+    function deliver(session) {
+        if (delivered) return;
+        delivered = true;
+        fetch('/auth/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                access_token: session.access_token,
+                refresh_token: session.refresh_token
+            })
+        }).then(function () {
+            show('auth-forms', false);
+            show('state-continue', false);
+            show('state-done', true);
+        }).catch(function () {
+            delivered = false;
+            showError('Could not hand the session back to the app. Is Vylos still running?');
+        });
+    }
+
+    function submitEmail(e) {
+        e.preventDefault();
+        showError('');
+        setBusy(true);
+        var email = el('email').value.trim();
+        var password = el('password').value;
+
+        if (mode === 'signup') {
+            sb.auth.signUp({
+                email: email,
+                password: password,
+                options: { data: { full_name: el('name').value.trim() } }
+            }).then(function (res) {
+                setBusy(false);
+                if (res.error) return showError(res.error.message);
+                if (!res.data.session) {
+                    el('confirm-email').textContent = email;
+                    show('auth-forms', false);
+                    show('state-confirm', true);
+                }
+                // If a session came back, onAuthStateChange delivers it
+            });
+        } else {
+            sb.auth.signInWithPassword({ email: email, password: password }).then(function (res) {
+                setBusy(false);
+                if (res.error) return showError(res.error.message);
+            });
+        }
+        return false;
+    }
+
+    function oauth(provider) {
+        showError('');
+        sb.auth.signInWithOAuth({
+            provider: provider,
+            options: { redirectTo: cfg.pageUrl }
+        }).then(function (res) {
+            if (res.error) showError(res.error.message);
+        });
+    }
+
+    function backToSignIn() {
+        show('state-confirm', false);
+        show('auth-forms', true);
+        setMode('signin');
+    }
+
+    function continueSession() {
+        if (existingSession) deliver(existingSession);
+    }
+
+    function useAnotherAccount() {
+        existingSession = null;
+        sb.auth.signOut().then(function () {
+            show('state-continue', false);
+            show('auth-forms', true);
+        });
+    }
+
+    sb.auth.onAuthStateChange(function (event, session) {
+        if (event === 'SIGNED_IN' && session) deliver(session);
+        if (event === 'INITIAL_SESSION' && session && !delivered) {
+            // A previous session lives in this browser; offer one-click continue
+            existingSession = session;
+            el('continue-email').textContent = session.user && session.user.email ? session.user.email : 'your account';
+            show('auth-forms', false);
+            show('state-continue', true);
+        }
+    });
+
+    setMode(mode);
+</script>
+</body>
+</html>

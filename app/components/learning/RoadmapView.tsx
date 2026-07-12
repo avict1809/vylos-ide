@@ -1,16 +1,77 @@
 'use client';
 
+import { useState } from 'react';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
-import { CheckCircle, Circle, Trophy, ArrowRight, Target } from 'lucide-react';
+import { useCourseStore } from '@/app/lib/stores/course-store';
+import { getCourse } from '@/app/lib/learning/curricula';
+import { CheckCircle, Circle, Trophy, ArrowRight, ArrowLeft, Target, Sparkles } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import RoadmapCreator from './RoadmapCreator';
+import CourseCatalog from './CourseCatalog';
+import CourseView from './CourseView';
 
 export default function RoadmapView() {
-    const { currentRoadmap, completeMilestone } = useRoadmapStore();
+    const { currentRoadmap } = useRoadmapStore();
+    const { activeCourseId, backToCatalog } = useCourseStore();
+    const [view, setView] = useState<'auto' | 'catalog' | 'creator'>('auto');
 
-    if (!currentRoadmap) {
-        return <RoadmapCreator />;
+    const course = activeCourseId ? getCourse(activeCourseId) : undefined;
+
+    if (view === 'creator' && !currentRoadmap) {
+        return (
+            <div className="h-full relative">
+                <button
+                    onClick={() => setView('catalog')}
+                    className="absolute top-4 left-4 z-10 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-[var(--vylos-green)] transition-colors"
+                >
+                    <ArrowLeft size={11} /> Catalog
+                </button>
+                <RoadmapCreator />
+            </div>
+        );
     }
+
+    if (view !== 'catalog') {
+        if (course) {
+            return (
+                <CourseView
+                    course={course}
+                    onBack={() => {
+                        backToCatalog();
+                        setView('catalog');
+                    }}
+                />
+            );
+        }
+        if (currentRoadmap) {
+            return (
+                <AIRoadmapView
+                    onBack={() => setView('catalog')}
+                    onNewPath={() => setView('creator')}
+                />
+            );
+        }
+    }
+
+    return (
+        <CourseCatalog
+            onOpenCourse={(id) => {
+                useCourseStore.getState().setActiveCourse(id);
+                setView('auto');
+            }}
+            onCustomPath={() => setView('creator')}
+            onResumeRoadmap={() => {
+                backToCatalog();
+                setView('auto');
+            }}
+        />
+    );
+}
+
+function AIRoadmapView({ onBack, onNewPath }: { onBack: () => void; onNewPath: () => void }) {
+    const { currentRoadmap, completeMilestone, clearRoadmap } = useRoadmapStore();
+
+    if (!currentRoadmap) return null;
 
     const completedCount = currentRoadmap.milestones.filter(m => m.completed).length;
     const progress = (completedCount / currentRoadmap.milestones.length) * 100;
@@ -19,6 +80,23 @@ export default function RoadmapView() {
         <div className="h-full flex flex-col bg-[var(--vylos-black)]">
             {/* Header Content */}
             <div className="p-6 border-b border-[var(--vylos-grey-border)] bg-gradient-to-br from-[#09090b] to-black">
+                <div className="flex items-center justify-between mb-3">
+                    <button
+                        onClick={onBack}
+                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-[var(--vylos-green)] transition-colors"
+                    >
+                        <ArrowLeft size={11} /> Catalog
+                    </button>
+                    <button
+                        onClick={() => {
+                            clearRoadmap();
+                            onNewPath();
+                        }}
+                        className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-gray-600 hover:text-[var(--vylos-green)] transition-colors"
+                    >
+                        <Sparkles size={10} /> New Path
+                    </button>
+                </div>
                 <div className="flex items-center gap-2 mb-2">
                     <Target size={14} className="text-[var(--vylos-green)]" />
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vylos-text-secondary)]">Current Objective</span>

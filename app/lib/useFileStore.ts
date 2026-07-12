@@ -18,7 +18,7 @@ interface FileStore {
     openFiles: FileTab[];
     activeFileIndex: number | null;
     isReading: boolean;
-    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account';
+    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor';
     projectRoot: string | null;
     fileToClose: FileTab | null;
     showTerminal: boolean;
@@ -51,8 +51,9 @@ interface FileStore {
     updateActiveContent: (content: string) => void;
     saveActiveFile: () => Promise<void>;
     saveActiveFileAs: () => Promise<void>;
-    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account') => void;
+    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor') => void;
     toggleTerminal: () => void;
+    setShowTerminal: (show: boolean) => void;
     setShowQuickOpen: (show: boolean) => void;
     setShowAbout: (show: boolean) => void;
     setMonacoAction: (action: string | null) => void;
@@ -319,6 +320,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
     setActiveView: (view) => set({ activeView: view }),
 
     toggleTerminal: () => set((state) => ({ showTerminal: !state.showTerminal })),
+
+    setShowTerminal: (show) => set({ showTerminal: show }),
 
     setShowQuickOpen: (show) => set({ showQuickOpen: show }),
 

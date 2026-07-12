@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld('electron', {
             return () => ipcRenderer.removeListener('window:unmaximized', subscription);
         }
     },
+    auth: {
+        signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
+            ipcRenderer.invoke('auth:signInViaBrowser', config),
+        cancel: () => ipcRenderer.invoke('auth:cancel'),
+    },
     fs: {
         listAll: (path: string) => ipcRenderer.invoke('fs:listAll', path),
         list: (path: string) => ipcRenderer.invoke('fs:list', path),
@@ -44,6 +49,25 @@ contextBridge.exposeInMainWorld('electron', {
     },
     find: {
         search: (query: string, rootDir: string) => ipcRenderer.invoke('find:search', query, rootDir)
+    },
+    term: {
+        run: (opts: { command: string; cwd?: string; timeoutMs?: number }) => ipcRenderer.invoke('term:run', opts),
+        kill: (runId: number) => ipcRenderer.invoke('term:kill', runId),
+        onStarted: (callback: (data: { runId: number; command: string; cwd: string | null }) => void) => {
+            const subscription = (_event: any, data: any) => callback(data);
+            ipcRenderer.on('term:started', subscription);
+            return () => ipcRenderer.removeListener('term:started', subscription);
+        },
+        onOutput: (callback: (data: { runId: number; chunk: string; stream: 'stdout' | 'stderr' }) => void) => {
+            const subscription = (_event: any, data: any) => callback(data);
+            ipcRenderer.on('term:output', subscription);
+            return () => ipcRenderer.removeListener('term:output', subscription);
+        },
+        onExit: (callback: (data: { runId: number; exitCode: number; timedOut: boolean; error?: string }) => void) => {
+            const subscription = (_event: any, data: any) => callback(data);
+            ipcRenderer.on('term:exit', subscription);
+            return () => ipcRenderer.removeListener('term:exit', subscription);
+        },
     },
     git: {
         status: (rootDir: string) => ipcRenderer.invoke('git:status', rootDir),

@@ -1,0 +1,142 @@
+import { Course } from '../types';
+
+export const ios: Course = {
+    id: 'ios',
+    title: 'iOS with SwiftUI',
+    tagline: 'From your first View to the App Store.',
+    level: 'Intermediate (Swift required)',
+    hours: 28,
+    accent: '#0A84FF',
+    badge: 'iOS',
+    category: 'framework',
+    stack: 'Swift',
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'Xcode, the simulator, and the anatomy of an app.',
+            lessons: [
+                'Xcode tour: navigator, canvas, inspector',
+                'Creating a SwiftUI app project',
+                'The App protocol and scene structure',
+                'Running on simulator and device',
+                'Previews: your fastest feedback loop',
+            ],
+        },
+        {
+            title: 'Views & Layout',
+            description: 'Compose interfaces from small views.',
+            lessons: [
+                'Text, Image, Button, and modifiers',
+                'VStack, HStack, ZStack',
+                'Spacing, padding, and frames',
+                'Spacer and layout priorities',
+                'SF Symbols',
+                'Custom view components',
+                'Exercise: profile screen',
+            ],
+        },
+        {
+            title: 'State & Data Flow',
+            description: 'SwiftUI’s reactive update model.',
+            lessons: [
+                '@State',
+                '@Binding: sharing mutable state',
+                '@Observable model classes',
+                'Environment values and @Environment',
+                'Data flow rules of thumb',
+                'Exercise: interactive settings screen',
+            ],
+        },
+        {
+            title: 'Lists & Navigation',
+            description: 'The backbone of most iOS apps.',
+            lessons: [
+                'List and ForEach',
+                'Identifiable data',
+                'NavigationStack and navigation links',
+                'Navigation with values and paths',
+                'Swipe actions, sections, and pull-to-refresh',
+                'Sheets, alerts, and confirmation dialogs',
+                'TabView',
+            ],
+        },
+        {
+            title: 'Forms & User Input',
+            description: 'Settings-style screens and validation.',
+            lessons: [
+                'Form and controls (TextField, Toggle, Picker)',
+                'Focus management',
+                'Input validation patterns',
+                'Keyboard types and submit labels',
+                'Exercise: add/edit item form',
+            ],
+        },
+        {
+            title: 'Networking',
+            description: 'Async data from real APIs.',
+            lessons: [
+                'URLSession with async/await',
+                'Codable decoding',
+                'Loading and error states in views',
+                'The .task modifier',
+                'AsyncImage',
+                'Exercise: API-driven list app',
+            ],
+        },
+        {
+            title: 'Persistence',
+            description: 'Keep data between launches.',
+            lessons: [
+                'UserDefaults and @AppStorage',
+                'SwiftData: models and model container',
+                'Queries with @Query',
+                'Insert, update, delete',
+                'Choosing persistence per use case',
+            ],
+        },
+        {
+            title: 'Architecture',
+            description: 'Structure that scales past the demo.',
+            lessons: [
+                'MVVM in SwiftUI',
+                'Dependency injection basics',
+                'Splitting features into modules/folders',
+                'Testable view models',
+            ],
+        },
+        {
+            title: 'Polish',
+            description: 'The details users feel.',
+            lessons: [
+                'Animations (withAnimation, transitions)',
+                'Haptics',
+                'Accessibility (VoiceOver, Dynamic Type)',
+                'App icon and launch screen',
+                'Dark mode support',
+            ],
+        },
+        {
+            title: 'Testing & Shipping',
+            description: 'Quality gates, then the App Store.',
+            lessons: [
+                'Unit tests with XCTest',
+                'UI tests basics',
+                'App signing and provisioning (demystified)',
+                'TestFlight beta distribution',
+                'App Store submission overview',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A polished app worthy of your portfolio.',
+            lessons: [
+                'Scoping: habit tracker or weather app',
+                'Screen map and models',
+                'SwiftData persistence',
+                'Networking layer',
+                'Animations and accessibility pass',
+                'TestFlight build',
+            ],
+        },
+    ],
+};
