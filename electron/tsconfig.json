@@ -12,6 +12,7 @@
     "include": [
         "./main.ts",
         "./preload.ts",
+        "./updater.ts",
         "./pty-service.ts"
     ]
 }

@@ -1,6 +1,18 @@
 export { };
 
 declare global {
+    type UpdateStatus = 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+
+    interface UpdateState {
+        status: UpdateStatus;
+        version: string | null;
+        percent: number;
+        message: string | null;
+        /** True once an update exists — the app is blocked until it is installed */
+        required: boolean;
+        currentVersion: string;
+    }
+
     interface Window {
         electron: {
             getVersion: () => Promise<string>;
@@ -17,6 +29,12 @@ declare global {
                 signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
                     Promise<{ access_token?: string; refresh_token?: string; error?: string }>;
                 cancel: () => Promise<boolean>;
+            };
+            updates: {
+                getState: () => Promise<UpdateState>;
+                check: () => Promise<UpdateState>;
+                install: () => Promise<boolean>;
+                onState: (callback: (state: UpdateState) => void) => () => void;
             };
             fs: {
                 listAll: (path: string) => Promise<string[]>;

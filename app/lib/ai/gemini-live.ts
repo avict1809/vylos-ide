@@ -32,9 +32,34 @@ export interface VoiceSessionOptions {
     onEvent: (event: TutorEvent) => void;
 }
 
-let ws: WebSocket | null = null;
-let audioProcessor: AudioProcessor | null = null;
-let pcmPlayer: PCMPlayer | null = null;
+/**
+ * One live connection to Gemini. Everything that can outlive a session —
+ * socket callbacks, mic chunks, in-flight tool calls, queued audio — is tagged
+ * with the session it belongs to, so a torn-down session can never speak or
+ * act through its replacement.
+ */
+interface LiveSession {
+    id: number;
+    voiceName: string;
+    ws: WebSocket | null;
+    audioProcessor: AudioProcessor | null;
+    player: PCMPlayer | null;
+    /**
+     * Bumped on every interruption. Audio and tool results carrying an older
+     * generation belong to the reply the learner just talked over, and are
+     * dropped instead of being mixed into the new one.
+     */
+    generation: number;
+    closed: boolean;
+}
+
+let current: LiveSession | null = null;
+let nextSessionId = 1;
+
+/** True only while `session` is the session the app is actually listening to. */
+function isCurrent(session: LiveSession): boolean {
+    return current === session && !session.closed;
+}
 
 /**
  * Handles playing raw PCM audio chunks with proper scheduling to avoid pops/clicks.
@@ -42,6 +67,9 @@ let pcmPlayer: PCMPlayer | null = null;
 class PCMPlayer {
     private audioContext: AudioContext;
     private nextStartTime: number = 0;
+    // Chunks are scheduled ahead of real time, so an interruption has to be able
+    // to reach back and cancel the ones that have not been heard yet.
+    private scheduled = new Set<AudioBufferSourceNode>();
 
     constructor() {
         this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
@@ -49,7 +77,9 @@ class PCMPlayer {
         });
     }
 
-    async playChunk(base64Data: string) {
+    playChunk(base64Data: string) {
+        if (this.audioContext.state === 'closed') return;
+
         // 1. Convert Base64 to ArrayBuffer
         const binaryString = window.atob(base64Data);
         const len = binaryString.length;
@@ -62,6 +92,7 @@ class PCMPlayer {
         // Ensure the buffer is aligned for Int16Array (even length)
         const buffer = bytes.buffer;
         const int16Array = new Int16Array(buffer, 0, Math.floor(buffer.byteLength / 2));
+        if (int16Array.length === 0) return;
         const float32Array = new Float32Array(int16Array.length);
         for (let i = 0; i < int16Array.length; i++) {
             float32Array[i] = int16Array[i] / 32768.0;
@@ -81,16 +112,37 @@ class PCMPlayer {
             this.nextStartTime = currentTime;
         }
 
+        this.scheduled.add(source);
+        source.onended = () => {
+            source.disconnect();
+            this.scheduled.delete(source);
+        };
+
         source.start(this.nextStartTime);
         this.nextStartTime += audioBuffer.duration;
     }
 
-    reset() {
-        // Reset the schedule so new audio plays immediately
-        this.nextStartTime = this.audioContext.currentTime;
+    /**
+     * Silences the reply in progress: stops every chunk that is still playing or
+     * queued and clears the schedule so the next reply starts immediately.
+     * Without this the interrupted answer keeps talking over the new one.
+     */
+    flush() {
+        for (const source of this.scheduled) {
+            source.onended = null;
+            try {
+                source.stop();
+            } catch {
+                // Already stopped or never started — nothing to cancel.
+            }
+            source.disconnect();
+        }
+        this.scheduled.clear();
+        this.nextStartTime = this.audioContext.state === 'closed' ? 0 : this.audioContext.currentTime;
     }
 
     stop() {
+        this.flush();
         if (this.audioContext.state !== 'closed') {
             this.audioContext.close();
         }
@@ -108,12 +160,29 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
     // Tear down any previous session first
     stopVoiceSession();
 
-    pcmPlayer = new PCMPlayer();
+    const session: LiveSession = {
+        id: nextSessionId++,
+        voiceName,
+        ws: null,
+        audioProcessor: null,
+        player: new PCMPlayer(),
+        generation: 0,
+        closed: false,
+    };
+    current = session;
 
-    const startMic = () => {
-        audioProcessor = new AudioProcessor((base64Audio) => {
-            if (ws?.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({
+    // A superseded session must stay silent: its late events would otherwise
+    // reset the status of the session that replaced it.
+    const emit = (event: TutorEvent) => {
+        if (isCurrent(session)) onEvent(event);
+    };
+
+    const startMic = async () => {
+        const processor = new AudioProcessor((base64Audio) => {
+            // Only the live session may hold the microphone open
+            if (!isCurrent(session)) return;
+            if (session.ws?.readyState === WebSocket.OPEN) {
+                session.ws.send(JSON.stringify({
                     realtime_input: {
                         media_chunks: [{
                             mime_type: 'audio/pcm;rate=16000',
@@ -123,36 +192,49 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
                 }));
             }
         });
-        audioProcessor.start();
+        session.audioProcessor = processor;
+        await processor.start();
+        // getUserMedia can resolve after the learner already ended the session
+        if (!isCurrent(session)) processor.stop();
     };
 
-    const handleToolCall = async (toolCall: any) => {
+    const handleToolCall = async (toolCall: any, generation: number) => {
         const functionCalls: any[] = toolCall.functionCalls || toolCall.function_calls || [];
+        const socket = session.ws;
         const responses = [];
 
         for (const fc of functionCalls) {
-            onEvent({ type: 'tool-start', name: fc.name, args: fc.args || {} });
+            // The learner interrupted (or ended the session) mid-tool-call: the
+            // server already cancelled this turn, so stop acting on its behalf.
+            if (!isCurrent(session) || session.generation !== generation) return;
+
+            emit({ type: 'tool-start', name: fc.name, args: fc.args || {} });
             let result: object;
             try {
                 result = await executeTool(fc.name, fc.args || {});
             } catch (e) {
                 result = { error: e instanceof Error ? e.message : 'Tool execution failed' };
             }
-            onEvent({ type: 'tool-done', name: fc.name });
+            emit({ type: 'tool-done', name: fc.name });
             responses.push({ id: fc.id, name: fc.name, response: { result } });
         }
 
-        if (ws?.readyState === WebSocket.OPEN && responses.length > 0) {
-            ws.send(JSON.stringify({ tool_response: { function_responses: responses } }));
+        // Answering a cancelled turn — or answering into a socket that has since
+        // been replaced — makes the model produce a second, unrelated reply.
+        if (!isCurrent(session) || session.generation !== generation || session.ws !== socket) return;
+        if (socket?.readyState === WebSocket.OPEN && responses.length > 0) {
+            socket.send(JSON.stringify({ tool_response: { function_responses: responses } }));
         }
     };
 
     try {
-        ws = new WebSocket(URI);
+        const ws = new WebSocket(URI);
+        session.ws = ws;
 
         ws.onopen = () => {
             const sendSetup = () => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
+                if (!isCurrent(session) || session.ws !== ws) return;
+                if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({
                         setup: {
                             model: MODEL,
@@ -161,7 +243,7 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
                                 speech_config: {
                                     voice_config: {
                                         prebuilt_voice_config: {
-                                            voice_name: voiceName
+                                            voice_name: session.voiceName
                                         }
                                     }
                                 }
@@ -183,10 +265,16 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
         };
 
         ws.onmessage = async (event) => {
+            if (!isCurrent(session)) return;
+            // Captured before the parse so we can tell whether this message was
+            // already on the wire when the learner interrupted.
+            const generation = session.generation;
+
             // Handle both text (JSON) and binary (Blob) messages
             let msg;
             if (event.data instanceof Blob) {
                 const text = await event.data.text();
+                if (!isCurrent(session)) return;
                 try {
                     msg = JSON.parse(text);
                 } catch (e) {
@@ -198,58 +286,66 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
 
             if (msg.setupComplete || msg.setup_complete) {
                 startMic();
-                onEvent({ type: 'connected' });
+                emit({ type: 'connected' });
                 return;
             }
 
             const toolCall = msg.toolCall || msg.tool_call;
             if (toolCall) {
-                handleToolCall(toolCall);
+                handleToolCall(toolCall, generation);
                 return;
             }
 
             const serverContent = msg.serverContent || msg.server_content;
             if (!serverContent) return;
 
+            // Server-side interruption: the learner started talking over the tutor.
+            // Handled before anything else in this message so the cut-off reply is
+            // silenced immediately and nothing after it is attributed to the new turn.
+            if (serverContent.interrupted) {
+                session.generation++;
+                session.player?.flush();
+                emit({ type: 'interrupted' });
+                return;
+            }
+
+            // Everything below belongs to the reply that was just interrupted
+            if (session.generation !== generation) return;
+
             // Captions for what the tutor is saying
             const outTranscript = serverContent.outputTranscription || serverContent.output_transcription;
             if (outTranscript?.text) {
-                onEvent({ type: 'tutor-transcript', text: outTranscript.text });
+                emit({ type: 'tutor-transcript', text: outTranscript.text });
             }
             const inTranscript = serverContent.inputTranscription || serverContent.input_transcription;
             if (inTranscript?.text) {
-                onEvent({ type: 'user-transcript', text: inTranscript.text });
+                emit({ type: 'user-transcript', text: inTranscript.text });
             }
 
             const modelTurn = serverContent.modelTurn || serverContent.model_turn;
             if (modelTurn?.parts) {
                 for (const part of modelTurn.parts) {
                     if (part.text) {
-                        onEvent({ type: 'tutor-transcript', text: part.text });
+                        emit({ type: 'tutor-transcript', text: part.text });
                     }
                     const audioData = part.inlineData?.data || part.inline_data?.data;
                     if (audioData) {
-                        pcmPlayer?.playChunk(audioData);
+                        session.player?.playChunk(audioData);
                     }
                 }
             }
 
-            // Server-side interruption: user started talking over the tutor
-            if (serverContent.interrupted) {
-                pcmPlayer?.reset();
-                onEvent({ type: 'interrupted' });
-            }
-
             if (serverContent.turnComplete || serverContent.turn_complete) {
-                onEvent({ type: 'turn-complete' });
+                emit({ type: 'turn-complete' });
             }
         };
 
         ws.onerror = () => {
-            onEvent({ type: 'error', message: 'Voice connection error. Check your internet and API key.' });
+            emit({ type: 'error', message: 'Voice connection error. Check your internet and API key.' });
         };
 
         ws.onclose = (e) => {
+            if (!isCurrent(session)) return;
             const reason = e.code === 1006
                 ? 'Connection closed unexpectedly (check API key / network).'
                 : e.reason || undefined;
@@ -258,21 +354,34 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
         };
 
     } catch (e) {
-        onEvent({ type: 'error', message: e instanceof Error ? e.message : 'Failed to start voice session' });
+        emit({ type: 'error', message: e instanceof Error ? e.message : 'Failed to start voice session' });
+        stopVoiceSession();
     }
 }
 
 export function stopVoiceSession() {
-    audioProcessor?.stop();
-    pcmPlayer?.stop();
+    const session = current;
+    current = null;
+    if (!session || session.closed) return;
+
+    session.closed = true;
+    session.audioProcessor?.stop();
+    session.player?.stop();
+
+    const ws = session.ws;
     if (ws) {
-        // Prevent the close handler from re-entering stopVoiceSession
+        // Detach every handler: a closing socket still delivers messages that are
+        // already in flight, and those would otherwise play through the next session.
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
         ws.onclose = null;
-        if (ws.readyState !== WebSocket.CLOSED) {
+        if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
             ws.close();
         }
     }
-    ws = null;
-    audioProcessor = null;
-    pcmPlayer = null;
+
+    session.ws = null;
+    session.audioProcessor = null;
+    session.player = null;
 }

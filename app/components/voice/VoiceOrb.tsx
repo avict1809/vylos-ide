@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Mic, MicOff, X as CloseIcon, Loader2, GraduationCap, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Mic, MicOff, X as CloseIcon, Loader2, GraduationCap, AlertTriangle, AudioLines } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { startVoiceSession, stopVoiceSession, TutorEvent } from '@/app/lib/ai/gemini-live';
 import {
@@ -14,6 +14,7 @@ import { useFileStore } from '@/app/lib/useFileStore';
 
 export default function VoiceOrb() {
     const [showPicker, setShowPicker] = useState(false);
+    const startTokenRef = useRef(0);
     const {
         selectedVoice, setSelectedVoice,
         status, setStatus,
@@ -21,17 +22,36 @@ export default function VoiceOrb() {
         currentCaption,
         activity,
         resetSession,
+        sessionVoice,
     } = useVoiceStore();
 
     const endSession = useCallback(() => {
+        // Invalidates any start still in flight so it cannot revive the session
+        startTokenRef.current++;
         cancelTutorActions();
         stopVoiceSession();
         resetSession();
     }, [resetSession]);
 
     const beginSession = useCallback(async (voiceName: string, opts?: { resume?: boolean }) => {
+        // Identifies this start attempt. Starting a session is async, so a lesson
+        // card, a keyboard toggle and a voice switch can overlap; only the newest
+        // attempt is allowed to drive the UI.
+        const token = ++startTokenRef.current;
+
+        // The voice is fixed for the whole session. A resumed lesson keeps the
+        // voice it was started in, so continuing never swaps the tutor's voice
+        // mid-lesson — even across an app restart.
+        const store = useVoiceStore.getState();
+        const voice = opts?.resume ? (store.sessionVoice ?? voiceName) : voiceName;
+        store.setSessionVoice(voice);
+
         setShowPicker(false);
         setError(null);
+        // Never leave a second session running alongside this one — two live
+        // sockets both stream audio, which is what makes the tutor reply twice.
+        cancelTutorActions();
+        stopVoiceSession();
         // On resume, keep the chat history — the tutor continues the same lesson
         if (!opts?.resume) useVoiceStore.getState().clearTranscript();
         setStatus('connecting');
@@ -39,11 +59,13 @@ export default function VoiceOrb() {
         useFileStore.getState().setActiveView('tutor');
 
         await startVoiceSession({
-            voiceName,
+            voiceName: voice,
             systemInstruction: buildTutorSystemInstruction({ resume: opts?.resume }),
             toolDeclarations: tutorToolDeclarations,
             executeTool: executeTutorTool,
             onEvent: (event: TutorEvent) => {
+                // Superseded by a newer session: its events own the UI now
+                if (startTokenRef.current !== token) return;
                 const store = useVoiceStore.getState();
                 switch (event.type) {
                     case 'connected':
@@ -110,11 +132,8 @@ export default function VoiceOrb() {
             const ref = (e as CustomEvent).detail;
             if (!ref) return;
             useVoiceStore.getState().setLessonContext(ref);
-            const s = useVoiceStore.getState().status;
-            if (s === 'live' || s === 'connecting') {
-                // Restart so the session picks up the new lesson context
-                endSession();
-            }
+            // beginSession replaces any running session, so it already picks up
+            // the new lesson context
             beginSession(useVoiceStore.getState().selectedVoice);
         };
 
@@ -157,7 +176,7 @@ export default function VoiceOrb() {
                 </div>
             )}
 
-            {/* Voice picker */}
+            {/* Voice picker — the voice is chosen before a session and locked for it */}
             {showPicker && !isActive && (
                 <div className="fixed bottom-28 right-8 z-[60] w-80 bg-[#0d0d0d] border border-[var(--vylos-grey-border)] rounded-xl shadow-2xl animate-in slide-in-from-bottom-5 duration-300 overflow-hidden">
                     <div className="p-4 border-b border-[var(--vylos-grey-border)] flex items-center justify-between">
@@ -171,7 +190,7 @@ export default function VoiceOrb() {
                     </div>
 
                     <div className="p-4">
-                        <p className="text-[11px] text-gray-500 mb-3">Choose your tutor's voice:</p>
+                        <p className="text-[11px] text-gray-500 mb-3">Choose your tutor&apos;s voice:</p>
                         <div className="grid grid-cols-2 gap-2 mb-4">
                             {TUTOR_VOICES.map((voice) => (
                                 <button
@@ -224,6 +243,15 @@ export default function VoiceOrb() {
 
             {/* Orb */}
             <div className="fixed bottom-8 right-8 z-50 flex flex-col items-center animate-in fade-in duration-500">
+                {isActive && sessionVoice && (
+                    <div
+                        title={`This session is locked to the ${sessionVoice} voice`}
+                        className="mb-2 px-2.5 py-1 rounded-full bg-[#0d0d0d] border border-[var(--vylos-grey-border)] flex items-center gap-1.5"
+                    >
+                        <AudioLines size={11} className="text-[var(--vylos-green)]" />
+                        <span className="text-[10px] font-bold text-gray-300">{sessionVoice}</span>
+                    </div>
+                )}
                 <div
                     className={cn(
                         'relative w-16 h-16 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300',

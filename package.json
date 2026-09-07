@@ -12,7 +12,8 @@
     "lint": "eslint",
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && npm run build:electron && cross-env NODE_ENV=development electron .\"",
-    "electron:build": "npm run build && npm run build:electron && electron-builder"
+    "electron:build": "npm run build && npm run build:electron && electron-builder",
+    "release": "npm run build && npm run build:electron && electron-builder --publish always"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -22,6 +23,7 @@
     "chokidar": "^5.0.0",
     "clsx": "^2.1.1",
     "electron-serve": "^3.0.0",
+    "electron-updater": "^6.8.9",
     "fs-extra": "^11.3.3",
     "isomorphic-git": "^1.36.1",
     "lucide-react": "^0.562.0",
@@ -82,7 +84,13 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "differentialPackage": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "avict1809",
+      "repo": "vylos-ide"
     }
   }
 }

@@ -6,6 +6,7 @@ import chokidar, { FSWatcher } from 'chokidar';
 import fs from 'fs/promises';
 import fse from 'fs-extra';
 import serve from 'electron-serve';
+import { initUpdater } from './updater';
 
 let mainWindow: BrowserWindow | null;
 
@@ -68,6 +69,8 @@ const createWindow = async () => {
 
 app.whenReady().then(async () => {
     await createWindow();
+    // Checks for a mandatory update; the renderer blocks the app until it is applied
+    initUpdater();
 
     app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {

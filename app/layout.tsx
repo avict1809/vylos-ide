@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TitleBar } from "./components/TitleBar";
 import { Providers } from "./providers";
+import UpdateGate from "./components/UpdateGate";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,8 @@ export default function RootLayout({
           <div className="flex-1 overflow-hidden">
             {children}
           </div>
+          {/* Blocks the whole app — sign-in included — while an update is pending */}
+          <UpdateGate />
         </Providers>
       </body>
     </html>

@@ -7,7 +7,7 @@ import { resolveLesson, resumeLessonWithTutor } from '@/app/lib/learning/lesson-
 import { cn } from '@/app/lib/utils';
 
 export default function TutorPanel() {
-    const { status, transcript, currentCaption, pendingUserSpeech, activity, selectedVoice, lessonContext } = useVoiceStore();
+    const { status, transcript, currentCaption, pendingUserSpeech, activity, sessionVoice, selectedVoice, lessonContext } = useVoiceStore();
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // An interrupted curriculum lesson the learner can pick back up
@@ -34,7 +34,7 @@ export default function TutorPanel() {
                                 : 'bg-gray-700'
                     )} />
                     <span className="text-[9px] uppercase tracking-widest text-gray-500 font-bold">
-                        {status === 'live' ? selectedVoice : status === 'connecting' ? 'Connecting' : 'Offline'}
+                        {status === 'live' ? (sessionVoice ?? selectedVoice) : status === 'connecting' ? 'Connecting' : 'Offline'}
                     </span>
                 </div>
             </div>

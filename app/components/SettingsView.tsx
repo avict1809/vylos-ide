@@ -11,9 +11,12 @@ import {
     Minus,
     AlignLeft,
     WrapText,
-    Settings as SettingsIcon
+    Settings as SettingsIcon,
+    AudioLines,
+    Lock
 } from 'lucide-react';
 import { useConfigStore } from '@/app/lib/stores/config-store';
+import { useVoiceStore, TUTOR_VOICES } from '@/app/lib/stores/voice-store';
 import { cn } from '@/app/lib/utils';
 
 export default function SettingsView() {
@@ -25,6 +28,11 @@ export default function SettingsView() {
         wordWrap, setWordWrap,
         theme, setTheme
     } = useConfigStore();
+
+    const { selectedVoice, setSelectedVoice, sessionVoice, status } = useVoiceStore();
+    // The Live API fixes the voice when a session is set up, so it stays locked
+    // for as long as the tutor is connected.
+    const voiceLocked = status === 'live' || status === 'connecting';
 
     return (
         <div className="h-full flex flex-col bg-[#000000]">
@@ -60,6 +68,76 @@ export default function SettingsView() {
                             <ToggleSetting label="Line Numbers" description="Show line numbers in gutter" enabled={lineNumbers === 'on'} onChange={(val) => setLineNumbers(val ? 'on' : 'off')} icon={<AlignLeft size={14} />} />
                             <ToggleSetting label="Word Wrap" description="Wrap long lines to viewport" enabled={wordWrap === 'on'} onChange={(val) => setWordWrap(val ? 'on' : 'off')} icon={<WrapText size={14} />} />
                         </div>
+                    </section>
+
+                    <section>
+                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <span className="w-1 h-1 bg-[var(--vylos-green)] rounded-full" />
+                            Voice Tutor
+                        </h3>
+
+                        <div className="flex items-start justify-between gap-4 py-2 mb-3">
+                            <div className="flex items-center gap-4">
+                                <div className="p-2 bg-[#09090b] border border-[#1a1a1a] rounded-lg text-gray-500">
+                                    <AudioLines size={14} />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[13px] font-bold text-gray-300">Tutor Voice</span>
+                                    <span className="text-[11px] text-gray-500">
+                                        The voice your tutor speaks with during a lesson
+                                    </span>
+                                </div>
+                            </div>
+                            <span className="shrink-0 mt-1 text-[11px] font-mono text-[var(--vylos-green)]">
+                                {voiceLocked ? (sessionVoice ?? selectedVoice) : selectedVoice}
+                            </span>
+                        </div>
+
+                        {voiceLocked && (
+                            <div className="mb-3 px-3 py-2.5 bg-[#09090b] border border-[#1a1a1a] rounded-lg flex items-start gap-2.5">
+                                <Lock size={12} className="text-gray-500 mt-0.5 shrink-0" />
+                                <p className="text-[11px] text-gray-400 leading-relaxed">
+                                    A tutor session is running in the{' '}
+                                    <span className="text-[var(--vylos-green)] font-bold">{sessionVoice ?? selectedVoice}</span>{' '}
+                                    voice. The voice stays fixed for the whole session — end it to choose a different one.
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2">
+                            {TUTOR_VOICES.map((voice) => {
+                                const active = voiceLocked
+                                    ? (sessionVoice ?? selectedVoice) === voice.name
+                                    : selectedVoice === voice.name;
+                                return (
+                                    <button
+                                        key={voice.name}
+                                        disabled={voiceLocked}
+                                        onClick={() => setSelectedVoice(voice.name)}
+                                        className={cn(
+                                            'p-2.5 rounded-lg border text-left transition-all',
+                                            active
+                                                ? 'border-[var(--vylos-green)] bg-[var(--vylos-green)]/10'
+                                                : 'border-[#1a1a1a] bg-[#09090b]',
+                                            voiceLocked
+                                                ? 'opacity-40 cursor-not-allowed'
+                                                : !active && 'hover:border-gray-600'
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            'text-xs font-bold',
+                                            active ? 'text-[var(--vylos-green)]' : 'text-gray-200'
+                                        )}>
+                                            {voice.name}
+                                        </div>
+                                        <div className="text-[10px] text-gray-500 mt-0.5">{voice.description}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-gray-600 mt-3">
+                            Applies the next time you start a lesson. A resumed lesson continues in the voice it began with.
+                        </p>
                     </section>
                 </div>
 

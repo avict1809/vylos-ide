@@ -21,6 +21,12 @@ export const TUTOR_VOICES: TutorVoice[] = [
     { name: 'Aoede', description: 'Breezy & light' },
 ];
 
+export const DEFAULT_VOICE = 'Zephyr';
+
+export function isSupportedVoice(name: string | undefined): boolean {
+    return !!name && TUTOR_VOICES.some((v) => v.name === name);
+}
+
 export type VoiceStatus = 'idle' | 'connecting' | 'live';
 
 export interface TranscriptEntry {
@@ -33,7 +39,13 @@ const MAX_TRANSCRIPT = 200;
 let nextEntryId = 1;
 
 interface VoiceStore {
+    // The voice the learner picked for the *next* session
     selectedVoice: string;
+    // The voice the running session is actually speaking with. Fixed when the
+    // session is set up and never changed while it lasts, so the tutor cannot
+    // switch voice mid-lesson. Outlives the session so a resumed lesson is
+    // continued in the same voice it was started in.
+    sessionVoice: string | null;
     status: VoiceStatus;
     error: string | null;
     // Caption line currently being spoken (accumulates transcript fragments)
@@ -49,6 +61,8 @@ interface VoiceStore {
 
     setLessonContext: (ref: LessonRef | null) => void;
     setSelectedVoice: (name: string) => void;
+    /** Locks the voice for a session that is about to start. */
+    setSessionVoice: (name: string) => void;
     setStatus: (status: VoiceStatus) => void;
     setError: (error: string | null) => void;
     appendCaption: (fragment: string) => void;
@@ -71,7 +85,8 @@ function pushEntry(transcript: TranscriptEntry[], role: TranscriptEntry['role'],
 export const useVoiceStore = create<VoiceStore>()(
     persist(
         (set) => ({
-            selectedVoice: 'Zephyr',
+            selectedVoice: DEFAULT_VOICE,
+            sessionVoice: null,
             status: 'idle',
             error: null,
             currentCaption: '',
@@ -81,7 +96,12 @@ export const useVoiceStore = create<VoiceStore>()(
             lessonContext: null,
 
             setLessonContext: (lessonContext) => set({ lessonContext }),
-            setSelectedVoice: (selectedVoice) => set({ selectedVoice }),
+            // Guard the one value the Live API rejects outright: an unknown
+            // prebuilt voice name closes the session at setup.
+            setSelectedVoice: (selectedVoice) =>
+                set({ selectedVoice: isSupportedVoice(selectedVoice) ? selectedVoice : DEFAULT_VOICE }),
+            setSessionVoice: (sessionVoice) =>
+                set({ sessionVoice: isSupportedVoice(sessionVoice) ? sessionVoice : DEFAULT_VOICE }),
             setStatus: (status) => set({ status }),
             setError: (error) => set({ error }),
             appendCaption: (fragment) =>
@@ -128,13 +148,22 @@ export const useVoiceStore = create<VoiceStore>()(
             // can be continued later — even after an app restart.
             partialize: (state) => ({
                 selectedVoice: state.selectedVoice,
+                sessionVoice: state.sessionVoice,
                 lessonContext: state.lessonContext,
                 transcript: state.transcript,
             }),
             onRehydrateStorage: () => (state) => {
+                if (!state) return;
                 // Avoid id collisions between restored entries and new ones
-                if (state?.transcript?.length) {
+                if (state.transcript?.length) {
                     nextEntryId = Math.max(...state.transcript.map((e) => e.id)) + 1;
+                }
+                // A voice persisted by an older build may no longer be offered
+                if (!isSupportedVoice(state.selectedVoice)) {
+                    state.selectedVoice = DEFAULT_VOICE;
+                }
+                if (state.sessionVoice && !isSupportedVoice(state.sessionVoice)) {
+                    state.sessionVoice = null;
                 }
             },
         }

@@ -44,6 +44,7 @@ const chokidar_1 = __importDefault(require("chokidar"));
 const promises_1 = __importDefault(require("fs/promises"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const electron_serve_1 = __importDefault(require("electron-serve"));
+const updater_1 = require("./updater");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
 // CRITICAL: Initialize electron-serve at module level BEFORE app.whenReady()
@@ -96,6 +97,8 @@ const createWindow = async () => {
 };
 electron_1.app.whenReady().then(async () => {
     await createWindow();
+    // Checks for a mandatory update; the renderer blocks the app until it is applied
+    (0, updater_1.initUpdater)();
     electron_1.app.on('activate', async () => {
         if (electron_1.BrowserWindow.getAllWindows().length === 0) {
             await createWindow();
