@@ -8,7 +8,9 @@ import { cn } from '@/app/lib/utils';
 
 export default function Terminal() {
     const { runs, init, runCommand, kill, clear } = useTerminalStore();
-    const { projectRoot } = useFileStore();
+    const { projectRoot, terminalCwd } = useFileStore();
+    // "Open in Integrated Terminal" picks a folder; otherwise the project root
+    const cwd = terminalCwd ?? projectRoot;
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -25,7 +27,7 @@ export default function Terminal() {
         const command = input.trim();
         if (!command) return;
         setInput('');
-        runCommand(command, projectRoot ?? undefined);
+        runCommand(command, cwd ?? undefined);
     };
 
     return (
@@ -77,7 +79,7 @@ export default function Terminal() {
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder={projectRoot ? `Run a command in ${projectRoot.split(/[\\/]/).pop()}…` : 'Run a command…'}
+                    placeholder={cwd ? `Run a command in ${cwd.split(/[\\/]/).pop()}…` : 'Run a command…'}
                     className="flex-1 bg-transparent outline-none text-zinc-200 placeholder:text-zinc-700"
                     spellCheck={false}
                 />

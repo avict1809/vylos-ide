@@ -65,6 +65,16 @@ const createWindow = async () => {
     mainWindow.on('unmaximize', () => {
         mainWindow?.webContents.send('window:unmaximized');
     });
+
+    // Ctrl+` toggles the terminal. Caught here, before the page, so no focused
+    // widget (editor, inputs) can swallow it; matched by physical key so it works
+    // on any keyboard layout.
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && input.code === 'Backquote') {
+            event.preventDefault();
+            mainWindow?.webContents.send('shortcut:toggle-terminal');
+        }
+    });
 };
 
 app.whenReady().then(async () => {
@@ -275,13 +285,56 @@ ipcMain.handle('fs:delete', async (event, targetPath: string) => {
     }
 });
 
+// Moves to the OS Trash / Recycle Bin, so a delete can be undone
+ipcMain.handle('fs:trash', async (event, targetPath: string) => {
+    try {
+        await shell.trashItem(targetPath);
+        return true;
+    } catch (e) {
+        return false;
+    }
+});
+
 ipcMain.handle('fs:rename', async (event, oldPath: string, newPath: string) => {
     try {
+        // fs.rename silently replaces an existing file; refuse instead
+        // (a case-only rename on a case-insensitive disk is the same file)
+        if (oldPath.toLowerCase() !== newPath.toLowerCase() && await fse.pathExists(newPath)) return false;
         await fs.rename(oldPath, newPath);
         return true;
     } catch (e) {
         return false;
     }
+});
+
+// Explorer paste: copy (or move) a file/folder into destDir. Never overwrites —
+// a name clash gets a " copy" suffix like VS Code. Returns the new path or null.
+ipcMain.handle('fs:pasteInto', async (event, srcPath: string, destDir: string, move: boolean) => {
+    try {
+        const name = path.basename(srcPath);
+        if (move && path.join(destDir, name) === srcPath) return srcPath;
+        // A folder can't be pasted inside itself
+        if (destDir === srcPath || destDir.startsWith(srcPath + path.sep)) return null;
+
+        const isDir = (await fs.stat(srcPath)).isDirectory();
+        const ext = isDir ? '' : path.extname(name);
+        const stem = name.slice(0, name.length - ext.length);
+        let target = path.join(destDir, name);
+        for (let n = 1; await fse.pathExists(target); n++) {
+            target = path.join(destDir, `${stem} copy${n > 1 ? ` ${n}` : ''}${ext}`);
+        }
+
+        if (move) await fse.move(srcPath, target);
+        else await fse.copy(srcPath, target, { overwrite: false, errorOnExist: true });
+        return target;
+    } catch (e) {
+        return null;
+    }
+});
+
+ipcMain.handle('shell:showItemInFolder', (event, targetPath: string) => {
+    shell.showItemInFolder(targetPath);
+    return true;
 });
 
 ipcMain.handle('dialog:openFile', async () => {
@@ -398,6 +451,8 @@ ipcMain.handle('fs:listAll', async (event, dirPath) => {
     }
 });
 
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
 ipcMain.handle('fs:list', async (event, dirPath) => {
     try {
         const dirents = await fs.readdir(dirPath, { withFileTypes: true });
@@ -405,7 +460,9 @@ ipcMain.handle('fs:list', async (event, dirPath) => {
             name: dirent.name,
             isDirectory: dirent.isDirectory(),
             path: require('path').join(dirPath, dirent.name)
-        }));
+        }))
+            // Folders first, then natural name order (file2 before file10), like VS Code
+            .sort((a, b) => a.isDirectory === b.isDirectory ? nameCollator.compare(a.name, b.name) : a.isDirectory ? -1 : 1);
     } catch (e) {
         console.error("FS List Error", e);
         return [];

@@ -45,8 +45,16 @@ declare global {
                 createFile: (path: string) => Promise<boolean>;
                 createDirectory: (path: string) => Promise<boolean>;
                 delete: (path: string) => Promise<boolean>;
+                trash: (path: string) => Promise<boolean>;
                 rename: (oldPath: string, newPath: string) => Promise<boolean>;
+                pasteInto: (srcPath: string, destDir: string, move: boolean) => Promise<string | null>;
                 onChanged: (callback: (data: { event: string; path: string }) => void) => () => void;
+            };
+            shell: {
+                showItemInFolder: (path: string) => Promise<boolean>;
+            };
+            shortcuts: {
+                onToggleTerminal: (callback: () => void) => () => void;
             };
             dialog: {
                 openFile: () => Promise<string | null>;

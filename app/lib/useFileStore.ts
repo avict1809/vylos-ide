@@ -27,6 +27,14 @@ interface WorkspaceSession {
 const isUntitled = (path: string) => path.startsWith('untitled-');
 const baseName = (path: string) => path.split(/[\\/]/).pop() || 'Untitled';
 
+// True when path is target itself or anything inside it
+const isInside = (path: string, target: string) =>
+    path === target || path.startsWith(target + '/') || path.startsWith(target + '\\');
+
+// Rewrite a path after its file (or an ancestor folder) moved from `from` to `to`
+const retarget = (path: string, from: string, to: string) =>
+    isInside(path, from) ? to + path.slice(from.length) : path;
+
 // Most recent first, without duplicates
 const pushRecent = (list: string[], path: string, max: number) =>
     [path, ...list.filter(p => p !== path)].slice(0, max);
@@ -35,6 +43,20 @@ const snapshotSession = ({ openFiles, activeFileIndex }: Pick<FileStore, 'openFi
     files: openFiles.filter(f => !isUntitled(f.path)).map(f => f.path),
     activePath: activeFileIndex !== null ? openFiles[activeFileIndex]?.path ?? null : null,
 });
+
+// After a rename/move, point open tabs, recents, expanded folders and the selection at the new path
+const movedState = (state: FileStore, from: string, to: string): Partial<FileStore> => {
+    const move = <T extends { path: string; name: string }>(item: T): T => {
+        const path = retarget(item.path, from, to);
+        return path === item.path ? item : { ...item, path, name: baseName(path) };
+    };
+    return {
+        openFiles: state.openFiles.map(move),
+        recentFiles: state.recentFiles.map(p => retarget(p, from, to)),
+        expandedPaths: new Set([...state.expandedPaths].map(p => retarget(p, from, to))),
+        selectedNode: state.selectedNode && move(state.selectedNode),
+    };
+};
 
 let restoringSession: Promise<void> | null = null;
 
@@ -58,9 +80,18 @@ interface FileStore {
     // Session loaded from the previous launch; only read by restoreSession
     session: WorkspaceSession | null;
     sessionRestored: boolean;
+    // Explorer cut/copy (a file or folder waiting to be pasted)
+    explorerClipboard: { path: string; cut: boolean } | null;
+    // Folder the terminal runs commands in (null = project root)
+    terminalCwd: string | null;
 
     // Actions
     restoreSession: () => Promise<void>;
+    setExplorerClipboard: (clipboard: { path: string; cut: boolean } | null) => void;
+    pasteInto: (destDir: string) => Promise<string | null>;
+    moveInto: (srcPath: string, destDir: string) => Promise<string | null>;
+    collapseAll: () => void;
+    openTerminalAt: (dir: string) => void;
     openFolderPath: (dirPath: string) => void;
     clearRecent: () => void;
     setFileTree: (tree: FileNode[]) => void;
@@ -70,7 +101,7 @@ interface FileStore {
     watchProjectRoot: () => void;
     createFile: (dirPath: string, fileName: string) => Promise<boolean>;
     createFolder: (dirPath: string, folderName: string) => Promise<boolean>;
-    deletePath: (path: string) => Promise<boolean>;
+    deletePath: (path: string, permanent?: boolean) => Promise<boolean>;
     renamePath: (oldPath: string, newPath: string) => Promise<boolean>;
     openFile: (file: FileNode, content: string, searchMetadata?: { query: string; line?: number }) => void;
     openFileByPath: (path: string) => Promise<void>;
@@ -111,6 +142,43 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     recentFolders: [],
     session: null,
     sessionRestored: false,
+    explorerClipboard: null,
+    terminalCwd: null,
+
+    setExplorerClipboard: (clipboard) => set({ explorerClipboard: clipboard }),
+
+    pasteInto: async (destDir) => {
+        const electron = (window as any).electron;
+        const { explorerClipboard } = get();
+        if (!electron || !explorerClipboard) return null;
+
+        const { path: src, cut } = explorerClipboard;
+        if (cut) {
+            const target = await get().moveInto(src, destDir);
+            // A cut item can only be pasted once
+            if (target) set({ explorerClipboard: null });
+            return target;
+        }
+
+        const target: string | null = await electron.fs.pasteInto(src, destDir, false);
+        if (target) get().refreshFileTree();
+        return target;
+    },
+
+    // Move a file/folder into destDir (cut+paste, drag and drop); open tabs follow it
+    moveInto: async (srcPath, destDir) => {
+        const electron = (window as any).electron;
+        if (!electron) return null;
+        const target: string | null = await electron.fs.pasteInto(srcPath, destDir, true);
+        if (!target) return null;
+        set(state => movedState(state, srcPath, target));
+        get().refreshFileTree();
+        return target;
+    },
+
+    collapseAll: () => set({ expandedPaths: new Set<string>() }),
+
+    openTerminalAt: (dir) => set({ terminalCwd: dir, showTerminal: true }),
 
     restoreSession: () => {
         const electron = (window as any).electron;
@@ -151,6 +219,7 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     openFolderPath: (dirPath) => {
         set(state => ({
             projectRoot: dirPath,
+            terminalCwd: null,
             activeView: 'explorer',
             recentFolders: pushRecent(state.recentFolders, dirPath, MAX_RECENT_FOLDERS),
         }));
@@ -175,24 +244,23 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     },
 
     refreshFileTree: async () => {
-        const { projectRoot, fileTree } = get();
+        const { projectRoot } = get();
         const electron = (window as any).electron;
         if (!projectRoot || !electron) return;
 
+        // Re-read every expanded folder too, so changes inside subfolders show up
+        const load = async (dir: string): Promise<FileNode[]> => {
+            const items: FileNode[] = await electron.fs.list(dir);
+            const { expandedPaths } = get();
+            return Promise.all(items.map(async (f) => ({
+                ...f,
+                children: f.isDirectory && expandedPaths.has(f.path) ? await load(f.path) : [],
+                isExpanded: false,
+            })));
+        };
+
         try {
-            const items = await electron.fs.list(projectRoot);
-            const newList = items.map((f: any) => ({ ...f, children: [], isExpanded: false }));
-
-            // Merge with existing tree to preserve expansion states
-            const merged = newList.map((newNode: FileNode) => {
-                const existing = fileTree.find(n => n.path === newNode.path);
-                if (existing) {
-                    return { ...newNode, isExpanded: existing.isExpanded, children: existing.children };
-                }
-                return newNode;
-            });
-
-            set({ fileTree: merged });
+            set({ fileTree: await load(projectRoot) });
         } catch (e) {
             console.error("Failed to refresh file tree", e);
         }
@@ -233,16 +301,37 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
         return await electron.fs.createDirectory(folderPath);
     },
 
-    deletePath: async (targetPath) => {
+    deletePath: async (targetPath, permanent = false) => {
         const electron = (window as any).electron;
         if (!electron) return false;
-        return await electron.fs.delete(targetPath);
+        const success = await (permanent ? electron.fs.delete(targetPath) : electron.fs.trash(targetPath));
+        if (success) {
+            // Close editors for what was deleted; unsaved ones stay open so the edits aren't lost
+            const { openFiles, activeFileIndex } = get();
+            const activePath = activeFileIndex !== null ? openFiles[activeFileIndex]?.path : null;
+            const remaining = openFiles.filter(f => f.isDirty || !isInside(f.path, targetPath));
+            const index = remaining.findIndex(f => f.path === activePath);
+            set(state => ({
+                openFiles: remaining,
+                activeFileIndex: index !== -1 ? index : remaining.length > 0 ? Math.min(activeFileIndex ?? 0, remaining.length - 1) : null,
+                recentFiles: state.recentFiles.filter(p => !isInside(p, targetPath)),
+                selectedNode: state.selectedNode && isInside(state.selectedNode.path, targetPath) ? null : state.selectedNode,
+                explorerClipboard: state.explorerClipboard && isInside(state.explorerClipboard.path, targetPath) ? null : state.explorerClipboard,
+            }));
+            get().refreshFileTree();
+        }
+        return success;
     },
 
     renamePath: async (oldPath, newPath) => {
         const electron = (window as any).electron;
         if (!electron) return false;
-        return await electron.fs.rename(oldPath, newPath);
+        const success = await electron.fs.rename(oldPath, newPath);
+        if (success) {
+            set(state => movedState(state, oldPath, newPath));
+            get().refreshFileTree();
+        }
+        return success;
     },
 
     openFile: (file, content, searchMetadata) => {

@@ -40,7 +40,8 @@ A real-time voice tutor (Gemini Live) that talks with you and works in your edit
 ### 🛠️ A real IDE
 
 - **Monaco editor** (the engine behind VS Code) with the Vylos dark theme, multiple tabs, autosave, and format-on-demand
-- **File explorer** with folder workspaces, context menus, and quick open (**Ctrl+P**)
+- **File explorer** like VS Code: file-type icons, folders first, a right-click menu (new file/folder, rename, cut/copy/paste, copy path, reveal in file manager, open in terminal, delete to Trash), drag and drop to move, and quick open (**Ctrl+P**)
+- **Picks up where you left off**: reopens your last folder and tabs, with recently opened files and folders under **File → Open Recent**
 - **Integrated terminal** — run your code without leaving the app
 - **Workspace search** and a **Git view**
 - **Settings**: font size, minimap, line numbers, word wrap, autosave

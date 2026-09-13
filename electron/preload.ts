@@ -45,12 +45,24 @@ contextBridge.exposeInMainWorld('electron', {
         createFile: (path: string) => ipcRenderer.invoke('fs:createFile', path),
         createDirectory: (path: string) => ipcRenderer.invoke('fs:createDirectory', path),
         delete: (path: string) => ipcRenderer.invoke('fs:delete', path),
+        trash: (path: string) => ipcRenderer.invoke('fs:trash', path),
         rename: (oldPath: string, newPath: string) => ipcRenderer.invoke('fs:rename', oldPath, newPath),
+        pasteInto: (srcPath: string, destDir: string, move: boolean) => ipcRenderer.invoke('fs:pasteInto', srcPath, destDir, move),
         onChanged: (callback: (data: { event: string; path: string }) => void) => {
             const subscription = (_event: any, data: { event: string; path: string }) => callback(data);
             ipcRenderer.on('fs:changed', subscription);
             return () => ipcRenderer.removeListener('fs:changed', subscription);
         }
+    },
+    shell: {
+        showItemInFolder: (path: string) => ipcRenderer.invoke('shell:showItemInFolder', path),
+    },
+    shortcuts: {
+        onToggleTerminal: (callback: () => void) => {
+            const subscription = () => callback();
+            ipcRenderer.on('shortcut:toggle-terminal', subscription);
+            return () => ipcRenderer.removeListener('shortcut:toggle-terminal', subscription);
+        },
     },
     dialog: {
         openFile: () => ipcRenderer.invoke('dialog:openFile'),

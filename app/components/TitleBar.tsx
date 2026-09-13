@@ -162,6 +162,14 @@ export function TitleBar() {
                     return;
                 }
 
+                // Physical key, so it works on every layout. In the desktop app the
+                // main process handles Ctrl+` first and this never fires.
+                if (e.code === 'Backquote') {
+                    e.preventDefault();
+                    toggleTerminal();
+                    return;
+                }
+
                 switch (e.key.toLowerCase()) {
                     case 's': e.preventDefault(); e.shiftKey ? saveActiveFileAs() : saveActiveFile(); break;
                     case 'n': e.preventDefault(); createNewFile(); break;
@@ -176,7 +184,6 @@ export function TitleBar() {
                     case 'f': if (e.shiftKey) { e.preventDefault(); setActiveView('search'); } break;
                     case 'e': if (e.shiftKey) { e.preventDefault(); setActiveView('explorer'); } break;
                     case 'i': if (e.shiftKey) { e.preventDefault(); setActiveView('ai'); } break;
-                    case '`': e.preventDefault(); toggleTerminal(); break;
                 }
             } else {
                 setCtrlKTyped(false);
@@ -185,6 +192,9 @@ export function TitleBar() {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [saveActiveFile, saveActiveFileAs, createNewFile, openExternalFile, openFolder, ctrlKTyped, handleAction]);
+
+    // Ctrl+` as caught by the Electron main process
+    useEffect(() => window.electron?.shortcuts?.onToggleTerminal(toggleTerminal), [toggleTerminal]);
 
     useEffect(() => {
         if (!activeMenu) return;
