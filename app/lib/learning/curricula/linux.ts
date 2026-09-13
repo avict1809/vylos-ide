@@ -1,0 +1,138 @@
+import { Course } from '../types';
+
+export const linux: Course = {
+    id: 'linux',
+    title: 'Linux & the Command Line',
+    tagline: 'Get fluent in the terminal and automate your work with shell scripts.',
+    level: 'Beginner',
+    hours: 20,
+    accent: '#FCC624',
+    badge: 'SH',
+    category: 'essentials',
+    stack: 'Bash',
+    tutorGuidelines: [
+        'Commands and flags differ between Linux distributions and macOS (BSD tools). Check the system first (uname -a, cat /etc/os-release) and use "<command> --help" or man pages to confirm a flag before relying on it.',
+        'If the learner is on Windows, find out which shell the terminal uses and suggest WSL for Linux lessons.',
+        'Practice file and permission commands only inside a throwaway folder created for the lesson (e.g. ~/vylos-practice). Never run rm -rf, dd, mkfs, or recursive chmod/chown on real or system paths.',
+        'Ask before any command that uses sudo, installs packages, or changes system settings, and explain what it will do.',
+        'The tutor terminal is not interactive. Avoid commands that wait for input or open a full-screen program (vim, top, less). Show non-interactive forms instead (e.g. top -b -n 1) and let the learner try interactive tools themselves.',
+    ],
+    modules: [
+        {
+            title: 'Getting Started',
+            description: 'What Linux is and your first steps in the shell.',
+            lessons: [
+                'What Linux is: kernel, distributions, and the shell',
+                'Terminals and shells',
+                'Your first commands: echo, date, whoami',
+                'Getting help: --help, man, and tldr-style examples',
+            ],
+        },
+        {
+            title: 'Files & Navigation',
+            description: 'Move around and manage files with confidence.',
+            lessons: [
+                'The file system tree and absolute vs relative paths',
+                'pwd, ls, and cd',
+                'Creating files and folders: touch and mkdir',
+                'Copying, moving, and renaming: cp and mv',
+                'Deleting safely with rm',
+                'Wildcards and globbing',
+                'Finding files with find',
+            ],
+        },
+        {
+            title: 'Viewing & Editing Text',
+            description: 'Read and change files without leaving the terminal.',
+            lessons: [
+                'cat, head, and tail',
+                'Paging with less',
+                'Editing with nano',
+                'Surviving vim: the basics',
+            ],
+        },
+        {
+            title: 'Pipes & Text Processing',
+            description: 'Combine small tools into powerful one-liners.',
+            lessons: [
+                'stdin, stdout, and stderr',
+                'Redirection: >, >>, and 2>',
+                'Pipes',
+                'Searching with grep',
+                'sort, uniq, and wc',
+                'cut and tr',
+                'sed basics',
+                'awk basics',
+                'Exercise: analyze a log file',
+            ],
+        },
+        {
+            title: 'Users & Permissions',
+            description: 'Who can read, write, and run what.',
+            lessons: [
+                'Users and groups',
+                'Reading permission strings',
+                'chmod: symbolic and numeric modes',
+                'chown and chgrp',
+                'sudo and the root user',
+            ],
+        },
+        {
+            title: 'Processes & the System',
+            description: 'See and control what is running.',
+            lessons: [
+                'Processes and PIDs: ps',
+                'Monitoring with top and htop',
+                'Signals and kill',
+                'Background jobs: &, jobs, fg, bg',
+                'Services with systemd',
+                'Disk usage: df and du',
+            ],
+        },
+        {
+            title: 'Packages & Environment',
+            description: 'Install software and customize your shell.',
+            lessons: [
+                'Package managers: apt, dnf, and pacman',
+                'Environment variables and PATH',
+                'Shell configuration files (.bashrc)',
+                'Aliases',
+            ],
+        },
+        {
+            title: 'Networking from the Terminal',
+            description: 'Talk to other machines from the command line.',
+            lessons: [
+                'Checking your network: ip and ping',
+                'Making HTTP requests with curl',
+                'Remote login with ssh',
+                'SSH keys',
+                'Copying files with scp and rsync',
+            ],
+        },
+        {
+            title: 'Shell Scripting',
+            description: 'Automate repetitive work.',
+            lessons: [
+                'Your first script and the shebang',
+                'Variables and quoting',
+                'Reading arguments',
+                'Conditionals and test expressions',
+                'Loops',
+                'Functions',
+                'Exit codes and error handling (set -euo pipefail)',
+                'Scheduling scripts with cron',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'Write a real automation script.',
+            lessons: [
+                'Designing a backup script',
+                'Handling arguments and errors',
+                'Logging what the script does',
+                'Scheduling and testing it',
+            ],
+        },
+    ],
+};

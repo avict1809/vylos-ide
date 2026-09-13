@@ -1,12 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes } from 'lucide-react';
-import { LANGUAGE_COURSES, FRAMEWORK_COURSES } from '@/app/lib/learning/curricula';
-import { Course, courseProgress, totalLessons } from '@/app/lib/learning/types';
+import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, ShieldCheck, Wrench, type LucideIcon } from 'lucide-react';
+import { COURSE_GROUPS } from '@/app/lib/learning/curricula';
+import { Course, CourseCategory, courseProgress, totalLessons } from '@/app/lib/learning/types';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
 import { cn } from '@/app/lib/utils';
+
+const GROUP_ICONS: Record<CourseCategory, LucideIcon> = {
+    language: Code2,
+    framework: Boxes,
+    ai: Brain,
+    security: ShieldCheck,
+    essentials: Wrench,
+};
 
 interface CourseCatalogProps {
     onCustomPath?: () => void;
@@ -31,8 +39,9 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
         );
     };
 
-    const languages = LANGUAGE_COURSES.filter(matches);
-    const frameworks = FRAMEWORK_COURSES.filter(matches);
+    const groups = COURSE_GROUPS
+        .map((group) => ({ ...group, courses: group.courses.filter(matches) }))
+        .filter((group) => group.courses.length > 0);
 
     return (
         <div className="h-full flex flex-col bg-[var(--vylos-black)]">
@@ -57,7 +66,7 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
                         type="text"
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search languages & frameworks..."
+                        placeholder="Search courses: Python, AI, security..."
                         className="w-full pl-8 pr-3 py-2 bg-[#09090b] border border-[#27272a] hover:border-[#3f3f46] focus:border-[var(--vylos-green)] text-white text-xs rounded-lg outline-none transition-all"
                     />
                 </div>
@@ -82,31 +91,21 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
                     </button>
                 )}
 
-                {languages.length > 0 && (
-                    <SectionHeader icon={Code2} label="Languages" count={languages.length} />
-                )}
-                {languages.map((course) => (
-                    <CourseCard
-                        key={course.id}
-                        course={course}
-                        completed={completedLessons[course.id]}
-                        onOpen={() => openCourse(course.id)}
-                    />
+                {groups.map((group) => (
+                    <div key={group.category} className="space-y-3 pt-3 first:pt-0">
+                        <SectionHeader icon={GROUP_ICONS[group.category]} label={group.label} count={group.courses.length} />
+                        {group.courses.map((course) => (
+                            <CourseCard
+                                key={course.id}
+                                course={course}
+                                completed={completedLessons[course.id]}
+                                onOpen={() => openCourse(course.id)}
+                            />
+                        ))}
+                    </div>
                 ))}
 
-                {frameworks.length > 0 && (
-                    <SectionHeader icon={Boxes} label="Frameworks & Platforms" count={frameworks.length} />
-                )}
-                {frameworks.map((course) => (
-                    <CourseCard
-                        key={course.id}
-                        course={course}
-                        completed={completedLessons[course.id]}
-                        onOpen={() => openCourse(course.id)}
-                    />
-                ))}
-
-                {languages.length === 0 && frameworks.length === 0 && (
+                {groups.length === 0 && (
                     <div className="text-center py-10 text-xs text-gray-600">No paths match “{query}”.</div>
                 )}
 
@@ -134,7 +133,7 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
     );
 }
 
-function SectionHeader({ icon: Icon, label, count }: { icon: any; label: string; count: number }) {
+function SectionHeader({ icon: Icon, label, count }: { icon: LucideIcon; label: string; count: number }) {
     return (
         <div className="flex items-center gap-2 pt-3 pb-1 first:pt-0">
             <Icon size={11} className="text-[var(--vylos-green)]" />

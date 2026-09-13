@@ -1,0 +1,116 @@
+import { Course } from '../types';
+
+export const systemDesign: Course = {
+    id: 'system-design',
+    title: 'System Design',
+    tagline: 'Design scalable, reliable systems and reason clearly about trade-offs.',
+    level: 'Intermediate → Advanced',
+    hours: 25,
+    accent: '#6366F1',
+    badge: 'SD',
+    category: 'essentials',
+    tutorGuidelines: [
+        'System design has no single right answer. Always present trade-offs and the assumptions behind a choice, and ask the learner to argue for their own.',
+        'Do not present specific companies\' internal architectures, traffic numbers, or hardware figures as fact unless they are widely documented. Say when something is an assumption or a rough estimate.',
+        'Label back-of-the-envelope numbers as estimates and show the arithmetic, so the learner can check it.',
+        'Make designs concrete in the editor: sketch components in a markdown file, and build small runnable prototypes (a cache, a rate limiter, a queue) where it helps.',
+    ],
+    modules: [
+        {
+            title: 'Foundations',
+            description: 'The vocabulary and method of system design.',
+            lessons: [
+                'What system design is',
+                'Functional and non-functional requirements',
+                'Latency vs throughput',
+                'Availability and reliability',
+                'Back-of-the-envelope estimation',
+                'A step-by-step design framework',
+            ],
+        },
+        {
+            title: 'Building Blocks',
+            description: 'The components most systems are made of.',
+            lessons: [
+                'Clients, servers, and APIs',
+                'Load balancers',
+                'Caching and cache invalidation',
+                'Content delivery networks',
+                'SQL vs NoSQL databases',
+                'Replication',
+                'Sharding and partitioning',
+                'Message queues and pub/sub',
+                'Object storage',
+            ],
+        },
+        {
+            title: 'Scalability Patterns',
+            description: 'Grow a system without rewriting it.',
+            lessons: [
+                'Vertical vs horizontal scaling',
+                'Stateless services',
+                'Rate limiting',
+                'Consistent hashing',
+                'Asynchronous processing',
+                'Exercise: build a rate limiter',
+            ],
+        },
+        {
+            title: 'Distributed Systems Concepts',
+            description: 'What changes when many machines work together.',
+            lessons: [
+                'Why distributed systems are hard',
+                'The CAP theorem',
+                'Consistency models',
+                'Consensus: the intuition',
+                'Idempotency and retries',
+                'Distributed transactions and sagas',
+            ],
+        },
+        {
+            title: 'API Design',
+            description: 'Interfaces other teams will love using.',
+            lessons: [
+                'REST principles',
+                'GraphQL and gRPC at a glance',
+                'Pagination',
+                'Versioning',
+                'Idempotent endpoints',
+            ],
+        },
+        {
+            title: 'Reliability',
+            description: 'Keep working when parts fail.',
+            lessons: [
+                'Redundancy and failover',
+                'Timeouts, retries, and backoff',
+                'Circuit breakers',
+                'Graceful degradation',
+                'Monitoring and alerting',
+            ],
+        },
+        {
+            title: 'Case Studies',
+            description: 'Design classic systems end to end.',
+            lessons: [
+                'Design a URL shortener',
+                'Design a rate limiter service',
+                'Design a chat system',
+                'Design a news feed',
+                'Design a file storage service',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'Design, justify, and prototype a system of your own.',
+            lessons: [
+                'Gathering requirements',
+                'Estimating scale',
+                'High-level design',
+                'Deep dive into one component',
+                'Prototyping the critical piece',
+                'Presenting trade-offs',
+            ],
+        },
+    ],
+};

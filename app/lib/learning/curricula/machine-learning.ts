@@ -1,0 +1,140 @@
+import { Course } from '../types';
+import { AI_ACCURACY_GUIDELINES } from './guidelines';
+
+export const machineLearning: Course = {
+    id: 'machine-learning',
+    title: 'Machine Learning with scikit-learn',
+    tagline: 'The practical ML workflow: clean data, train models, and evaluate them honestly.',
+    level: 'Intermediate (Python required)',
+    hours: 35,
+    accent: '#F7931E',
+    badge: 'ML',
+    category: 'ai',
+    stack: 'Python',
+    tutorGuidelines: [
+        ...AI_ACCURACY_GUIDELINES,
+        'Prefer datasets that ship with scikit-learn (sklearn.datasets) so examples work offline. Say so before downloading anything.',
+        'Always compare a model against a simple baseline (e.g. DummyClassifier) and warn about data leakage whenever preprocessing touches the test set.',
+    ],
+    modules: [
+        {
+            title: 'The ML Workflow',
+            description: 'What a real machine learning project looks like from start to finish.',
+            lessons: [
+                'What machine learning is (and when not to use it)',
+                'The end-to-end workflow: problem, data, model, evaluation',
+                'Setting up a virtual environment with NumPy, pandas, scikit-learn, matplotlib',
+                'Your first model in 10 lines',
+                'The scikit-learn API: fit, predict, transform',
+            ],
+        },
+        {
+            title: 'Working with Data',
+            description: 'Load, explore, and understand data before modeling it.',
+            lessons: [
+                'NumPy arrays for ML',
+                'Loading data with pandas',
+                'Exploring a dataset: shape, types, summary statistics',
+                'Visualizing distributions and relationships with matplotlib',
+                'Correlation and what it does not tell you',
+                'Exercise: explore a real dataset',
+            ],
+        },
+        {
+            title: 'Data Preprocessing',
+            description: 'Turn messy real-world data into something a model can learn from.',
+            lessons: [
+                'Handling missing values',
+                'Encoding categorical features',
+                'Feature scaling: standardization and normalization',
+                'Train/test split and stratification',
+                'Data leakage and how to avoid it',
+                'Pipelines and ColumnTransformer',
+                'Feature engineering basics',
+            ],
+        },
+        {
+            title: 'Regression',
+            description: 'Predict numbers: prices, temperatures, demand.',
+            lessons: [
+                'Linear regression',
+                'Polynomial features',
+                'Regularization: Ridge and Lasso',
+                'Regression metrics: MAE, MSE, RMSE, R²',
+                'Residual plots',
+                'Exercise: predict house prices',
+            ],
+        },
+        {
+            title: 'Classification',
+            description: 'Predict categories: spam or not, disease or healthy.',
+            lessons: [
+                'Logistic regression',
+                'k-nearest neighbors',
+                'Support vector machines',
+                'Decision trees',
+                'The confusion matrix',
+                'Precision, recall, and F1',
+                'ROC curves and AUC',
+                'Imbalanced classes',
+                'Exercise: build a classifier and pick the right metric',
+            ],
+        },
+        {
+            title: 'Ensemble Methods',
+            description: 'Combine many weak models into a strong one.',
+            lessons: [
+                'Bagging and random forests',
+                'Gradient boosting',
+                'Feature importance and its pitfalls',
+                'Exercise: beat your earlier model with an ensemble',
+            ],
+        },
+        {
+            title: 'Unsupervised Learning',
+            description: 'Find structure in data without labels.',
+            lessons: [
+                'k-means clustering',
+                'Choosing the number of clusters',
+                'Hierarchical clustering',
+                'Dimensionality reduction with PCA',
+                'Anomaly detection',
+                'Exercise: customer segmentation',
+            ],
+        },
+        {
+            title: 'Model Selection & Tuning',
+            description: 'Choose and tune models without fooling yourself.',
+            lessons: [
+                'Cross-validation',
+                'The bias-variance trade-off',
+                'Learning curves and validation curves',
+                'Hyperparameter tuning with grid and random search',
+                'Keeping a final untouched test set',
+            ],
+        },
+        {
+            title: 'From Notebook to Production',
+            description: 'Ship a model so other programs can use it.',
+            lessons: [
+                'Saving and loading models with joblib',
+                'Serving predictions from a small web API',
+                'Validating inputs at prediction time',
+                'Monitoring models and data drift',
+                'Documenting a model: intended use and limitations',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'A complete ML project, evaluated like a professional would.',
+            lessons: [
+                'Framing the problem and choosing a metric',
+                'Exploring and cleaning the data',
+                'Baseline, then better models',
+                'Tuning with cross-validation',
+                'Final evaluation on the test set',
+                'Writing up results and limitations',
+            ],
+        },
+    ],
+};

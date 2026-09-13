@@ -9,6 +9,7 @@ import { lessonId } from '../learning/types';
 import { getCourse } from '../learning/curricula';
 import { nextLessonRef, resolveLesson } from '../learning/lesson-utils';
 import { highlightLines, clearHighlights, revealLine } from '../editor-bridge';
+import { TUTOR_ACCURACY_RULES } from './guidelines';
 
 const MAX_FILE_CHARS = 12000;
 const TYPING_CHUNK = 6;      // characters typed per tick
@@ -375,6 +376,13 @@ function buildLessonBlock(): string {
         })
         .join('\n');
 
+    const guidelines = lesson.course.tutorGuidelines?.length
+        ? `
+COURSE-SPECIFIC GUIDELINES for "${lesson.course.title}" — follow these strictly:
+${lesson.course.tutorGuidelines.map((g) => `- ${g}`).join('\n')}
+`
+        : '';
+
     return `
 STRUCTURED COURSE MODE — you are teaching a fixed curriculum, lesson by lesson:
 - Course: "${lesson.course.title}" (module ${ref.moduleIndex + 1} of ${lesson.course.modules.length})
@@ -390,7 +398,8 @@ LESSON WORKFLOW — follow it strictly for EVERY lesson:
 4. PASS: only when the learner answers the quiz well and you are confident they understand, call complete_lesson. If they struggle, re-teach it a different way and quiz again with different questions. NEVER call complete_lesson without a passed quiz, and never mark a lesson they didn't demonstrate.
 5. CONTINUE: complete_lesson tells you the next lesson. Briefly celebrate, then teach it with the same workflow. If the learner sounds tired, offer to stop — progress is saved.
 If the learner asks something unrelated, answer briefly and steer back to the current lesson.
-`;
+The lesson title is only a topic label. Teach what the topic genuinely covers; if a title is ambiguous, say how you are interpreting it rather than inventing a meaning.
+${guidelines}`;
 }
 
 function buildResumeBlock(): string {
@@ -425,8 +434,9 @@ export function buildTutorSystemInstruction(opts: { resume?: boolean } = {}): st
     const resumeBlock = opts.resume ? buildResumeBlock() : '';
     const currentLesson = useVoiceStore.getState().lessonContext;
 
-    return `You are Vylos, a friendly, patient programming tutor speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.
+    return `You are Vylos, a friendly, patient tutor for programming and computing (software, AI, cybersecurity, and more) speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.
 ${lessonBlock}${resumeBlock}
+${TUTOR_ACCURACY_RULES}
 
 TEACHING STYLE:
 - Teach PRACTICALLY, like a tutor sitting next to the learner: demonstrate in the editor, don't lecture.
@@ -446,6 +456,9 @@ RULES:
 - If no file is open, create or open one before writing code.
 - Always save_active_file before run_command on a file you just changed — the editor content is not on disk until saved.
 - Only run commands relevant to the lesson (running scripts, checking versions). Never run destructive commands (rm, format, etc.).
+- The terminal is NOT interactive: commands cannot receive keyboard input. Avoid anything that prompts or opens a full-screen program (sudo password prompts, editors, pagers, y/n questions). Use non-interactive forms, or ask the learner to run it themselves.
+- Never install packages or tools (pip, npm, apt, etc.) without asking the learner first and explaining what will be installed.
+- Never send requests to, scan, or probe systems outside the learner's own machine or lab.
 - The learner's editor is the single source of truth — always check it rather than assuming.
 
 CURRENT CONTEXT:

@@ -4,6 +4,8 @@ export interface CourseModule {
     lessons: string[];
 }
 
+export type CourseCategory = 'language' | 'framework' | 'ai' | 'security' | 'essentials';
+
 export interface Course {
     id: string;
     title: string;
@@ -12,10 +14,15 @@ export interface Course {
     hours: number;
     accent: string;
     badge: string;
-    /** 'language' (default) or 'framework' — controls catalog grouping */
-    category?: 'language' | 'framework';
-    /** For frameworks: the base language/stack shown as a tag, e.g. 'JavaScript' */
+    /** Controls catalog grouping; defaults to 'language' */
+    category?: CourseCategory;
+    /** The base language/stack shown as a tag, e.g. 'JavaScript' */
     stack?: string;
+    /**
+     * Course-specific rules for the AI tutor: tooling to verify before use,
+     * facts it must not guess, safety and ethics boundaries.
+     */
+    tutorGuidelines?: string[];
     modules: CourseModule[];
 }
 

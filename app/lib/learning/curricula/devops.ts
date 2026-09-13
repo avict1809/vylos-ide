@@ -1,0 +1,127 @@
+import { Course } from '../types';
+
+export const devops: Course = {
+    id: 'devops',
+    title: 'DevOps & Cloud',
+    tagline: 'Containers, CI/CD, infrastructure as code, and the cloud, from laptop to production.',
+    level: 'Intermediate (Linux + Git basics)',
+    hours: 35,
+    accent: '#2496ED',
+    badge: 'OPS',
+    category: 'essentials',
+    stack: 'Docker',
+    tutorGuidelines: [
+        'Check each tool is installed and working before using it (docker --version, docker info, kubectl version --client, terraform -version). If one is missing, explain how to install it and ask before doing so.',
+        'Prefer local practice: Docker, docker compose, and a local Kubernetes cluster (kind or minikube). Never create real cloud resources, run terraform apply, or deploy against a real cloud account without the learner\'s explicit confirmation — it can cost money.',
+        'Do not quote cloud prices, free-tier limits, or service quotas from memory. They change often. Point the learner to the provider\'s pricing page and teach them to set billing alerts.',
+        'Never print, commit, or bake secrets (cloud keys, tokens, passwords) into images or workflow files. Use environment variables and the platform\'s secret store.',
+        'Cloud consoles and CLI flags change. Verify commands with --help instead of relying on memory.',
+    ],
+    modules: [
+        {
+            title: 'DevOps Foundations',
+            description: 'The culture and practices behind modern software delivery.',
+            lessons: [
+                'What DevOps is (and is not)',
+                'The software delivery lifecycle',
+                'Continuous integration and continuous delivery',
+                'Infrastructure as code',
+                'Site reliability engineering ideas: SLIs, SLOs, and error budgets',
+            ],
+        },
+        {
+            title: 'Docker & Containers',
+            description: 'Package an app with everything it needs to run anywhere.',
+            lessons: [
+                'Containers vs virtual machines',
+                'Images and containers',
+                'Running your first container',
+                'Writing a Dockerfile',
+                'Layers and build caching',
+                'Volumes and persistent data',
+                'Container networking and ports',
+                'Multi-container apps with docker compose',
+                'Smaller, safer images: multi-stage builds and non-root users',
+            ],
+        },
+        {
+            title: 'CI/CD Pipelines',
+            description: 'Automatically test, build, and ship every change.',
+            lessons: [
+                'Your first GitHub Actions workflow',
+                'Running tests on every push',
+                'Building and publishing a Docker image',
+                'Secrets in CI',
+                'Deployment strategies: rolling, blue-green, canary',
+            ],
+        },
+        {
+            title: 'Cloud Fundamentals',
+            description: 'The core concepts shared by every major cloud provider.',
+            lessons: [
+                'IaaS, PaaS, and SaaS',
+                'Regions and availability zones',
+                'Compute, storage, and networking services',
+                'Identity and access management',
+                'The shared responsibility model',
+                'Controlling costs and setting billing alerts',
+            ],
+        },
+        {
+            title: 'Infrastructure as Code',
+            description: 'Describe infrastructure in files you can review and version.',
+            lessons: [
+                'Why infrastructure as code',
+                'Terraform basics: providers and resources',
+                'terraform plan and apply',
+                'State and why it matters',
+                'Variables, outputs, and modules',
+            ],
+        },
+        {
+            title: 'Kubernetes Essentials',
+            description: 'Run containers at scale.',
+            lessons: [
+                'What Kubernetes does',
+                'A local cluster with kind or minikube',
+                'Pods',
+                'Deployments and scaling',
+                'Services and networking',
+                'ConfigMaps and Secrets',
+                'Using kubectl day to day',
+            ],
+        },
+        {
+            title: 'Serving Apps in Production',
+            description: 'Put an app on the internet properly.',
+            lessons: [
+                'Reverse proxies with Nginx',
+                'HTTPS with Let\'s Encrypt',
+                'Configuration through the environment (12-factor)',
+                'Health checks and graceful shutdown',
+            ],
+        },
+        {
+            title: 'Observability',
+            description: 'Know what your systems are doing.',
+            lessons: [
+                'Logs, metrics, and traces',
+                'Structured logging',
+                'Metrics with Prometheus: the concepts',
+                'Dashboards with Grafana: the concepts',
+                'Alerting without alert fatigue',
+            ],
+        },
+        {
+            title: 'Capstone Project',
+            description: 'Build a full delivery pipeline for a small app.',
+            lessons: [
+                'Containerizing the app',
+                'Adding a CI pipeline with tests',
+                'Running it locally with docker compose',
+                'Deploying to a local Kubernetes cluster',
+                'Adding health checks and monitoring',
+            ],
+        },
+    ],
+};

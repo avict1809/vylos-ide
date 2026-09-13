@@ -1,0 +1,157 @@
+import { Course } from '../types';
+
+export const dsa: Course = {
+    id: 'dsa',
+    title: 'Data Structures & Algorithms',
+    tagline: 'Solve problems efficiently and ace technical interviews.',
+    level: 'Intermediate (one language required)',
+    hours: 40,
+    accent: '#22D3EE',
+    badge: 'DSA',
+    category: 'essentials',
+    stack: 'Python',
+    tutorGuidelines: [
+        'Let the learner attempt each problem before you show a solution. Give hints in increasing strength instead.',
+        'Back up complexity claims: derive them step by step, and where helpful time the code on growing inputs to show the trend.',
+        'Always test solutions with edge cases (empty input, one element, duplicates, very large input) by actually running them.',
+        'If the learner prefers another language, teach in that language and check its toolchain is installed first.',
+    ],
+    modules: [
+        {
+            title: 'Complexity Analysis',
+            description: 'Measure how code scales before you optimize it.',
+            lessons: [
+                'Why efficiency matters',
+                'Big-O notation',
+                'Analyzing loops and nested loops',
+                'Space complexity',
+                'Best, average, and worst case',
+                'Amortized analysis',
+            ],
+        },
+        {
+            title: 'Arrays & Strings',
+            description: 'The most common data in interview problems.',
+            lessons: [
+                'Dynamic arrays under the hood',
+                'The two-pointer technique',
+                'Sliding windows',
+                'Prefix sums',
+                'Exercise: classic array problems',
+            ],
+        },
+        {
+            title: 'Hashing',
+            description: 'Constant-time lookups and how they work.',
+            lessons: [
+                'How hash tables work',
+                'Collisions and load factor',
+                'Sets and maps in practice',
+                'Frequency counting patterns',
+                'Exercise: two-sum and anagram grouping',
+            ],
+        },
+        {
+            title: 'Linked Lists',
+            description: 'Pointers, nodes, and careful bookkeeping.',
+            lessons: [
+                'Singly linked lists',
+                'Doubly linked lists',
+                'Reversing a linked list',
+                'Fast and slow pointers',
+                'Exercise: detect a cycle',
+            ],
+        },
+        {
+            title: 'Stacks & Queues',
+            description: 'Order of processing as a tool.',
+            lessons: [
+                'Stacks',
+                'Queues and deques',
+                'Monotonic stacks',
+                'Exercise: balanced brackets',
+            ],
+        },
+        {
+            title: 'Recursion & Backtracking',
+            description: 'Solve problems by solving smaller versions of them.',
+            lessons: [
+                'Thinking recursively',
+                'The call stack and base cases',
+                'Backtracking',
+                'Subsets and permutations',
+                'Exercise: N-Queens',
+            ],
+        },
+        {
+            title: 'Sorting & Searching',
+            description: 'The algorithms everything else is built on.',
+            lessons: [
+                'Selection, insertion, and bubble sort',
+                'Merge sort',
+                'Quicksort',
+                'Counting sort',
+                'Stability and choosing a sort',
+                'Binary search',
+                'Binary search on the answer',
+            ],
+        },
+        {
+            title: 'Trees',
+            description: 'Hierarchical data and fast ordered operations.',
+            lessons: [
+                'Binary trees',
+                'Tree traversals: pre-order, in-order, post-order, level-order',
+                'Binary search trees',
+                'Balanced trees: why they matter',
+                'Heaps and priority queues',
+                'Tries',
+            ],
+        },
+        {
+            title: 'Graphs',
+            description: 'Model networks, maps, and dependencies.',
+            lessons: [
+                'Graph representations',
+                'Breadth-first search',
+                'Depth-first search',
+                'Topological sort',
+                "Dijkstra's shortest path",
+                'Union-find',
+                'Minimum spanning trees',
+            ],
+        },
+        {
+            title: 'Dynamic Programming',
+            description: 'Stop recomputing the same subproblems.',
+            lessons: [
+                'Overlapping subproblems and memoization',
+                'Tabulation',
+                'Coin change',
+                'Longest common subsequence',
+                '0/1 knapsack',
+                'Recognizing DP problems',
+            ],
+        },
+        {
+            title: 'Greedy Algorithms',
+            description: 'When the locally best choice is globally best.',
+            lessons: [
+                'The greedy idea',
+                'Interval scheduling',
+                'When greedy fails',
+            ],
+        },
+        {
+            title: 'Interview Practice',
+            description: 'Put it all together under realistic conditions.',
+            lessons: [
+                'A problem-solving framework',
+                'Talking through your approach',
+                'Mock problem: arrays and hashing',
+                'Mock problem: trees and graphs',
+                'Mock problem: dynamic programming',
+            ],
+        },
+    ],
+};
