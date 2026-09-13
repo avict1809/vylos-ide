@@ -9,7 +9,7 @@ import serve from 'electron-serve';
 import { initUpdater } from './updater';
 import {
     CommandResult, OpenRequest, detachFromTerminal, installShellCommand, launchArgs,
-    printCliInfo, refreshShellCommand, resolveOpenRequests, uninstallShellCommand,
+    printCliInfo, refreshShellCommand, resolveOpenRequests, shouldOfferShellCommand, uninstallShellCommand,
 } from './cli';
 
 let mainWindow: BrowserWindow | null;
@@ -124,6 +124,7 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     // Checks for a mandatory update; the renderer blocks the app until it is applied
     initUpdater();
     void refreshShellCommand();
+    void offerShellCommand();
 
     app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -420,6 +421,20 @@ const showCommandResult = async (result: CommandResult) => {
         message: result.message,
         detail: result.detail,
     });
+};
+
+const offerShellCommand = async () => {
+    if (!mainWindow || !await shouldOfferShellCommand()) return;
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        message: "Install the 'vylos' shell command?",
+        detail: "Then run 'vylos .' in a terminal to open that folder in Vylos AI.\n\n"
+            + "You can do this later from Terminal > Install 'vylos' Command in PATH.",
+        buttons: ['Install', 'Not Now'],
+        defaultId: 0,
+        cancelId: 1,
+    });
+    if (response === 0) await showCommandResult(await installShellCommand());
 };
 
 ipcMain.handle('cli:install-command', async () => showCommandResult(await installShellCommand()));

@@ -9,6 +9,7 @@ exports.detachFromTerminal = detachFromTerminal;
 exports.resolveOpenRequests = resolveOpenRequests;
 exports.installShellCommand = installShellCommand;
 exports.uninstallShellCommand = uninstallShellCommand;
+exports.shouldOfferShellCommand = shouldOfferShellCommand;
 exports.refreshShellCommand = refreshShellCommand;
 const electron_1 = require("electron");
 const child_process_1 = require("child_process");
@@ -194,6 +195,29 @@ async function uninstallShellCommand() {
         return { ok: false, message: "Couldn't remove the 'vylos' command.", detail: e instanceof Error ? e.message : String(e) };
     }
     return { ok: true, message: "Removed the 'vylos' command." };
+}
+const exists = (p, mode) => promises_1.default.access(p, mode).then(() => true, () => false);
+// Written once the AppImage has offered the command, so it only ever asks once
+const offeredFile = () => path_1.default.join(electron_1.app.getPath('userData'), 'shell-command-offered');
+/**
+ * An AppImage has no installer to set up `vylos`, so its first launch offers
+ * to. True at most once, and never when some `vylos` is already around.
+ */
+async function shouldOfferShellCommand() {
+    if (!electron_1.app.isPackaged || process.platform !== 'linux' || !process.env.APPIMAGE)
+        return false;
+    if (await exists(offeredFile()))
+        return false;
+    // Decided now either way, so uninstalling the command later doesn't bring the offer back
+    await promises_1.default.writeFile(offeredFile(), '').catch(() => { });
+    if (await readCommand() !== null)
+        return false;
+    const dirs = (process.env.PATH ?? '').split(path_1.default.delimiter).filter(Boolean);
+    for (const dir of dirs) {
+        if (await exists(path_1.default.join(dir, 'vylos'), promises_1.default.constants.X_OK))
+            return false;
+    }
+    return true;
 }
 /**
  * AppImage updates rename the file (Vylos-AI-0.1.2.AppImage becomes

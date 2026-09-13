@@ -147,6 +147,7 @@ if (isPrimaryInstance)
         // Checks for a mandatory update; the renderer blocks the app until it is applied
         (0, updater_1.initUpdater)();
         void (0, cli_1.refreshShellCommand)();
+        void offerShellCommand();
         electron_1.app.on('activate', async () => {
             if (electron_1.BrowserWindow.getAllWindows().length === 0) {
                 await createWindow();
@@ -420,6 +421,21 @@ const showCommandResult = async (result) => {
         message: result.message,
         detail: result.detail,
     });
+};
+const offerShellCommand = async () => {
+    if (!mainWindow || !await (0, cli_1.shouldOfferShellCommand)())
+        return;
+    const { response } = await dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        message: "Install the 'vylos' shell command?",
+        detail: "Then run 'vylos .' in a terminal to open that folder in Vylos AI.\n\n"
+            + "You can do this later from Terminal > Install 'vylos' Command in PATH.",
+        buttons: ['Install', 'Not Now'],
+        defaultId: 0,
+        cancelId: 1,
+    });
+    if (response === 0)
+        await showCommandResult(await (0, cli_1.installShellCommand)());
 };
 electron_1.ipcMain.handle('cli:install-command', async () => showCommandResult(await (0, cli_1.installShellCommand)()));
 electron_1.ipcMain.handle('cli:uninstall-command', async () => showCommandResult(await (0, cli_1.uninstallShellCommand)()));

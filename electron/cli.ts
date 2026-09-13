@@ -11,7 +11,8 @@ import path from 'path';
  *
  * - The .deb package already links /usr/bin/vylos to the app.
  * - AppImage and Windows installs get it from Terminal > Install 'vylos'
- *   Command in PATH, which writes a small launcher script.
+ *   Command in PATH, which writes a small launcher script. An AppImage also
+ *   offers to on its first launch.
  */
 
 export interface OpenRequest {
@@ -215,6 +216,29 @@ export async function uninstallShellCommand(): Promise<CommandResult> {
         return { ok: false, message: "Couldn't remove the 'vylos' command.", detail: e instanceof Error ? e.message : String(e) };
     }
     return { ok: true, message: "Removed the 'vylos' command." };
+}
+
+const exists = (p: string, mode?: number) => fs.access(p, mode).then(() => true, () => false);
+
+// Written once the AppImage has offered the command, so it only ever asks once
+const offeredFile = () => path.join(app.getPath('userData'), 'shell-command-offered');
+
+/**
+ * An AppImage has no installer to set up `vylos`, so its first launch offers
+ * to. True at most once, and never when some `vylos` is already around.
+ */
+export async function shouldOfferShellCommand(): Promise<boolean> {
+    if (!app.isPackaged || process.platform !== 'linux' || !process.env.APPIMAGE) return false;
+    if (await exists(offeredFile())) return false;
+    // Decided now either way, so uninstalling the command later doesn't bring the offer back
+    await fs.writeFile(offeredFile(), '').catch(() => { });
+
+    if (await readCommand() !== null) return false;
+    const dirs = (process.env.PATH ?? '').split(path.delimiter).filter(Boolean);
+    for (const dir of dirs) {
+        if (await exists(path.join(dir, 'vylos'), fs.constants.X_OK)) return false;
+    }
+    return true;
 }
 
 /**
