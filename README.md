@@ -116,6 +116,8 @@ npm run electron:build   # packaged desktop app (electron-builder)
 npm run build            # Next.js static export only
 ```
 
+Only packages the Electron main process loads at runtime belong in `dependencies` — they are the ones copied into the installer. Everything the UI uses goes in `devDependencies`, since Next.js compiles it into `out/`. Putting a UI package in `dependencies` bloats the installer; putting a main-process package in `devDependencies` breaks the packaged app.
+
 ---
 
 ## Keyboard shortcuts

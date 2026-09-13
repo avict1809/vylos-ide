@@ -16,30 +16,23 @@
     "release": "npm run build && npm run build:electron && electron-builder --publish always"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@monaco-editor/react": "^4.7.0",
     "@supabase/supabase-js": "^2.110.2",
-    "@types/fs-extra": "^11.0.4",
     "chokidar": "^5.0.0",
-    "clsx": "^2.1.1",
     "electron-serve": "^3.0.0",
     "electron-updater": "^6.8.9",
     "fs-extra": "^11.3.3",
-    "isomorphic-git": "^1.36.1",
-    "lucide-react": "^0.562.0",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-resizable-panels": "^4.2.0",
-    "tailwind-merge": "^3.4.0",
-    "zustand": "^5.0.9"
+    "isomorphic-git": "^1.36.1"
   },
   "devDependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@monaco-editor/react": "^4.7.0",
     "@tailwindcss/postcss": "^4",
     "@types/chokidar": "^1.7.5",
+    "@types/fs-extra": "^11.0.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
@@ -47,9 +40,16 @@
     "electron-icon-builder": "^2.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "lucide-react": "^0.562.0",
+    "next": "16.1.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-resizable-panels": "^4.2.0",
+    "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "wait-on": "^9.0.3"
+    "wait-on": "^9.0.3",
+    "zustand": "^5.0.9"
   },
   "build": {
     "productName": "Vylos AI",
@@ -61,9 +61,7 @@
       "electron/dist/**/*",
       "electron/auth-page.html",
       "out/**/*",
-      "public/**/*",
-      "package.json",
-      "node_modules/**/*"
+      "package.json"
     ],
     "extraResources": [
       {
@@ -83,8 +81,10 @@
     "linux": {
       "icon": "build/icons/icon.png",
       "category": "Development",
+      "maintainer": "Vylos Team <167124575+Nelacommunity@users.noreply.github.com>",
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb"
       ]
     },
     "nsis": {
