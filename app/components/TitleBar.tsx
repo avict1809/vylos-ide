@@ -24,7 +24,12 @@ export function TitleBar() {
         setShowQuickOpen,
         setShowAbout,
         toggleTerminal,
-        setMonacoAction
+        setMonacoAction,
+        recentFiles,
+        recentFolders,
+        openFolderPath,
+        openFileByPath,
+        clearRecent
     } = useFileStore();
 
     const activeFile = activeFileIndex !== null ? openFiles[activeFileIndex] : null;
@@ -92,6 +97,7 @@ export function TitleBar() {
                 { type: "separator" },
                 { label: "Open File...", shortcut: "Ctrl+O" },
                 { label: "Open Folder...", shortcut: "Ctrl+K Ctrl+O" },
+                { label: "Open Recent", submenu: true },
                 { type: "separator" },
                 { label: "Save", shortcut: "Ctrl+S" },
                 { label: "Save As...", shortcut: "Ctrl+Shift+S" },
@@ -235,6 +241,23 @@ export function TitleBar() {
                                     {menu.items.map((item: any, i) =>
                                         item.type === "separator" ? (
                                             <div key={i} className="h-px bg-[#27272a] my-1 mx-2" />
+                                        ) : item.submenu ? (
+                                            <div
+                                                key={i}
+                                                className="relative group/sub px-3 py-1 hover:bg-[var(--vylos-green-dark)] hover:text-white flex justify-between items-center cursor-default"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <span>{item.label}</span>
+                                                <ChevronRight size={12} className="text-gray-500" />
+                                                <RecentMenu
+                                                    folders={recentFolders}
+                                                    files={recentFiles}
+                                                    onOpenFolder={openFolderPath}
+                                                    onOpenFile={openFileByPath}
+                                                    onClear={clearRecent}
+                                                    onDone={() => setActiveMenu(null)}
+                                                />
+                                            </div>
                                         ) : (
                                             <div
                                                 key={i}
@@ -306,6 +329,60 @@ export function TitleBar() {
                 </div>
             </div>
         </>
+    );
+}
+
+function RecentMenu({ folders, files, onOpenFolder, onOpenFile, onClear, onDone }: {
+    folders: string[];
+    files: string[];
+    onOpenFolder: (path: string) => void;
+    onOpenFile: (path: string) => void;
+    onClear: () => void;
+    onDone: () => void;
+}) {
+    const entry = (path: string, onOpen: (path: string) => void) => {
+        const parts = path.split(/[\\/]/);
+        const name = parts.pop();
+        return (
+            <div
+                key={path}
+                title={path}
+                className="px-3 py-1 hover:bg-[var(--vylos-green-dark)] hover:text-white flex items-baseline gap-2 cursor-default text-gray-300"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onOpen(path);
+                    onDone();
+                }}
+            >
+                <span className="shrink-0">{name}</span>
+                <span className="text-gray-500 text-[11px] truncate">{parts.join('/')}</span>
+            </div>
+        );
+    };
+
+    return (
+        <div className="hidden group-hover/sub:block absolute left-full top-0 -mt-1 w-80 bg-[#18181b] border border-[#27272a] shadow-2xl rounded-md z-[101] py-1">
+            {folders.length === 0 && files.length === 0 ? (
+                <div className="px-3 py-1 text-gray-500">No recently opened items</div>
+            ) : (
+                <>
+                    {folders.map(p => entry(p, onOpenFolder))}
+                    {folders.length > 0 && files.length > 0 && <div className="h-px bg-[#27272a] my-1 mx-2" />}
+                    {files.map(p => entry(p, onOpenFile))}
+                    <div className="h-px bg-[#27272a] my-1 mx-2" />
+                    <div
+                        className="px-3 py-1 hover:bg-[var(--vylos-green-dark)] hover:text-white cursor-default text-gray-300"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onClear();
+                            onDone();
+                        }}
+                    >
+                        Clear Recently Opened
+                    </div>
+                </>
+            )}
+        </div>
     );
 }
 

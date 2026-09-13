@@ -24,18 +24,24 @@ const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: 
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
-  const { showTerminal } = useFileStore();
+  const { showTerminal, restoreSession } = useFileStore();
   const { hasCompletedOnboarding, isAuthenticated } = useAuthStore();
+  const showWorkbench = mounted && isAuthenticated && hasCompletedOnboarding;
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Reopen the editors that were open when the app was last closed
+  React.useEffect(() => {
+    if (showWorkbench) restoreSession();
+  }, [showWorkbench, restoreSession]);
+
   if (!mounted) {
     return <div className="h-full w-full bg-black" />;
   }
 
-  if (!isAuthenticated || !hasCompletedOnboarding) {
+  if (!showWorkbench) {
     return <Onboarding />;
   }
 

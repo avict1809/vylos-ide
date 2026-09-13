@@ -6,7 +6,7 @@ import { Search, File } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 export default function QuickOpenModal() {
-    const { showQuickOpen, setShowQuickOpen, projectRoot, openFileByPath } = useFileStore();
+    const { showQuickOpen, setShowQuickOpen, projectRoot, openFileByPath, recentFiles } = useFileStore();
     const [query, setQuery] = useState('');
     const [files, setFiles] = useState<string[]>([]);
     const [filteredFiles, setFilteredFiles] = useState<string[]>([]);
@@ -14,24 +14,25 @@ export default function QuickOpenModal() {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (showQuickOpen && projectRoot) {
-            setQuery('');
-            setSelectedIndex(0);
-            (window as any).electron?.fs.listAll(projectRoot).then((res: string[]) => {
-                setFiles(res);
-                setFilteredFiles(res.slice(0, 10)); // Initial suggest
-            });
-            setTimeout(() => inputRef.current?.focus(), 50);
+        if (!showQuickOpen) return;
+        setQuery('');
+        setSelectedIndex(0);
+        if (projectRoot) {
+            (window as any).electron?.fs.listAll(projectRoot).then((res: string[]) => setFiles(res));
         }
+        setTimeout(() => inputRef.current?.focus(), 50);
     }, [showQuickOpen, projectRoot]);
 
     useEffect(() => {
+        // Recently opened files first (even outside the project), then the rest of the project
+        const recent = new Set(recentFiles);
+        const pool = [...recentFiles, ...files.filter(f => !recent.has(f))];
         if (!query) {
-            setFilteredFiles(files.slice(0, 10));
+            setFilteredFiles(pool.slice(0, 10));
             return;
         }
         const lower = query.toLowerCase();
-        const filtered = files
+        const filtered = pool
             .filter(f => f.toLowerCase().includes(lower))
             .sort((a, b) => {
                 const aName = a.split(/[\\/]/).pop()?.toLowerCase() || '';
@@ -43,7 +44,7 @@ export default function QuickOpenModal() {
             .slice(0, 10);
         setFilteredFiles(filtered);
         setSelectedIndex(0);
-    }, [query, files]);
+    }, [query, files, recentFiles]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
@@ -102,18 +103,21 @@ export default function QuickOpenModal() {
                                     onMouseEnter={() => setSelectedIndex(index)}
                                 >
                                     <File size={16} className="text-gray-400" />
-                                    <div className="flex flex-col">
+                                    <div className="flex flex-col flex-1 min-w-0">
                                         <span className={cn("text-sm", selectedIndex === index ? "text-[var(--vylos-green)] font-medium" : "text-gray-200")}>
                                             {name}
                                         </span>
                                         <span className="text-[11px] text-gray-500 truncate">{relativePath}</span>
                                     </div>
+                                    {recentFiles.includes(file) && (
+                                        <span className="text-[10px] text-gray-500 shrink-0">recently opened</span>
+                                    )}
                                 </div>
                             );
                         })
                     ) : (
                         <div className="px-4 py-8 text-center text-gray-500 text-sm">
-                            No files matching "{query}"
+                            {query ? `No files matching "${query}"` : 'No recently opened files'}
                         </div>
                     )}
                 </div>

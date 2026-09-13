@@ -1,4 +1,8 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+const MAX_RECENT_FILES = 20;
+const MAX_RECENT_FOLDERS = 10;
 
 interface FileNode {
     name: string;
@@ -13,6 +17,26 @@ interface FileTab extends FileNode {
     originalContent: string;
     isDirty: boolean;
 }
+
+// Open editors as saved between launches (paths only; content is re-read from disk)
+interface WorkspaceSession {
+    files: string[];
+    activePath: string | null;
+}
+
+const isUntitled = (path: string) => path.startsWith('untitled-');
+const baseName = (path: string) => path.split(/[\\/]/).pop() || 'Untitled';
+
+// Most recent first, without duplicates
+const pushRecent = (list: string[], path: string, max: number) =>
+    [path, ...list.filter(p => p !== path)].slice(0, max);
+
+const snapshotSession = ({ openFiles, activeFileIndex }: Pick<FileStore, 'openFiles' | 'activeFileIndex'>): WorkspaceSession => ({
+    files: openFiles.filter(f => !isUntitled(f.path)).map(f => f.path),
+    activePath: activeFileIndex !== null ? openFiles[activeFileIndex]?.path ?? null : null,
+});
+
+let restoringSession: Promise<void> | null = null;
 
 interface FileStore {
     openFiles: FileTab[];
@@ -29,8 +53,16 @@ interface FileStore {
     fileTree: FileNode[];
     selectedNode: FileNode | null;
     expandedPaths: Set<string>;
+    recentFiles: string[];
+    recentFolders: string[];
+    // Session loaded from the previous launch; only read by restoreSession
+    session: WorkspaceSession | null;
+    sessionRestored: boolean;
 
     // Actions
+    restoreSession: () => Promise<void>;
+    openFolderPath: (dirPath: string) => void;
+    clearRecent: () => void;
     setFileTree: (tree: FileNode[]) => void;
     setSelectedNode: (node: FileNode | null) => void;
     togglePathExpansion: (path: string) => void;
@@ -60,7 +92,7 @@ interface FileStore {
     clearSearchMetadata: () => void;
 }
 
-export const useFileStore = create<FileStore>((set, get) => ({
+export const useFileStore = create<FileStore>()(persist((set, get) => ({
     openFiles: [],
     activeFileIndex: null,
     isReading: false,
@@ -75,6 +107,58 @@ export const useFileStore = create<FileStore>((set, get) => ({
     fileTree: [],
     selectedNode: null,
     expandedPaths: new Set<string>(),
+    recentFiles: [],
+    recentFolders: [],
+    session: null,
+    sessionRestored: false,
+
+    restoreSession: () => {
+        const electron = (window as any).electron;
+        if (get().sessionRestored || !electron) return Promise.resolve();
+
+        restoringSession ??= (async () => {
+            const paths = get().session?.files ?? [];
+            const contents: (string | null)[] = await Promise.all(paths.map(p => electron.fs.read(p)));
+
+            // Files deleted or moved since the last launch are skipped (and dropped from recents)
+            const restored: FileTab[] = [];
+            const missing = new Set<string>();
+            paths.forEach((path, i) => {
+                const content = contents[i];
+                if (content == null) {
+                    missing.add(path);
+                    return;
+                }
+                restored.push({ name: baseName(path), path, isDirectory: false, content, originalContent: content, isDirty: false });
+            });
+
+            // Keep anything the user opened while the session was being read
+            const { openFiles, activeFileIndex, session, recentFiles } = get();
+            const merged = [...restored, ...openFiles.filter(f => !restored.some(r => r.path === f.path))];
+            const activePath = activeFileIndex !== null ? openFiles[activeFileIndex]?.path : session?.activePath;
+            const index = merged.findIndex(f => f.path === activePath);
+
+            set({
+                openFiles: merged,
+                activeFileIndex: index !== -1 ? index : merged.length > 0 ? 0 : null,
+                recentFiles: recentFiles.filter(p => !missing.has(p)),
+                sessionRestored: true,
+            });
+        })();
+        return restoringSession;
+    },
+
+    openFolderPath: (dirPath) => {
+        set(state => ({
+            projectRoot: dirPath,
+            activeView: 'explorer',
+            recentFolders: pushRecent(state.recentFolders, dirPath, MAX_RECENT_FOLDERS),
+        }));
+        get().refreshFileTree();
+        get().watchProjectRoot();
+    },
+
+    clearRecent: () => set({ recentFiles: [], recentFolders: [] }),
 
     setFileTree: (tree) => set({ fileTree: tree }),
     setSelectedNode: (node) => set({ selectedNode: node }),
@@ -162,11 +246,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
     },
 
     openFile: (file, content, searchMetadata) => {
-        const { openFiles } = get();
+        const { openFiles, recentFiles } = get();
         const existingIndex = openFiles.findIndex(f => f.path === file.path);
+        const newRecent = isUntitled(file.path) ? recentFiles : pushRecent(recentFiles, file.path, MAX_RECENT_FILES);
 
         if (existingIndex !== -1) {
-            set({ activeFileIndex: existingIndex });
+            set({ activeFileIndex: existingIndex, recentFiles: newRecent });
             return;
         }
 
@@ -180,7 +265,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
         set({
             openFiles: [...openFiles, newTab],
             activeFileIndex: openFiles.length,
-            searchMetadata: searchMetadata || null
+            searchMetadata: searchMetadata || null,
+            recentFiles: newRecent
         });
     },
 
@@ -200,11 +286,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         const electron = (window as any).electron;
         if (!electron) return;
         const dirPath = await electron.dialog.openDirectory();
-        if (dirPath) {
-            set({ projectRoot: dirPath, activeView: 'explorer' });
-            get().refreshFileTree();
-            get().watchProjectRoot();
-        }
+        if (dirPath) get().openFolderPath(dirPath);
     },
 
     createNewFile: () => {
@@ -313,7 +395,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
                 originalContent: tab.content,
                 isDirty: false
             };
-            set({ openFiles: newFiles });
+            set({ openFiles: newFiles, recentFiles: pushRecent(get().recentFiles, newPath, MAX_RECENT_FILES) });
         }
     },
 
@@ -334,10 +416,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
         }
 
         const content = await (window as any).electron?.fs.read(filePath);
-        if (content !== null) {
-            const name = filePath.split(/[\\/]/).pop() || 'Untitled';
-            openFile({ name, path: filePath, isDirectory: false }, content);
+        if (content == null) {
+            // Deleted or unreadable: stop offering it as a recent file
+            set(state => ({ recentFiles: state.recentFiles.filter(p => p !== filePath) }));
+            return;
         }
+        openFile({ name: baseName(filePath), path: filePath, isDirectory: false }, content);
     },
 
     setShowAbout: (show) => set({ showAbout: show }),
@@ -345,4 +429,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
     setMonacoAction: (action) => set({ monacoAction: action }),
 
     clearSearchMetadata: () => set({ searchMetadata: null }),
+}), {
+    name: 'vylos-workspace',
+    partialize: (state) => ({
+        projectRoot: state.projectRoot,
+        activeView: state.activeView,
+        recentFiles: state.recentFiles,
+        recentFolders: state.recentFolders,
+        // Until the saved tabs are reopened, keep them as-is so an early write can't wipe them
+        session: state.sessionRestored ? snapshotSession(state) : state.session,
+    }),
 }));
