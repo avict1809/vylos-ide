@@ -141,8 +141,13 @@ function registerHandlers() {
         if (state.status !== 'downloaded')
             return false;
         // isSilent = false so the installer UI shows, isForceRunAfter = true so
-        // the user lands back in Vylos instead of a closed app.
-        setImmediate(() => electron_updater_1.autoUpdater.quitAndInstall(false, true));
+        // the user lands back in Vylos instead of a closed app. The relaunch can
+        // start before this process exits, so let go of the single-instance lock
+        // first or it would hand off to this dying instance and quit.
+        setImmediate(() => {
+            electron_1.app.releaseSingleInstanceLock();
+            electron_updater_1.autoUpdater.quitAndInstall(false, true);
+        });
         return true;
     });
 }

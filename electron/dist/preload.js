@@ -64,6 +64,16 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
             return () => electron_1.ipcRenderer.removeListener('shortcut:toggle-terminal', subscription);
         },
     },
+    cli: {
+        takePendingOpens: () => electron_1.ipcRenderer.invoke('cli:take-pending'),
+        onOpenRequested: (callback) => {
+            const subscription = () => callback();
+            electron_1.ipcRenderer.on('cli:open-requested', subscription);
+            return () => electron_1.ipcRenderer.removeListener('cli:open-requested', subscription);
+        },
+        installCommand: () => electron_1.ipcRenderer.invoke('cli:install-command'),
+        uninstallCommand: () => electron_1.ipcRenderer.invoke('cli:uninstall-command'),
+    },
     dialog: {
         openFile: () => electron_1.ipcRenderer.invoke('dialog:openFile'),
         openDirectory: () => electron_1.ipcRenderer.invoke('dialog:openDirectory'),

@@ -60,6 +60,8 @@ export function TitleBar() {
             case "Exit": window.electron?.window.close(); break;
             case "Toggle Terminal": toggleTerminal(); break;
             case "New Terminal": toggleTerminal(); break;
+            case "Install 'vylos' Command in PATH": window.electron?.cli?.installCommand(); break;
+            case "Uninstall 'vylos' Command from PATH": window.electron?.cli?.uninstallCommand(); break;
 
             case "Toggle Sidebar": setActiveView(getOppositeView()); break;
             case "Search": setActiveView('search'); break;
@@ -142,7 +144,15 @@ export function TitleBar() {
             ]
         },
         { label: "Go", items: [{ label: "Go to File...", shortcut: "Ctrl+P" }] },
-        { label: "Terminal", items: [{ label: "New Terminal", shortcut: "Ctrl+Shift+`" }] },
+        {
+            label: "Terminal",
+            items: [
+                { label: "New Terminal", shortcut: "Ctrl+Shift+`" },
+                { type: "separator" },
+                { label: "Install 'vylos' Command in PATH" },
+                { label: "Uninstall 'vylos' Command from PATH" },
+            ]
+        },
         { label: "Help", items: [{ label: "About Vylos" }] }
     ];
 

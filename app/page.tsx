@@ -24,7 +24,7 @@ const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: 
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
-  const { showTerminal, restoreSession } = useFileStore();
+  const { showTerminal, restoreSession, openLaunchPaths } = useFileStore();
   const { hasCompletedOnboarding, isAuthenticated } = useAuthStore();
   const showWorkbench = mounted && isAuthenticated && hasCompletedOnboarding;
 
@@ -36,6 +36,16 @@ export default function Home() {
   React.useEffect(() => {
     if (showWorkbench) restoreSession();
   }, [showWorkbench, restoreSession]);
+
+  // Folders and files named by `vylos <path>`: the one that launched the app,
+  // and any run later while it's open
+  React.useEffect(() => {
+    const cli = window.electron?.cli;
+    if (!cli) return;
+    const openRequested = async () => openLaunchPaths(await cli.takePendingOpens());
+    void openRequested();
+    return cli.onOpenRequested(openRequested);
+  }, [openLaunchPaths]);
 
   if (!mounted) {
     return <div className="h-full w-full bg-black" />;

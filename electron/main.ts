@@ -7,10 +7,52 @@ import fs from 'fs/promises';
 import fse from 'fs-extra';
 import serve from 'electron-serve';
 import { initUpdater } from './updater';
+import {
+    CommandResult, OpenRequest, detachFromTerminal, installShellCommand, launchArgs,
+    printCliInfo, refreshShellCommand, resolveOpenRequests, uninstallShellCommand,
+} from './cli';
 
 let mainWindow: BrowserWindow | null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
+
+// `vylos <path>` from a terminal (see cli.ts). `--help`, a terminal launch that
+// relaunches itself detached, and a second `vylos` that hands its paths to the
+// running app all quit here without making a window.
+const cliArgs = launchArgs(process.argv);
+const isPrimaryInstance = !printCliInfo(process.argv) && !detachFromTerminal()
+    // Development skips the lock so it can run alongside an installed copy
+    && (isDev || app.requestSingleInstanceLock({ args: cliArgs, cwd: process.cwd() }));
+
+if (!isPrimaryInstance) app.quit();
+
+const focusMainWindow = () => {
+    if (!mainWindow) return;
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+};
+
+// Paths to open wait here until the renderer collects them: the window may
+// still be loading when they arrive.
+const pendingOpens: OpenRequest[] = [];
+let resolvingOpens = Promise.resolve();
+
+const queueOpen = (args: string[], cwd: string) => {
+    if (args.length === 0) return;
+    resolvingOpens = resolvingOpens.then(async () => {
+        pendingOpens.push(...await resolveOpenRequests(args, cwd));
+        mainWindow?.webContents.send('cli:open-requested');
+    });
+};
+
+if (isPrimaryInstance) queueOpen(cliArgs, process.cwd());
+
+app.on('second-instance', (_event, argv, workingDirectory, data) => {
+    const { args, cwd } = (data ?? {}) as { args?: string[]; cwd?: string };
+    queueOpen(args ?? launchArgs(argv), cwd ?? workingDirectory);
+    focusMainWindow();
+});
 
 // CRITICAL: Initialize electron-serve at module level BEFORE app.whenReady()
 // This registers the 'app://' protocol handler early enough for it to work
@@ -77,10 +119,11 @@ const createWindow = async () => {
     });
 };
 
-app.whenReady().then(async () => {
+if (isPrimaryInstance) app.whenReady().then(async () => {
     await createWindow();
     // Checks for a mandatory update; the renderer blocks the app until it is applied
     initUpdater();
+    void refreshShellCommand();
 
     app.on('activate', async () => {
         if (BrowserWindow.getAllWindows().length === 0) {
@@ -174,11 +217,7 @@ ipcMain.handle('auth:signInViaBrowser', (event, config: { supabaseUrl: string; s
                     res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
 
                     // Bring the app back to the front
-                    if (mainWindow) {
-                        if (mainWindow.isMinimized()) mainWindow.restore();
-                        mainWindow.show();
-                        mainWindow.focus();
-                    }
+                    focusMainWindow();
                     settle({ access_token, refresh_token });
                 } else {
                     res.writeHead(404).end();
@@ -367,6 +406,24 @@ ipcMain.handle('dialog:saveFile', async (event, content: string, defaultPath?: s
     await fs.writeFile(filePath, content, 'utf-8');
     return filePath;
 });
+
+// The `vylos` shell command
+ipcMain.handle('cli:take-pending', async () => {
+    await resolvingOpens;
+    return pendingOpens.splice(0);
+});
+
+const showCommandResult = async (result: CommandResult) => {
+    if (!mainWindow) return;
+    await dialog.showMessageBox(mainWindow, {
+        type: result.ok ? 'info' : 'warning',
+        message: result.message,
+        detail: result.detail,
+    });
+};
+
+ipcMain.handle('cli:install-command', async () => showCommandResult(await installShellCommand()));
+ipcMain.handle('cli:uninstall-command', async () => showCommandResult(await uninstallShellCommand()));
 
 ipcMain.handle('find:search', async (event, query: string, rootDir: string) => {
     const results: { path: string; name: string; line: number; text: string }[] = [];

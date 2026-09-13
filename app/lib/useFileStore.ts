@@ -93,6 +93,7 @@ interface FileStore {
     collapseAll: () => void;
     openTerminalAt: (dir: string) => void;
     openFolderPath: (dirPath: string) => void;
+    openLaunchPaths: (requests: CliOpenRequest[]) => Promise<void>;
     clearRecent: () => void;
     setFileTree: (tree: FileNode[]) => void;
     setSelectedNode: (node: FileNode | null) => void;
@@ -225,6 +226,16 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
         }));
         get().refreshFileTree();
         get().watchProjectRoot();
+    },
+
+    // Paths from `vylos .` / `vylos app.py` in a terminal
+    openLaunchPaths: async (requests) => {
+        for (const { path, kind } of requests) {
+            if (kind === 'directory') get().openFolderPath(path);
+            else if (kind === 'file') await get().openFileByPath(path);
+            // A file that doesn't exist yet: an empty editor, written on save
+            else get().openFile({ name: baseName(path), path, isDirectory: false }, '');
+        }
     },
 
     clearRecent: () => set({ recentFiles: [], recentFolders: [] }),

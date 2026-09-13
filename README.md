@@ -140,6 +140,24 @@ Only packages the Electron main process loads at runtime belong in `dependencies
 
 ---
 
+## Command line
+
+Open folders and files from a terminal, like `code .` or `cursor .`:
+
+```bash
+vylos .              # open the current folder
+vylos ~/projects/app # open a folder
+vylos main.py        # open a file (a new file is created on first save)
+vylos --help
+```
+
+The terminal prompt comes straight back. If Vylos is already open, the path opens in the running window.
+
+- **.deb** — the package installs `vylos` automatically.
+- **AppImage / Windows** — run **Terminal › Install 'vylos' Command in PATH** once. On Linux it goes in `~/.local/bin`, and it keeps working after the AppImage updates itself.
+
+---
+
 ## Project structure
 
 ```

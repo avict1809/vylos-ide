@@ -13,6 +13,12 @@ declare global {
         currentVersion: string;
     }
 
+    /** A path from `vylos <path>`; 'new' = a file that doesn't exist yet */
+    interface CliOpenRequest {
+        path: string;
+        kind: 'directory' | 'file' | 'new';
+    }
+
     interface Window {
         electron: {
             getVersion: () => Promise<string>;
@@ -55,6 +61,12 @@ declare global {
             };
             shortcuts: {
                 onToggleTerminal: (callback: () => void) => () => void;
+            };
+            cli: {
+                takePendingOpens: () => Promise<CliOpenRequest[]>;
+                onOpenRequested: (callback: () => void) => () => void;
+                installCommand: () => Promise<void>;
+                uninstallCommand: () => Promise<void>;
             };
             dialog: {
                 openFile: () => Promise<string | null>;

@@ -45,8 +45,45 @@ const promises_1 = __importDefault(require("fs/promises"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const electron_serve_1 = __importDefault(require("electron-serve"));
 const updater_1 = require("./updater");
+const cli_1 = require("./cli");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
+// `vylos <path>` from a terminal (see cli.ts). `--help`, a terminal launch that
+// relaunches itself detached, and a second `vylos` that hands its paths to the
+// running app all quit here without making a window.
+const cliArgs = (0, cli_1.launchArgs)(process.argv);
+const isPrimaryInstance = !(0, cli_1.printCliInfo)(process.argv) && !(0, cli_1.detachFromTerminal)()
+    // Development skips the lock so it can run alongside an installed copy
+    && (isDev || electron_1.app.requestSingleInstanceLock({ args: cliArgs, cwd: process.cwd() }));
+if (!isPrimaryInstance)
+    electron_1.app.quit();
+const focusMainWindow = () => {
+    if (!mainWindow)
+        return;
+    if (mainWindow.isMinimized())
+        mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+};
+// Paths to open wait here until the renderer collects them: the window may
+// still be loading when they arrive.
+const pendingOpens = [];
+let resolvingOpens = Promise.resolve();
+const queueOpen = (args, cwd) => {
+    if (args.length === 0)
+        return;
+    resolvingOpens = resolvingOpens.then(async () => {
+        pendingOpens.push(...await (0, cli_1.resolveOpenRequests)(args, cwd));
+        mainWindow?.webContents.send('cli:open-requested');
+    });
+};
+if (isPrimaryInstance)
+    queueOpen(cliArgs, process.cwd());
+electron_1.app.on('second-instance', (_event, argv, workingDirectory, data) => {
+    const { args, cwd } = (data ?? {});
+    queueOpen(args ?? (0, cli_1.launchArgs)(argv), cwd ?? workingDirectory);
+    focusMainWindow();
+});
 // CRITICAL: Initialize electron-serve at module level BEFORE app.whenReady()
 // This registers the 'app://' protocol handler early enough for it to work
 const loadURL = isDev ? null : (0, electron_serve_1.default)({
@@ -104,16 +141,18 @@ const createWindow = async () => {
         }
     });
 };
-electron_1.app.whenReady().then(async () => {
-    await createWindow();
-    // Checks for a mandatory update; the renderer blocks the app until it is applied
-    (0, updater_1.initUpdater)();
-    electron_1.app.on('activate', async () => {
-        if (electron_1.BrowserWindow.getAllWindows().length === 0) {
-            await createWindow();
-        }
+if (isPrimaryInstance)
+    electron_1.app.whenReady().then(async () => {
+        await createWindow();
+        // Checks for a mandatory update; the renderer blocks the app until it is applied
+        (0, updater_1.initUpdater)();
+        void (0, cli_1.refreshShellCommand)();
+        electron_1.app.on('activate', async () => {
+            if (electron_1.BrowserWindow.getAllWindows().length === 0) {
+                await createWindow();
+            }
+        });
     });
-});
 electron_1.app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         electron_1.app.quit();
@@ -186,12 +225,7 @@ electron_1.ipcMain.handle('auth:signInViaBrowser', (event, config) => {
                     }
                     res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
                     // Bring the app back to the front
-                    if (mainWindow) {
-                        if (mainWindow.isMinimized())
-                            mainWindow.restore();
-                        mainWindow.show();
-                        mainWindow.focus();
-                    }
+                    focusMainWindow();
                     settle({ access_token, refresh_token });
                 }
                 else {
@@ -373,6 +407,22 @@ electron_1.ipcMain.handle('dialog:saveFile', async (event, content, defaultPath)
     await promises_1.default.writeFile(filePath, content, 'utf-8');
     return filePath;
 });
+// The `vylos` shell command
+electron_1.ipcMain.handle('cli:take-pending', async () => {
+    await resolvingOpens;
+    return pendingOpens.splice(0);
+});
+const showCommandResult = async (result) => {
+    if (!mainWindow)
+        return;
+    await dialog.showMessageBox(mainWindow, {
+        type: result.ok ? 'info' : 'warning',
+        message: result.message,
+        detail: result.detail,
+    });
+};
+electron_1.ipcMain.handle('cli:install-command', async () => showCommandResult(await (0, cli_1.installShellCommand)()));
+electron_1.ipcMain.handle('cli:uninstall-command', async () => showCommandResult(await (0, cli_1.uninstallShellCommand)()));
 electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
     const results = [];
     const MAX_RESULTS = 100;
