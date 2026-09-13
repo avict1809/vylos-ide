@@ -1,11 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useFileStore } from '../lib/useFileStore';
 import { X, Cpu, Github, Globe } from 'lucide-react';
 import Image from 'next/image';
 
 export default function AboutModal() {
     const { showAbout, setShowAbout } = useFileStore();
+    // The running app's version (null in the browser-only dev build)
+    const [version, setVersion] = useState<string | null>(null);
+
+    useEffect(() => {
+        window.electron?.getVersion().then(setVersion);
+    }, []);
 
     if (!showAbout) return null;
 
@@ -24,7 +31,9 @@ export default function AboutModal() {
 
                 <div className="p-8 flex flex-col items-center text-center">
                     <h2 className="text-2xl font-bold text-white tracking-tight">Vylos IDE</h2>
-                    <p className="text-[#10b981] text-xs font-mono mt-1 font-bold uppercase tracking-widest">Version 0.1.0 Alpha</p>
+                    {version && (
+                        <p className="text-[#10b981] text-xs font-mono mt-1 font-bold uppercase tracking-widest">Version {version} Alpha</p>
+                    )}
 
                     <p className="mt-6 text-gray-400 text-[13px] leading-relaxed">
                         A state-of-the-art, AI-native programming environment designed to accelerate learning and development.
