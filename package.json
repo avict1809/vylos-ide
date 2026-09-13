@@ -81,11 +81,15 @@
     "linux": {
       "icon": "build/icons/icon.png",
       "category": "Development",
+      "synopsis": "AI-powered learning IDE for programming",
       "maintainer": "Vylos Team <167124575+Nelacommunity@users.noreply.github.com>",
       "target": [
         "AppImage",
         "deb"
       ]
+    },
+    "appImage": {
+      "artifactName": "Vylos-AI-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
