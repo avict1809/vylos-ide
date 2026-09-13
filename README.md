@@ -116,6 +116,10 @@ npm run electron:build   # packaged desktop app (electron-builder)
 npm run build            # Next.js static export only
 ```
 
+### Release
+
+Installed apps update from **GitHub Releases**, not from pushed commits. To ship a version users receive (bump the version, `npm run release`, publish the draft), follow **[docs/RELEASING.md](docs/RELEASING.md)**. It also covers what to check when the update screen doesn't appear.
+
 Only packages the Electron main process loads at runtime belong in `dependencies` — they are the ones copied into the installer. Everything the UI uses goes in `devDependencies`, since Next.js compiles it into `out/`. Putting a UI package in `dependencies` bloats the installer; putting a main-process package in `devDependencies` breaks the packaged app.
 
 ---
