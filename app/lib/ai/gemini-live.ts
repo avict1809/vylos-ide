@@ -1,14 +1,20 @@
 import { AudioProcessor } from './audio-processor';
+import { aiErrorMessage } from './gemini-client';
+import { getSupabase } from '../supabase';
 
-const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 const HOST = 'generativelanguage.googleapis.com';
-const URI = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${API_KEY}`;
-// NOTE: the -12-2025 preview build is broken for this app's configuration:
-// it accepts the session, then kills it mid-response with 1007
-// "The audio content type (CONTENT_TYPE_AUDIO) is not supported for this
-// model configuration" once real mic audio streams during a model turn.
-// The -09-2025 build handles the identical session correctly (verified 2026-07-12).
-const MODEL = 'models/gemini-2.5-flash-native-audio-preview-09-2025';
+// Sessions authenticate with a single-use token from the `ai-live-token` Edge
+// Function (supabase/functions/ai-live-token), never the API key. The token
+// also pins the model, which is chosen there.
+const LIVE_URL = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained`;
+
+async function fetchLiveToken(): Promise<{ token: string; model: string } | { error: string }> {
+    const supabase = getSupabase();
+    if (!supabase) return { error: 'Vylos AI is not configured for this build.' };
+    const { data, error } = await supabase.functions.invoke<{ token: string; model: string }>('ai-live-token');
+    if (error || !data?.token) return { error: aiErrorMessage(error) };
+    return data;
+}
 
 // Constants for Gemini's audio format
 const RESPONSE_SAMPLE_RATE = 24000;
@@ -152,11 +158,6 @@ class PCMPlayer {
 export async function startVoiceSession(options: VoiceSessionOptions) {
     const { voiceName, systemInstruction, toolDeclarations, executeTool, onEvent } = options;
 
-    if (!API_KEY) {
-        onEvent({ type: 'error', message: 'Gemini API key missing. Add NEXT_PUBLIC_GEMINI_API_KEY to .env.' });
-        return;
-    }
-
     // Tear down any previous session first
     stopVoiceSession();
 
@@ -228,7 +229,16 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
     };
 
     try {
-        const ws = new WebSocket(URI);
+        const live = await fetchLiveToken();
+        // The learner may have ended or restarted the session while we waited
+        if (!isCurrent(session)) return;
+        if ('error' in live) {
+            emit({ type: 'error', message: live.error });
+            stopVoiceSession();
+            return;
+        }
+
+        const ws = new WebSocket(`${LIVE_URL}?access_token=${encodeURIComponent(live.token)}`);
         session.ws = ws;
 
         ws.onopen = () => {
@@ -237,7 +247,7 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send(JSON.stringify({
                         setup: {
-                            model: MODEL,
+                            model: live.model,
                             generation_config: {
                                 response_modalities: ['AUDIO'],
                                 speech_config: {
@@ -341,13 +351,13 @@ export async function startVoiceSession(options: VoiceSessionOptions) {
         };
 
         ws.onerror = () => {
-            emit({ type: 'error', message: 'Voice connection error. Check your internet and API key.' });
+            emit({ type: 'error', message: 'Voice connection error. Check your internet connection.' });
         };
 
         ws.onclose = (e) => {
             if (!isCurrent(session)) return;
             const reason = e.code === 1006
-                ? 'Connection closed unexpectedly (check API key / network).'
+                ? 'Connection closed unexpectedly (check your network).'
                 : e.reason || undefined;
             stopVoiceSession();
             onEvent({ type: 'closed', reason });

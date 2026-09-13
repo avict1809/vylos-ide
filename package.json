@@ -65,6 +65,12 @@
       "package.json",
       "node_modules/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "build/icons/icon.png",
+        "to": "icon.png"
+      }
+    ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "win": {
@@ -76,6 +82,7 @@
     },
     "linux": {
       "icon": "build/icons/icon.png",
+      "category": "Development",
       "target": [
         "AppImage"
       ]

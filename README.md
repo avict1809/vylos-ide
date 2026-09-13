@@ -57,8 +57,8 @@ Sign in / sign up happens in your system browser (Supabase auth — email or OAu
 ### Prerequisites
 
 - Node.js 18+
-- A **Gemini API key** (free at [aistudio.google.com](https://aistudio.google.com/app/apikey)) for all AI features
-- A **Supabase project** (free tier is fine) for sign-in
+- A **Supabase project** (free tier is fine) for sign-in and the AI backend
+- A **Gemini API key** ([aistudio.google.com](https://aistudio.google.com/app/apikey)), stored as a Supabase secret — see [AI backend](#ai-backend-supabase-edge-functions)
 
 ### Setup
 
@@ -72,12 +72,32 @@ cp .env.example .env.local
 Fill in `.env.local`:
 
 ```bash
-NEXT_PUBLIC_GEMINI_API_KEY=...       # AI chat, voice tutor, hints, roadmaps
-NEXT_PUBLIC_SUPABASE_URL=...         # auth
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # auth
+NEXT_PUBLIC_SUPABASE_URL=...         # auth + AI backend
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # auth + AI backend
 ```
 
 In the Supabase dashboard, add `http://localhost:51735/` to **Auth → URL Configuration → Redirect URLs** (the desktop app's browser sign-in flow uses it).
+
+### AI backend (Supabase Edge Functions)
+
+The Gemini API key never ships in the app. Signed-in users reach Gemini through two Edge Functions in `supabase/functions/`: `ai-generate` for text features and `ai-live-token`, which hands the voice tutor a single-use token. Each user gets a daily request limit, tracked in the `ai_usage` table.
+
+```bash
+npx supabase login
+npx supabase link --project-ref <your-project-ref>   # from https://<ref>.supabase.co
+npx supabase db push                                 # creates ai_usage + consume_ai_quota
+npx supabase secrets set GEMINI_API_KEY=...
+npx supabase functions deploy
+```
+
+Optional secrets (set the same way; no redeploy needed):
+
+| Secret | Default | Meaning |
+|---|---|---|
+| `AI_DAILY_TEXT_LIMIT` | `200` | Text requests per user per day (UTC) |
+| `AI_DAILY_VOICE_LIMIT` | `20` | Voice sessions per user per day (UTC) |
+| `AI_MAX_OUTPUT_TOKENS` | `8192` | Cap per text answer, thinking included |
+| `AI_TEXT_MODEL` | `gemini-3.6-flash` | Gemini model for text features |
 
 ### Run
 

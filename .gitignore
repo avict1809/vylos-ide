@@ -18,7 +18,10 @@
 /out/
 
 # production
-/build
+# build/icons is committed: electron-builder and the app window use it
+# (regenerate with: npx electron-icon-builder --input=public/icon.png --output=build)
+/build/*
+!/build/icons/
 /dist
 
 # misc

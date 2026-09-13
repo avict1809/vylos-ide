@@ -1,6 +1,6 @@
 'use client';
 
-import { generateContent } from './gemini-client';
+import { generateContent, isAiError } from './gemini-client';
 
 /**
  * Step-by-step problem solving. When the learner writes a problem as a
@@ -222,7 +222,7 @@ async function runStep(monaco: any, provider: unknown, uriString: string, proble
         let answer = stepCache.get(cacheKey);
         if (!answer) {
             answer = await askForStep(problem, step, session.given, langId, contextAround(model, problemLine));
-            if (!answer || answer.startsWith('Error generating') || answer.startsWith('Please set')) {
+            if (!answer || isAiError(answer)) {
                 return; // leave the lens at the same step so the learner can retry
             }
             stepCache.set(cacheKey, answer);

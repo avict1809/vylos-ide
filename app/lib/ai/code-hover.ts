@@ -1,6 +1,6 @@
 'use client';
 
-import { generateContent } from './gemini-client';
+import { generateContent, isAiError } from './gemini-client';
 
 /**
  * AI code hints: function/class definitions get a dotted underline, and
@@ -146,7 +146,7 @@ function ensureHoverProvider(monaco: any, langId: string) {
                 }
                 text = await p;
                 // Don't cache failures so a retry can succeed
-                if (text && !text.startsWith('Error generating') && !text.startsWith('Please set')) {
+                if (text && !isAiError(text)) {
                     explainCache.set(key, text);
                     trimCache();
                 }
