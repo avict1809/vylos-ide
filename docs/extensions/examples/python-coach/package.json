@@ -6,7 +6,7 @@
     "description": "Explains common beginner mistakes in Python as you type, and gives the voice tutor a style-review tool.",
     "version": "1.0.0",
     "engines": {
-        "vylos": ">=0.1.3"
+        "vylos": ">=0.2.0"
     },
     "main": "extension.js",
     "permissions": [

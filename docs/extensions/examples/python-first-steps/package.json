@@ -6,7 +6,7 @@
     "description": "A short example course pack: a gentle first hour of Python.",
     "version": "1.0.0",
     "engines": {
-        "vylos": ">=0.1.3"
+        "vylos": ">=0.2.0"
     },
     "contributes": {
         "courses": [

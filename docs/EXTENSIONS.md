@@ -55,7 +55,7 @@ ln -s "$PWD/my-pack" ~/.vylos/extensions/my-pack
     "displayName": "PySchool Python Basics",
     "description": "PySchool's beginner Python track.",
     "version": "1.0.0",
-    "engines": { "vylos": ">=0.1.3" },
+    "engines": { "vylos": ">=0.2.0" },
     "contributes": {
         "courses": ["courses/python-basics.json"]
     }
@@ -143,7 +143,7 @@ every problem and where it is:
 
 ```
 courses/python-basics.json: modules[1].lessons[3]: a lesson title must be 1 to 200 characters
-package.json: engines.vylos: this extension needs Vylos >=0.3.0, but this is Vylos 0.1.3
+package.json: engines.vylos: this extension needs Vylos >=0.3.0, but this is Vylos 0.2.0
 ```
 
 Warnings, such as a misspelled field name, don't stop a pack from loading.
@@ -157,7 +157,7 @@ Add a `main` file and the `permissions` it needs to `package.json`:
     "name": "python-coach",
     "publisher": "vylos-examples",
     "version": "1.0.0",
-    "engines": { "vylos": ">=0.1.3" },
+    "engines": { "vylos": ">=0.2.0" },
     "main": "extension.js",
     "permissions": ["workspace.read"]
 }

@@ -131,7 +131,7 @@ export function validateManifest(json: unknown, appVersion: string): Checked<Ext
 
     let vylos: string | undefined;
     if (!isObject(json.engines)) {
-        p.error('engines', 'is required, e.g. { "vylos": ">=0.1.3" }');
+        p.error('engines', 'is required, e.g. { "vylos": ">=0.2.0" }');
     } else {
         vylos = p.text(json.engines, 'vylos', 'engines', 64);
         if (vylos) {
