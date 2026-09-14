@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const networking: Course = {
+export const networking: CourseDefinition = {
     id: 'networking',
     title: 'Computer Networking',
     tagline: 'How data really travels across the internet, explored hands-on with real tools and sockets.',

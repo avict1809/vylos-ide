@@ -132,7 +132,7 @@ export default function EditorArea() {
             {/* Editor Content */}
             <div className="flex-1 overflow-hidden relative">
                 <MonacoEditor
-                    language={activeFile.name.endsWith('.ts') || activeFile.name.endsWith('.tsx') ? 'typescript' : 'javascript'}
+                    fileName={activeFile.name}
                     value={activeFile.content}
                     onChange={(val) => updateActiveContent(val || "")}
                     key={activeFile.path}

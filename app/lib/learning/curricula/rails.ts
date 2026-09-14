@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const rails: Course = {
+export const rails: CourseDefinition = {
     id: 'rails',
     title: 'Ruby on Rails Mastery',
     tagline: 'Convention over configuration — full web apps at startup speed.',

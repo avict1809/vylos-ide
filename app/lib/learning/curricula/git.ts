@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const git: Course = {
+export const git: CourseDefinition = {
     id: 'git',
     title: 'Git & GitHub',
     tagline: 'Track every change, undo mistakes, and collaborate like a professional team.',

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const kotlin: Course = {
+export const kotlin: CourseDefinition = {
     id: 'kotlin',
     title: 'Kotlin Mastery',
     tagline: 'Modern JVM development — concise, null-safe, and Android-ready.',

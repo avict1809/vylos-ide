@@ -3,7 +3,7 @@ import { Mic, MicOff, X as CloseIcon, Loader2, GraduationCap, AlertTriangle, Aud
 import { cn } from '@/app/lib/utils';
 import { startVoiceSession, stopVoiceSession, TutorEvent } from '@/app/lib/ai/gemini-live';
 import {
-    tutorToolDeclarations,
+    getTutorToolDeclarations,
     executeTutorTool,
     describeTutorTool,
     buildTutorSystemInstruction,
@@ -61,7 +61,7 @@ export default function VoiceOrb() {
         await startVoiceSession({
             voiceName: voice,
             systemInstruction: buildTutorSystemInstruction({ resume: opts?.resume }),
-            toolDeclarations: tutorToolDeclarations,
+            toolDeclarations: getTutorToolDeclarations(),
             executeTool: executeTutorTool,
             onEvent: (event: TutorEvent) => {
                 // Superseded by a newer session: its events own the UI now

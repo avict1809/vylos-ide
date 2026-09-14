@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const flask: Course = {
+export const flask: CourseDefinition = {
     id: 'flask',
     title: 'Flask Mastery',
     tagline: 'Python’s micro-framework — small core, total control, real apps.',

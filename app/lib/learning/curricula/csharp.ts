@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const csharp: Course = {
+export const csharp: CourseDefinition = {
     id: 'csharp',
     title: 'C# & .NET Mastery',
     tagline: 'From console apps to LINQ and async — the full C# developer path.',

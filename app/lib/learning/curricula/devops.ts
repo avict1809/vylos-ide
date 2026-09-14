@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const devops: Course = {
+export const devops: CourseDefinition = {
     id: 'devops',
     title: 'DevOps & Cloud',
     tagline: 'Containers, CI/CD, infrastructure as code, and the cloud, from laptop to production.',

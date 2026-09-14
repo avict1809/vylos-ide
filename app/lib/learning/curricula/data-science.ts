@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { AI_ACCURACY_GUIDELINES } from './guidelines';
 
-export const dataScience: Course = {
+export const dataScience: CourseDefinition = {
     id: 'data-science',
     title: 'Data Science with Python',
     tagline: 'Turn raw data into answers with pandas, statistics, and clear visualizations.',

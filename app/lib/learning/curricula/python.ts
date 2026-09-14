@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const python: Course = {
+export const python: CourseDefinition = {
     id: 'python',
     title: 'Python Mastery',
     tagline: 'From your first "Hello World" to shipping real Python projects.',

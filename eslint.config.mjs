@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Example extensions are plain CommonJS for extension authors, not app code
+    "docs/extensions/examples/**",
   ]),
 ]);
 

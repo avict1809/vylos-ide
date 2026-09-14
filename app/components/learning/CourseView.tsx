@@ -12,8 +12,9 @@ import {
     RotateCcw,
     Trophy,
     CheckCheck,
+    Puzzle,
 } from 'lucide-react';
-import { Course, courseProgress, lessonId, moduleLessonIds, moduleProgress } from '@/app/lib/learning/types';
+import { Course, courseProgress, moduleLessonIds, moduleProgress } from '@/app/lib/learning/types';
 import { firstIncompleteLesson, startLessonWithTutor } from '@/app/lib/learning/lesson-utils';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useVoiceStore } from '@/app/lib/stores/voice-store';
@@ -31,20 +32,17 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
     const done = new Set(completed);
     const progress = courseProgress(course, completed);
 
-    const isTeaching = (mi: number, li: number) =>
+    const isTeaching = (lessonId: string) =>
         voiceStatus !== 'idle' &&
         lessonContext?.courseId === course.id &&
-        lessonContext.moduleIndex === mi &&
-        lessonContext.lessonIndex === li;
+        lessonContext.lessonId === lessonId;
 
     const startTutorAtNext = () => {
         const ref = firstIncompleteLesson(course, completed);
         if (ref) startLessonWithTutor(ref);
     };
 
-    const firstIncomplete = course.modules.findIndex((_, mi) =>
-        course.modules[mi].lessons.some((_, li) => !done.has(lessonId(course.id, mi, li)))
-    );
+    const firstIncomplete = course.modules.findIndex((mod) => mod.lessons.some((lesson) => !done.has(lesson.id)));
     const [expanded, setExpanded] = useState<number | null>(firstIncomplete === -1 ? null : firstIncomplete);
 
     return (
@@ -82,6 +80,12 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                     </div>
                     <div className="min-w-0">
                         <h2 className="text-base font-black text-white leading-tight">{course.title}</h2>
+                        {course.extension && (
+                            <p className="flex items-center gap-1 mt-1 text-[10px] text-gray-500" title={course.extension.id}>
+                                <Puzzle size={10} className="text-[var(--vylos-green-accent)] shrink-0" />
+                                <span className="truncate">From {course.extension.displayName} by {course.extension.publisher}</span>
+                            </p>
+                        )}
                         <div className="flex items-center gap-3 mt-1 text-[9px] text-gray-500 font-medium uppercase tracking-wider">
                             <span className="flex items-center gap-1">
                                 <Layers size={9} /> {course.modules.length} modules
@@ -176,19 +180,18 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                                     <p className="text-[10px] text-gray-500 leading-relaxed mb-3 pl-10">{mod.description}</p>
                                     <div className="space-y-0.5 border-t border-[#27272a]/50 pt-2">
                                         {mod.lessons.map((lesson, li) => {
-                                            const lid = lessonId(course.id, mi, li);
-                                            const isDone = done.has(lid);
-                                            const teaching = isTeaching(mi, li);
+                                            const isDone = done.has(lesson.id);
+                                            const teaching = isTeaching(lesson.id);
                                             return (
                                                 <div
-                                                    key={lid}
+                                                    key={lesson.id}
                                                     className={cn(
                                                         'w-full flex items-start rounded-lg transition-colors group/lesson',
                                                         teaching ? 'bg-[var(--vylos-green-dark)]/10' : 'hover:bg-[#18181b]'
                                                     )}
                                                 >
                                                     <button
-                                                        onClick={() => toggleLesson(course.id, lid)}
+                                                        onClick={() => toggleLesson(course.id, lesson.id)}
                                                         title={isDone ? 'Mark as not done' : 'Mark as done'}
                                                         className="flex-1 flex items-start gap-2.5 pl-2 pr-1 py-1.5 text-left min-w-0"
                                                     >
@@ -204,11 +207,11 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                                                             )}
                                                         >
                                                             <span className="text-gray-700 font-mono mr-1.5">{mi + 1}.{li + 1}</span>
-                                                            {lesson}
+                                                            {lesson.title}
                                                         </span>
                                                     </button>
                                                     <button
-                                                        onClick={() => startLessonWithTutor({ courseId: course.id, moduleIndex: mi, lessonIndex: li })}
+                                                        onClick={() => startLessonWithTutor({ courseId: course.id, lessonId: lesson.id })}
                                                         title="Teach me this lesson (voice tutor)"
                                                         className={cn(
                                                             'px-2 py-1.5 shrink-0 transition-all',

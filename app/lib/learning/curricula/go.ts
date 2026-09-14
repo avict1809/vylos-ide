@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const go: Course = {
+export const go: CourseDefinition = {
     id: 'go',
     title: 'Go Mastery',
     tagline: 'Simple, fast, concurrent — the language of cloud infrastructure.',

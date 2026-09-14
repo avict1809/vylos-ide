@@ -1,0 +1,36 @@
+{
+    "$schema": "https://raw.githubusercontent.com/avict1809/vylos-ide/main/docs/extensions/schemas/course.schema.json",
+    "id": "python-first-steps",
+    "title": "Python First Steps",
+    "tagline": "Your first hour of Python: run code, store values, make decisions.",
+    "level": "Beginner",
+    "hours": 1,
+    "accent": "#3776AB",
+    "badge": "PY",
+    "category": "language",
+    "stack": "Python",
+    "tutorGuidelines": [
+        "Assume the learner has never programmed before. Explain every new word the first time you use it.",
+        "Keep every example under 10 lines and run it after writing it."
+    ],
+    "modules": [
+        {
+            "title": "Running Python",
+            "description": "Write a line of Python, run it, and read what it prints.",
+            "lessons": [
+                "What a program is",
+                "Printing text with print()",
+                { "id": "running-a-script", "title": "Running a .py file from the terminal" }
+            ]
+        },
+        {
+            "title": "Values and Decisions",
+            "description": "Keep values in variables and let the program choose what to do.",
+            "lessons": [
+                "Variables: giving a value a name",
+                "Numbers and strings",
+                "Asking a question with if / else"
+            ]
+        }
+    ]
+}

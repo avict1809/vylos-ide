@@ -19,6 +19,7 @@ import VoiceOrb from "./components/voice/VoiceOrb";
 import { useFileStore } from "./lib/useFileStore";
 import { useAuthStore } from "./lib/stores/auth-store";
 import Onboarding from "./components/Onboarding";
+import { startExtensions } from "./lib/extensions/loader";
 
 const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
 
@@ -31,6 +32,9 @@ export default function Home() {
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Course packs from ~/.vylos/extensions, reloaded whenever that folder changes
+  React.useEffect(() => startExtensions(), []);
 
   // Reopen the editors that were open when the app was last closed
   React.useEffect(() => {

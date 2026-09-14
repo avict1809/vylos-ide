@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import { spawn, ChildProcess } from 'child_process';
 import http from 'http';
 import path from 'path';
@@ -7,6 +7,8 @@ import fs from 'fs/promises';
 import fse from 'fs-extra';
 import serve from 'electron-serve';
 import { initUpdater } from './updater';
+import { handle, isAppUrl } from './ipc';
+import { initExtensions } from './extensions';
 import {
     CommandResult, OpenRequest, detachFromTerminal, installShellCommand, launchArgs,
     printCliInfo, refreshShellCommand, resolveOpenRequests, shouldOfferShellCommand, uninstallShellCommand,
@@ -61,6 +63,10 @@ const loadURL = isDev ? null : serve({
     scheme: 'app'
 });
 
+const openInBrowser = (url: string) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url);
+};
+
 const createWindow = async () => {
     const iconPath = app.isPackaged
         ? path.join(process.resourcesPath, "icon.png")
@@ -76,7 +82,7 @@ const createWindow = async () => {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false,
+            sandbox: true,
             devTools: true,
         },
     });
@@ -95,6 +101,18 @@ const createWindow = async () => {
             await loadURL(mainWindow);
         }
     }
+
+    // The window only ever shows the app. Links elsewhere open in the system
+    // browser instead of inside a window that has the preload's privileges.
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        openInBrowser(url);
+        return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (isAppUrl(url)) return;
+        event.preventDefault();
+        openInBrowser(url);
+    });
 
     mainWindow.on('closed', () => {
         mainWindow = null;
@@ -123,6 +141,7 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     await createWindow();
     // Checks for a mandatory update; the renderer blocks the app until it is applied
     initUpdater();
+    initExtensions(() => mainWindow);
     void refreshShellCommand();
     void offerShellCommand();
 
@@ -173,7 +192,7 @@ const readBody = (req: http.IncomingMessage): Promise<string> =>
         req.on('error', reject);
     });
 
-ipcMain.handle('auth:signInViaBrowser', (event, config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) => {
+handle('auth:signInViaBrowser', (event, config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) => {
     // Supersede any in-flight attempt
     settleAuth?.({ error: 'cancelled' });
     closeAuthServer();
@@ -238,36 +257,36 @@ ipcMain.handle('auth:signInViaBrowser', (event, config: { supabaseUrl: string; s
     });
 });
 
-ipcMain.handle('auth:cancel', () => {
+handle('auth:cancel', () => {
     settleAuth?.({ error: 'cancelled' });
     closeAuthServer();
     return true;
 });
 
 // IPC Handlers will be added here
-ipcMain.handle('app:get-version', () => app.getVersion());
+handle('app:get-version', () => app.getVersion());
 
-ipcMain.handle('app:get-path', (event, name) => app.getPath(name));
+handle('app:get-path', (event, name) => app.getPath(name));
 
 // Window Controls
-ipcMain.handle('window:minimize', () => {
+handle('window:minimize', () => {
     mainWindow?.minimize();
 });
-ipcMain.handle('window:maximize', () => {
+handle('window:maximize', () => {
     if (mainWindow?.isMaximized()) {
         mainWindow?.unmaximize();
     } else {
         mainWindow?.maximize();
     }
 });
-ipcMain.handle('window:close', () => {
+handle('window:close', () => {
     mainWindow?.close();
 });
-ipcMain.handle('window:is-maximized', () => {
+handle('window:is-maximized', () => {
     return mainWindow?.isMaximized();
 });
 
-ipcMain.handle('window:toggle-maximize', () => {
+handle('window:toggle-maximize', () => {
     if (mainWindow?.isMaximized()) {
         mainWindow?.unmaximize();
     } else {
@@ -280,7 +299,7 @@ const { dialog } = require('electron');
 
 let watcher: FSWatcher | null = null;
 
-ipcMain.handle('fs:watch', (event, rootDir: string) => {
+handle('fs:watch', (event, rootDir: string) => {
     if (watcher) {
         watcher.close();
     }
@@ -298,7 +317,7 @@ ipcMain.handle('fs:watch', (event, rootDir: string) => {
     return true;
 });
 
-ipcMain.handle('fs:createFile', async (event, filePath: string) => {
+handle('fs:createFile', async (event, filePath: string) => {
     try {
         await fs.writeFile(filePath, '');
         return true;
@@ -307,7 +326,7 @@ ipcMain.handle('fs:createFile', async (event, filePath: string) => {
     }
 });
 
-ipcMain.handle('fs:createDirectory', async (event, dirPath: string) => {
+handle('fs:createDirectory', async (event, dirPath: string) => {
     try {
         await fs.mkdir(dirPath, { recursive: true });
         return true;
@@ -316,7 +335,7 @@ ipcMain.handle('fs:createDirectory', async (event, dirPath: string) => {
     }
 });
 
-ipcMain.handle('fs:delete', async (event, targetPath: string) => {
+handle('fs:delete', async (event, targetPath: string) => {
     try {
         await fse.remove(targetPath);
         return true;
@@ -326,7 +345,7 @@ ipcMain.handle('fs:delete', async (event, targetPath: string) => {
 });
 
 // Moves to the OS Trash / Recycle Bin, so a delete can be undone
-ipcMain.handle('fs:trash', async (event, targetPath: string) => {
+handle('fs:trash', async (event, targetPath: string) => {
     try {
         await shell.trashItem(targetPath);
         return true;
@@ -335,7 +354,7 @@ ipcMain.handle('fs:trash', async (event, targetPath: string) => {
     }
 });
 
-ipcMain.handle('fs:rename', async (event, oldPath: string, newPath: string) => {
+handle('fs:rename', async (event, oldPath: string, newPath: string) => {
     try {
         // fs.rename silently replaces an existing file; refuse instead
         // (a case-only rename on a case-insensitive disk is the same file)
@@ -349,7 +368,7 @@ ipcMain.handle('fs:rename', async (event, oldPath: string, newPath: string) => {
 
 // Explorer paste: copy (or move) a file/folder into destDir. Never overwrites —
 // a name clash gets a " copy" suffix like VS Code. Returns the new path or null.
-ipcMain.handle('fs:pasteInto', async (event, srcPath: string, destDir: string, move: boolean) => {
+handle('fs:pasteInto', async (event, srcPath: string, destDir: string, move: boolean) => {
     try {
         const name = path.basename(srcPath);
         if (move && path.join(destDir, name) === srcPath) return srcPath;
@@ -372,12 +391,12 @@ ipcMain.handle('fs:pasteInto', async (event, srcPath: string, destDir: string, m
     }
 });
 
-ipcMain.handle('shell:showItemInFolder', (event, targetPath: string) => {
+handle('shell:showItemInFolder', (event, targetPath: string) => {
     shell.showItemInFolder(targetPath);
     return true;
 });
 
-ipcMain.handle('dialog:openFile', async () => {
+handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
         properties: ['openFile'],
         filters: [
@@ -390,7 +409,7 @@ ipcMain.handle('dialog:openFile', async () => {
     return filePaths[0];
 });
 
-ipcMain.handle('dialog:openDirectory', async () => {
+handle('dialog:openDirectory', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
         properties: ['openDirectory']
     });
@@ -398,7 +417,7 @@ ipcMain.handle('dialog:openDirectory', async () => {
     return filePaths[0];
 });
 
-ipcMain.handle('dialog:saveFile', async (event, content: string, defaultPath?: string) => {
+handle('dialog:saveFile', async (event, content: string, defaultPath?: string) => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow!, {
         defaultPath: defaultPath,
         filters: [{ name: 'All Files', extensions: ['*'] }]
@@ -409,7 +428,7 @@ ipcMain.handle('dialog:saveFile', async (event, content: string, defaultPath?: s
 });
 
 // The `vylos` shell command
-ipcMain.handle('cli:take-pending', async () => {
+handle('cli:take-pending', async () => {
     await resolvingOpens;
     return pendingOpens.splice(0);
 });
@@ -437,10 +456,10 @@ const offerShellCommand = async () => {
     if (response === 0) await showCommandResult(await installShellCommand());
 };
 
-ipcMain.handle('cli:install-command', async () => showCommandResult(await installShellCommand()));
-ipcMain.handle('cli:uninstall-command', async () => showCommandResult(await uninstallShellCommand()));
+handle('cli:install-command', async () => showCommandResult(await installShellCommand()));
+handle('cli:uninstall-command', async () => showCommandResult(await uninstallShellCommand()));
 
-ipcMain.handle('find:search', async (event, query: string, rootDir: string) => {
+handle('find:search', async (event, query: string, rootDir: string) => {
     const results: { path: string; name: string; line: number; text: string }[] = [];
     const MAX_RESULTS = 100;
     const MAX_FILE_SIZE = 1024 * 1024; // 1MB
@@ -501,7 +520,7 @@ ipcMain.handle('find:search', async (event, query: string, rootDir: string) => {
         return [];
     }
 });
-ipcMain.handle('fs:listAll', async (event, dirPath) => {
+handle('fs:listAll', async (event, dirPath) => {
     const results: string[] = [];
     async function recurse(current: string) {
         const entries = await fs.readdir(current, { withFileTypes: true });
@@ -525,7 +544,7 @@ ipcMain.handle('fs:listAll', async (event, dirPath) => {
 
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-ipcMain.handle('fs:list', async (event, dirPath) => {
+handle('fs:list', async (event, dirPath) => {
     try {
         const dirents = await fs.readdir(dirPath, { withFileTypes: true });
         return dirents.map((dirent: any) => ({
@@ -541,7 +560,7 @@ ipcMain.handle('fs:list', async (event, dirPath) => {
     }
 });
 
-ipcMain.handle('fs:read', async (event, filePath) => {
+handle('fs:read', async (event, filePath) => {
     try {
         return await fs.readFile(filePath, 'utf-8');
     } catch (e) {
@@ -549,7 +568,7 @@ ipcMain.handle('fs:read', async (event, filePath) => {
     }
 });
 
-ipcMain.handle('fs:write', async (event, filePath, content) => {
+handle('fs:write', async (event, filePath, content) => {
     try {
         await fs.writeFile(filePath, content, 'utf-8');
         return true;
@@ -568,7 +587,7 @@ const TERM_MAX_TIMEOUT_MS = 120_000;
 const termProcs = new Map<number, ChildProcess>();
 let nextRunId = 1;
 
-ipcMain.handle('term:run', (event, opts: { command: string; cwd?: string; timeoutMs?: number }) => {
+handle('term:run', (event, opts: { command: string; cwd?: string; timeoutMs?: number }) => {
     const runId = nextRunId++;
     const command = String(opts.command ?? '').trim();
     if (!command) return { runId, exitCode: -1, output: '', error: 'Empty command' };
@@ -622,7 +641,7 @@ ipcMain.handle('term:run', (event, opts: { command: string; cwd?: string; timeou
     });
 });
 
-ipcMain.handle('term:kill', (event, runId: number) => {
+handle('term:kill', (event, runId: number) => {
     const child = termProcs.get(runId);
     if (child) {
         child.kill('SIGKILL');
@@ -634,7 +653,7 @@ ipcMain.handle('term:kill', (event, runId: number) => {
 // Git Handlers with isomorphic-git
 import * as git from 'isomorphic-git';
 
-ipcMain.handle('git:status', async (event, dir: string) => {
+handle('git:status', async (event, dir: string) => {
     try {
         const matrix = await git.statusMatrix({ fs: fse, dir });
         // statusMatrix returns [filepath, head, workdir, stage]
@@ -671,7 +690,7 @@ ipcMain.handle('git:status', async (event, dir: string) => {
     }
 });
 
-ipcMain.handle('git:stage', async (event, dir: string, filepath: string) => {
+handle('git:stage', async (event, dir: string, filepath: string) => {
     try {
         await git.add({ fs: fse, dir, filepath });
         return true;
@@ -680,7 +699,7 @@ ipcMain.handle('git:stage', async (event, dir: string, filepath: string) => {
     }
 });
 
-ipcMain.handle('git:unstage', async (event, dir: string, filepath: string) => {
+handle('git:unstage', async (event, dir: string, filepath: string) => {
     try {
         await git.remove({ fs: fse, dir, filepath });
         return true;
@@ -691,7 +710,7 @@ ipcMain.handle('git:unstage', async (event, dir: string, filepath: string) => {
     }
 });
 
-ipcMain.handle('git:stageAll', async (event, dir: string) => {
+handle('git:stageAll', async (event, dir: string) => {
     try {
         const matrix = await git.statusMatrix({ fs: fse, dir });
         for (const [filepath, head, workdir, stage] of matrix) {
@@ -705,7 +724,7 @@ ipcMain.handle('git:stageAll', async (event, dir: string) => {
     }
 });
 
-ipcMain.handle('git:unstageAll', async (event, dir: string) => {
+handle('git:unstageAll', async (event, dir: string) => {
     try {
         const matrix = await git.statusMatrix({ fs: fse, dir });
         for (const [filepath, head, workdir, stage] of matrix) {
@@ -720,7 +739,7 @@ ipcMain.handle('git:unstageAll', async (event, dir: string) => {
     }
 });
 
-ipcMain.handle('git:commit', async (event, dir: string, message: string) => {
+handle('git:commit', async (event, dir: string, message: string) => {
     try {
         await git.commit({
             fs: fse,
@@ -734,7 +753,7 @@ ipcMain.handle('git:commit', async (event, dir: string, message: string) => {
     }
 });
 
-ipcMain.handle('git:branch', async (event, dir: string) => {
+handle('git:branch', async (event, dir: string) => {
     try {
         return await git.currentBranch({ fs: fse, dir });
     } catch (e) {
@@ -742,7 +761,7 @@ ipcMain.handle('git:branch', async (event, dir: string) => {
     }
 });
 
-ipcMain.handle('git:push', async (event, dir: string) => {
+handle('git:push', async (event, dir: string) => {
     // Mock push for now as it requires auth/remote
     return new Promise(resolve => setTimeout(() => resolve(true), 1500));
 });

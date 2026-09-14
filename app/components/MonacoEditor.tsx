@@ -8,23 +8,35 @@ import { useFileStore } from '@/app/lib/useFileStore';
 import { registerEditor, unregisterEditor } from '@/app/lib/editor-bridge';
 import { setupAiCodeHints } from '@/app/lib/ai/code-hover';
 import { setupStepGuide } from '@/app/lib/ai/step-guide';
+import { setupCoaching } from '@/app/lib/ai/code-coach';
 import ContextMenu from './ContextMenu';
 import { Sparkles, Save, Search, Code, GraduationCap } from 'lucide-react';
 
 interface MonacoEditorProps {
+    /** Picks the language from its extension; overridden by `language` */
+    fileName?: string;
     language?: string;
     defaultValue?: string;
     value?: string;
     onChange?: (value: string | undefined) => void;
 }
 
+/** Monaco knows each language's file extensions; anything unknown opens as plain text. */
+function languageForFile(monaco: any, fileName: string | undefined): string {
+    const ext = fileName?.includes('.') ? '.' + fileName.split('.').pop()!.toLowerCase() : '';
+    const match = ext && monaco?.languages.getLanguages().find((l: { extensions?: string[] }) => l.extensions?.includes(ext));
+    return match?.id ?? 'plaintext';
+}
+
 export default function MonacoEditor({
-    language = 'javascript',
+    fileName,
+    language: languageOverride,
     defaultValue = '// Start coding...',
     value = '',
     onChange
 }: MonacoEditorProps) {
     const monaco = useMonaco();
+    const language = languageOverride ?? languageForFile(monaco, fileName);
     const {
         fontSize,
         minimapEnabled,
@@ -137,6 +149,9 @@ export default function MonacoEditor({
 
         // Step-by-step problem solving: comment a problem, get graded hints via CodeLens
         setupStepGuide(editor, monaco);
+
+        // Coaches from extensions: teaching notes on the learner's code
+        setupCoaching(editor, monaco);
 
         // Register custom context menu
         editor.onContextMenu(handleContextMenu);

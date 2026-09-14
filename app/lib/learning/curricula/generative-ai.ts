@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { AI_ACCURACY_GUIDELINES } from './guidelines';
 
-export const generativeAi: Course = {
+export const generativeAi: CourseDefinition = {
     id: 'generative-ai',
     title: 'Generative AI & LLM Apps',
     tagline: 'Build reliable apps on top of large language models: prompts, RAG, tools, and evaluation.',

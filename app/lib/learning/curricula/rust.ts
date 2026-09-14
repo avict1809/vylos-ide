@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const rust: Course = {
+export const rust: CourseDefinition = {
     id: 'rust',
     title: 'Rust Mastery',
     tagline: 'Fearless systems programming — ownership, lifetimes, and zero-cost abstractions.',

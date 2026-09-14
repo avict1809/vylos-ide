@@ -50,6 +50,11 @@ export function clearHighlights() {
     }
 }
 
+/** Monaco language id of the file in the editor, e.g. 'python' */
+export function getActiveLanguageId(): string | null {
+    return editor?.getModel()?.getLanguageId() ?? null;
+}
+
 export function revealLine(line: number) {
     if (!editor) return;
     editor.revealLine(Math.max(1, line));

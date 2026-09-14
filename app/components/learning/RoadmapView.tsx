@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
 import { useCourseStore } from '@/app/lib/stores/course-store';
-import { getCourse } from '@/app/lib/learning/curricula';
+import { useCourse } from '@/app/lib/learning/course-registry';
 import { CheckCircle, Circle, Trophy, ArrowRight, ArrowLeft, Target, Sparkles } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import RoadmapCreator from './RoadmapCreator';
@@ -15,7 +15,7 @@ export default function RoadmapView() {
     const { activeCourseId, backToCatalog } = useCourseStore();
     const [view, setView] = useState<'auto' | 'catalog' | 'creator'>('auto');
 
-    const course = activeCourseId ? getCourse(activeCourseId) : undefined;
+    const course = useCourse(activeCourseId);
 
     if (view === 'creator' && !currentRoadmap) {
         return (

@@ -1,11 +1,13 @@
 'use client';
 
 import { generateContent, isAiError } from './gemini-client';
+import { ExplainRequest, getExplainers, registerExplainer } from './explainer-registry';
 
 /**
  * AI code hints: function/class definitions get a dotted underline, and
- * hovering one shows a Gemini-written explanation of what that block does
- * in the editor's native hover tooltip. Explanations are cached per block
+ * hovering one shows an explanation of what that block does in the editor's
+ * native hover tooltip. The explanation comes from the explainer registry
+ * (Gemini by default, registered below). Explanations are cached per block
  * so repeat hovers are instant and cheap.
  */
 
@@ -18,8 +20,14 @@ interface Hint {
 const modelHints = new WeakMap<object, Hint[]>();
 const collections = new WeakMap<object, any>(); // editor -> decorations collection
 const registeredLangs = new Set<string>();
-const explainCache = new Map<string, string>();
-const pendingExplains = new Map<string, Promise<string>>();
+interface Explanation {
+    label: string;
+    text: string;
+    cacheable: boolean;
+}
+
+const explainCache = new Map<string, Explanation>();
+const pendingExplains = new Map<string, Promise<Explanation | null>>();
 
 const MAX_HINTS = 300;
 const MAX_SCAN_LINES = 5000;
@@ -114,13 +122,34 @@ function extractBlock(model: any, startLine: number, langId: string): string {
     return lines.join('\n');
 }
 
-async function explain(block: string, langId: string, name: string): Promise<string> {
-    const prompt = `You are a friendly coding tutor. In 2-4 short sentences, explain to a learner what this ${langId} code block ("${name}") does: its purpose, its inputs and what it returns or changes, and one thing that is easy to get wrong (only if there is one). Use plain simple English. No headings, no bullet lists, do not repeat the code.
+registerExplainer({
+    id: 'vylos.ai',
+    label: 'Vylos AI',
+    explain: async ({ code, languageId, name }) => {
+        const prompt = `You are a friendly coding tutor. In 2-4 short sentences, explain to a learner what this ${languageId} code block ("${name}") does: its purpose, its inputs and what it returns or changes, and one thing that is easy to get wrong (only if there is one). Use plain simple English. No headings, no bullet lists, do not repeat the code.
 
-\`\`\`${langId}
-${block}
+\`\`\`${languageId}
+${code}
 \`\`\``;
-    return generateContent(prompt);
+        const text = await generateContent(prompt, 'hover');
+        return isAiError(text) ? { error: text } : { text };
+    },
+});
+
+/** Asks each explainer for this language in turn until one answers. */
+async function explain(request: ExplainRequest): Promise<Explanation | null> {
+    for (const explainer of getExplainers(request.languageId)) {
+        try {
+            const result = await explainer.explain(request);
+            if (!result) continue;
+            return 'text' in result
+                ? { label: explainer.label, text: result.text, cacheable: true }
+                : { label: explainer.label, text: result.error, cacheable: false };
+        } catch (e) {
+            console.error(`Explainer "${explainer.id}" failed:`, e);
+        }
+    }
+    return null;
 }
 
 function ensureHoverProvider(monaco: any, langId: string) {
@@ -136,28 +165,28 @@ function ensureHoverProvider(monaco: any, langId: string) {
             const block = extractBlock(model, hit.line, langId);
             const key = `${langId}:${hit.name}:${hash(block)}`;
 
-            let text = explainCache.get(key);
-            if (!text) {
+            let explanation = explainCache.get(key) ?? null;
+            if (!explanation) {
                 let p = pendingExplains.get(key);
                 if (!p) {
-                    p = explain(block, langId, hit.name);
+                    p = explain({ code: block, languageId: langId, name: hit.name });
                     pendingExplains.set(key, p);
                     p.finally(() => pendingExplains.delete(key));
                 }
-                text = await p;
+                explanation = await p;
                 // Don't cache failures so a retry can succeed
-                if (text && !isAiError(text)) {
-                    explainCache.set(key, text);
+                if (explanation?.cacheable) {
+                    explainCache.set(key, explanation);
                     trimCache();
                 }
             }
 
-            if (token?.isCancellationRequested || !text) return null;
+            if (token?.isCancellationRequested || !explanation) return null;
             return {
                 range: hit.range,
                 contents: [
-                    { value: `**✦ Vylos AI · \`${hit.name}\`**` },
-                    { value: text },
+                    { value: `**✦ ${explanation.label} · \`${hit.name}\`**` },
+                    { value: explanation.text },
                 ],
             };
         },

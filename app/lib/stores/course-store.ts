@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getCourse } from '../learning/course-registry';
 
 interface CourseState {
     activeCourseId: string | null;
@@ -43,6 +44,38 @@ export const useCourseStore = create<CourseState>()(
         }),
         {
             name: 'vylos-courses',
+            version: 1,
+            migrate: (persisted, version) => {
+                const state = persisted as Pick<CourseState, 'activeCourseId' | 'completedLessons'>;
+                if (version < 1 && state?.completedLessons) {
+                    state.completedLessons = fromPositionalIds(state.completedLessons);
+                }
+                return state as CourseState;
+            },
         }
     )
 );
+
+/**
+ * Version 0 stored progress by position (`python-2-3` = module 3, lesson 4),
+ * which pointed at the wrong lessons as soon as a course changed. Maps those
+ * ids to lesson ids using the courses as they are now, which is how they were
+ * when that progress was saved.
+ */
+function fromPositionalIds(completed: Record<string, string[]>): Record<string, string[]> {
+    const migrated: Record<string, string[]> = {};
+    for (const [courseId, ids] of Object.entries(completed)) {
+        const course = getCourse(courseId);
+        if (!course) {
+            migrated[courseId] = ids;
+            continue;
+        }
+        migrated[courseId] = ids.flatMap((id) => {
+            const pos = id.startsWith(`${courseId}-`) ? id.slice(courseId.length + 1).match(/^(\d+)-(\d+)$/) : null;
+            if (!pos) return [id];
+            const lesson = course.modules[Number(pos[1])]?.lessons[Number(pos[2])];
+            return lesson ? [lesson.id] : [];
+        });
+    }
+    return migrated;
+}

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const nextjs: Course = {
+export const nextjs: CourseDefinition = {
     id: 'nextjs',
     title: 'Next.js: Full-Stack React',
     tagline: 'Production React with server components, data, and deployment built in.',

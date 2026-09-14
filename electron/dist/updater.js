@@ -6,6 +6,7 @@ const electron_1 = require("electron");
 // platform updater on first access, which needs Electron's `app` to exist.
 // Destructuring it at module scope would run that before the app is ready.
 const electron_updater_1 = require("electron-updater");
+const ipc_1 = require("./ipc");
 /**
  * Mandatory updates.
  *
@@ -132,12 +133,12 @@ async function checkForUpdates() {
 function registerHandlers() {
     // The renderer asks for the current state on mount: the first check can
     // finish before the window is ready to receive broadcasts.
-    electron_1.ipcMain.handle('update:get-state', () => state);
-    electron_1.ipcMain.handle('update:check', async () => {
+    (0, ipc_1.handle)('update:get-state', () => state);
+    (0, ipc_1.handle)('update:check', async () => {
         await checkForUpdates();
         return state;
     });
-    electron_1.ipcMain.handle('update:install', () => {
+    (0, ipc_1.handle)('update:install', () => {
         if (state.status !== 'downloaded')
             return false;
         // isSilent = false so the installer UI shows, isForceRunAfter = true so

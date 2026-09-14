@@ -4,14 +4,17 @@ import React, { useEffect, useRef } from 'react';
 import { AudioLines, Mic, Play, Wrench, Loader2 } from 'lucide-react';
 import { useVoiceStore, TranscriptEntry } from '@/app/lib/stores/voice-store';
 import { resolveLesson, resumeLessonWithTutor } from '@/app/lib/learning/lesson-utils';
+import { useCourse } from '@/app/lib/learning/course-registry';
 import { cn } from '@/app/lib/utils';
 
 export default function TutorPanel() {
     const { status, transcript, currentCaption, pendingUserSpeech, activity, sessionVoice, selectedVoice, lessonContext } = useVoiceStore();
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // An interrupted curriculum lesson the learner can pick back up
-    const pausedLesson = status === 'idle' && lessonContext ? resolveLesson(lessonContext) : null;
+    // An interrupted curriculum lesson the learner can pick back up. Its course
+    // may come from an extension that loads after startup.
+    const lessonCourse = useCourse(lessonContext?.courseId);
+    const pausedLesson = status === 'idle' && lessonContext && lessonCourse ? resolveLesson(lessonContext) : null;
 
     // Follow the conversation as it grows
     useEffect(() => {

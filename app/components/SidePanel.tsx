@@ -8,6 +8,7 @@ import GitView from "./GitView";
 import SettingsView from "./SettingsView";
 import AccountView from "./AccountView";
 import TutorPanel from "./voice/TutorPanel";
+import ExtensionsView from "./ExtensionsView";
 import { useFileStore } from "../lib/useFileStore";
 import { useRoadmapStore } from "../lib/stores/roadmap-store";
 import { useCourseStore } from "../lib/stores/course-store";
@@ -37,6 +38,7 @@ export default function SidePanel() {
                 {activeView === 'settings' && <SettingsView />}
                 {activeView === 'account' && <AccountView />}
                 {activeView === 'tutor' && <TutorPanel />}
+                {activeView === 'extensions' && <ExtensionsView />}
             </div>
         </div>
     );

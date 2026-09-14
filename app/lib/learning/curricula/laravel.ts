@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const laravel: Course = {
+export const laravel: CourseDefinition = {
     id: 'laravel',
     title: 'Laravel Mastery',
     tagline: 'The PHP framework with everything: Eloquent, Blade, queues, and joy.',

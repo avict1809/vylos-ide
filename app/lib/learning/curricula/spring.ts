@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const spring: Course = {
+export const spring: CourseDefinition = {
     id: 'spring',
     title: 'Spring Boot Mastery',
     tagline: 'The framework that runs enterprise Java — REST, JPA, and security.',

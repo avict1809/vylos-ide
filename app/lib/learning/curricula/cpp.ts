@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const cpp: Course = {
+export const cpp: CourseDefinition = {
     id: 'cpp',
     title: 'C++ Mastery',
     tagline: 'High-performance programming: memory, OOP, templates, and modern C++.',

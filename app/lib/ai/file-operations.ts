@@ -13,7 +13,7 @@ export async function parseFileOperations(userPrompt: string): Promise<FileOpera
       Only output the JSON.
     `;
 
-    const response = await generateContent(prompt);
+    const response = await generateContent(prompt, 'file-operations');
     try {
         const cleaned = response.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(cleaned);

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const android: Course = {
+export const android: CourseDefinition = {
     id: 'android',
     title: 'Android with Jetpack Compose',
     tagline: 'Build real Android apps in Kotlin with the modern UI toolkit.',

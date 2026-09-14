@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const angular: Course = {
+export const angular: CourseDefinition = {
     id: 'angular',
     title: 'Angular Mastery',
     tagline: 'The full-featured enterprise framework — signals, DI, and RxJS included.',

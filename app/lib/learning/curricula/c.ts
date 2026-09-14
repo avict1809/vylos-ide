@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const c: Course = {
+export const c: CourseDefinition = {
     id: 'c',
     title: 'C Programming',
     tagline: 'The language beneath everything — pointers, memory, and how computers really work.',

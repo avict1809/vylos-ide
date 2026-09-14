@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const qt: Course = {
+export const qt: CourseDefinition = {
     id: 'qt',
     title: 'Desktop Apps with Qt',
     tagline: 'Cross-platform C++ GUIs — one codebase for Windows, macOS, and Linux.',

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const tailwind: Course = {
+export const tailwind: CourseDefinition = {
     id: 'tailwind',
     title: 'Tailwind CSS Mastery',
     tagline: 'Utility-first styling — design directly in your markup, fast.',

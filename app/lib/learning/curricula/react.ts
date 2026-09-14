@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const react: Course = {
+export const react: CourseDefinition = {
     id: 'react',
     title: 'React Mastery',
     tagline: 'The most in-demand UI library — components, hooks, and real apps.',

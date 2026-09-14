@@ -38,7 +38,7 @@ export default function AIChatView() {
         }
 
         try {
-            const response = await generateContent(prompt);
+            const response = await generateContent(prompt, 'chat');
             addMessage('assistant', response);
         } catch (error) {
             console.error("AI Error:", error);

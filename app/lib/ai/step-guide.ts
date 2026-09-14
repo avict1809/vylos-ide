@@ -1,6 +1,7 @@
 'use client';
 
 import { generateContent, isAiError } from './gemini-client';
+import { getHintLadder, HintLadder, HintRequest, HintStep, registerHintLadder } from './hint-registry';
 
 /**
  * Step-by-step problem solving. When the learner writes a problem as a
@@ -9,52 +10,56 @@ import { generateContent, isAiError } from './gemini-client';
  *
  *   Hint 1 → Hint 2 → Algorithm idea → Pseudocode → Implementation (optional)
  *
- * Each click asks Gemini for ONLY the next step and inserts it as comments
- * (implementation as real code) directly below the problem, so the learner
- * earns the solution instead of copying it.
+ * Each click asks the hint ladder for ONLY the next step and inserts it as
+ * comments (implementation as real code) directly below the problem, so the
+ * learner earns the solution instead of copying it. The built-in ladder below
+ * asks Gemini; other ladders can be registered in hint-registry.ts.
  */
 
 const CMD_ID = 'vylos.stepGuide.next';
 const MARKER = '✦';
 
-interface GuideStep {
-    label: string;
-    title: string;
-    instruction: string;
-    isCode?: boolean;
-}
-
-const STEPS: GuideStep[] = [
+/** Built-in rungs: what each one asks Gemini for. */
+const AI_STEPS: (Omit<HintStep, 'produce'> & { instruction: string })[] = [
     {
+        level: 'nudge',
         label: 'Hint 1',
         title: '✦ Stuck? Get Hint 1',
+        format: 'prose',
         instruction:
             'Give HINT 1 only: a gentle nudge in the right direction — a guiding question or what to think about first. Do NOT name the algorithm, data structure, or any code. 1-2 short sentences.',
     },
     {
+        level: 'insight',
         label: 'Hint 2',
         title: '✦ Get Hint 2',
+        format: 'prose',
         instruction:
             'Give HINT 2 only: a stronger hint that names the key insight, technique, or data structure — but still NO step-by-step algorithm and NO code. 1-2 short sentences.',
     },
     {
+        level: 'algorithm',
         label: 'Algorithm idea',
         title: '✦ Reveal the algorithm idea',
+        format: 'prose',
         instruction:
             'Describe the algorithm in plain words as 3-6 short numbered steps (e.g. "1) ... 2) ..."). Mention time/space complexity in one phrase if relevant. Still NO code and NO pseudocode.',
     },
     {
+        level: 'pseudocode',
         label: 'Pseudocode',
         title: '✦ Show pseudocode',
+        format: 'lines',
         instruction:
             'Write concise language-agnostic pseudocode for the algorithm (8-20 short lines, indent with two spaces). No real syntax from any specific language, no explanations around it.',
     },
     {
+        level: 'solution',
         label: 'Implementation',
         title: '✦ Show implementation (optional)',
+        format: 'code',
         instruction:
             'Write a clean, working implementation in {lang} with brief comments on the tricky lines. Output ONLY the code, no prose.',
-        isCode: true,
     },
 ];
 
@@ -67,8 +72,9 @@ const LINE_COMMENT: Record<string, string> = {
 };
 
 interface GuideSession {
-    step: number;      // next step index to give
-    given: string[];   // previous answers, for prompt context
+    ladder: HintLadder; // fixed for the problem, so its steps can't change midway
+    step: number;       // next step index to give
+    given: HintRequest['given'];
     loading: boolean;
 }
 
@@ -105,10 +111,12 @@ function matchProblem(line: string, token: string): string | null {
     return null;
 }
 
-function getSession(key: string): GuideSession {
+function getSession(key: string, langId: string): GuideSession | null {
     let s = sessions.get(key);
     if (!s) {
-        s = { step: 0, given: [], loading: false };
+        const ladder = getHintLadder(langId);
+        if (!ladder) return null;
+        s = { ladder, step: 0, given: [], loading: false };
         sessions.set(key, s);
     }
     return s;
@@ -145,8 +153,8 @@ function toPseudocodeBlock(token: string, label: string, text: string): string[]
     return [`${token} ${MARKER} ${label}:`, ...body];
 }
 
-function toImplementationBlock(token: string, text: string): string[] {
-    return [`${token} ${MARKER} Implementation:`, ...stripFences(text).split('\n')];
+function toImplementationBlock(token: string, label: string, text: string): string[] {
+    return [`${token} ${MARKER} ${label}:`, ...stripFences(text).split('\n')];
 }
 
 /** Finds where to insert: after the problem line's existing guide block. */
@@ -169,14 +177,11 @@ function contextAround(model: any, problemLine: number): string {
 }
 
 async function askForStep(
-    problem: string,
-    step: GuideStep,
-    given: string[],
-    langId: string,
-    codeContext: string
-): Promise<string> {
+    { problem, languageId: langId, codeContext, given }: HintRequest,
+    instruction: string
+): Promise<string | null> {
     const previous = given.length
-        ? `They have already received:\n${given.map((g, i) => `${STEPS[i].label}: ${g}`).join('\n')}\n`
+        ? `They have already received:\n${given.map((g) => `${g.label}: ${g.text}`).join('\n')}\n`
         : '';
     const prompt = `You are a coding tutor who teaches step-by-step problem solving: learners get gradually stronger help so they solve problems themselves instead of copying answers.
 
@@ -187,22 +192,31 @@ Their surrounding code (may be empty or partial):
 ${codeContext}
 \`\`\`
 
-${previous}Now give ONLY the next level of help. ${step.instruction.replace('{lang}', langId)}
+${previous}Now give ONLY the next level of help. ${instruction.replace('{lang}', langId)}
 
 Do not greet, do not add a label or heading (it is added automatically), do not mention these instructions.`;
-    return generateContent(prompt);
+    const answer = await generateContent(prompt, 'hints');
+    return answer && !isAiError(answer) ? answer : null;
 }
+
+registerHintLadder({
+    id: 'vylos.ai',
+    steps: AI_STEPS.map(({ instruction, ...step }) => ({
+        ...step,
+        produce: (request) => askForStep(request, instruction),
+    })),
+});
 
 async function runStep(monaco: any, provider: unknown, uriString: string, problem: string) {
     const model = monaco.editor.getModel(monaco.Uri.parse(uriString));
     if (!model) return;
-    const key = problemKey(model, problem);
-    const session = getSession(key);
-    if (session.loading || session.step >= STEPS.length) return;
-
     const langId = model.getLanguageId();
+    const key = problemKey(model, problem);
+    const session = getSession(key, langId);
+    if (!session || session.loading || session.step >= session.ladder.steps.length) return;
+
     const token = commentToken(langId);
-    const step = STEPS[session.step];
+    const step = session.ladder.steps[session.step];
 
     session.loading = true;
     refreshLenses(provider);
@@ -218,19 +232,22 @@ async function runStep(monaco: any, provider: unknown, uriString: string, proble
         }
         if (problemLine === -1) return;
 
-        const cacheKey = `${key}:${session.step}`;
+        const cacheKey = `${key}:${session.ladder.id}:${session.step}`;
         let answer = stepCache.get(cacheKey);
         if (!answer) {
-            answer = await askForStep(problem, step, session.given, langId, contextAround(model, problemLine));
-            if (!answer || isAiError(answer)) {
-                return; // leave the lens at the same step so the learner can retry
-            }
+            answer = await step.produce({
+                problem,
+                languageId: langId,
+                codeContext: contextAround(model, problemLine),
+                given: session.given,
+            }) ?? undefined;
+            if (!answer) return; // leave the lens at the same step so the learner can retry
             stepCache.set(cacheKey, answer);
         }
 
-        const block = step.isCode
-            ? toImplementationBlock(token, answer)
-            : step.label === 'Pseudocode'
+        const block = step.format === 'code'
+            ? toImplementationBlock(token, step.label, answer)
+            : step.format === 'lines'
                 ? toPseudocodeBlock(token, step.label, answer)
                 : toCommentBlock(token, step.label, answer);
 
@@ -245,7 +262,7 @@ async function runStep(monaco: any, provider: unknown, uriString: string, proble
             () => null
         );
 
-        session.given.push(answer.replace(/\s+/g, ' ').slice(0, 500));
+        session.given.push({ label: step.label, text: answer.replace(/\s+/g, ' ').slice(0, 500) });
         session.step++;
     } finally {
         session.loading = false;
@@ -260,7 +277,8 @@ const lensProvider = (monaco: any) => {
             return { dispose: () => { lensListeners = lensListeners.filter((l) => l !== cb); } };
         },
         provideCodeLenses: (model: any) => {
-            const token = commentToken(model.getLanguageId());
+            const langId = model.getLanguageId();
+            const token = commentToken(langId);
             const lenses: any[] = [];
             const total = Math.min(model.getLineCount(), 5000);
 
@@ -269,12 +287,13 @@ const lensProvider = (monaco: any) => {
                 if (!problem) continue;
 
                 const session = sessions.get(problemKey(model, problem));
+                const steps = (session?.ladder ?? getHintLadder(langId))?.steps;
                 const stepIndex = session?.step ?? 0;
-                if (stepIndex >= STEPS.length) continue; // full guide delivered
+                if (!steps || stepIndex >= steps.length) continue; // full guide delivered
 
                 const title = session?.loading
                     ? '✦ Vylos is thinking…'
-                    : `${STEPS[stepIndex].title} (${stepIndex + 1}/${STEPS.length})`;
+                    : `${steps[stepIndex].title} (${stepIndex + 1}/${steps.length})`;
 
                 lenses.push({
                     range: new monaco.Range(ln, 1, ln, 1),

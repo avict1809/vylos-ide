@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const php: Course = {
+export const php: CourseDefinition = {
     id: 'php',
     title: 'PHP Mastery',
     tagline: 'Modern PHP for the web — from first script to Laravel-ready.',

@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 // Named import on purpose: `autoUpdater` is a lazy getter that builds the
 // platform updater on first access, which needs Electron's `app` to exist.
 // Destructuring it at module scope would run that before the app is ready.
 import { autoUpdater } from 'electron-updater';
+import { handle } from './ipc';
 
 /**
  * Mandatory updates.
@@ -162,14 +163,14 @@ async function checkForUpdates() {
 function registerHandlers() {
     // The renderer asks for the current state on mount: the first check can
     // finish before the window is ready to receive broadcasts.
-    ipcMain.handle('update:get-state', () => state);
+    handle('update:get-state', () => state);
 
-    ipcMain.handle('update:check', async () => {
+    handle('update:check', async () => {
         await checkForUpdates();
         return state;
     });
 
-    ipcMain.handle('update:install', () => {
+    handle('update:install', () => {
         if (state.status !== 'downloaded') return false;
         // isSilent = false so the installer UI shows, isForceRunAfter = true so
         // the user lands back in Vylos instead of a closed app. The relaunch can

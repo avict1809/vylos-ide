@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const sql: Course = {
+export const sql: CourseDefinition = {
     id: 'sql',
     title: 'Complete SQL Mastery',
     tagline: 'Query, design, and optimize relational databases with confidence.',

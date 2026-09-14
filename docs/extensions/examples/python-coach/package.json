@@ -1,0 +1,15 @@
+{
+    "$schema": "https://raw.githubusercontent.com/avict1809/vylos-ide/main/docs/extensions/schemas/extension.schema.json",
+    "name": "python-coach",
+    "publisher": "vylos-examples",
+    "displayName": "Python Coach",
+    "description": "Explains common beginner mistakes in Python as you type, and gives the voice tutor a style-review tool.",
+    "version": "1.0.0",
+    "engines": {
+        "vylos": ">=0.1.3"
+    },
+    "main": "extension.js",
+    "permissions": [
+        "workspace.read"
+    ]
+}

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const vue: Course = {
+export const vue: CourseDefinition = {
     id: 'vue',
     title: 'Vue.js Mastery',
     tagline: 'The approachable, batteries-included framework — from directives to Pinia.',

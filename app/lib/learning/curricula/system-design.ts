@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const systemDesign: Course = {
+export const systemDesign: CourseDefinition = {
     id: 'system-design',
     title: 'System Design',
     tagline: 'Design scalable, reliable systems and reason clearly about trade-offs.',

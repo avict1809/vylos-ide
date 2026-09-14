@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const postgresql: Course = {
+export const postgresql: CourseDefinition = {
     id: 'postgresql',
     title: 'PostgreSQL In Depth',
     tagline: 'Go beyond generic SQL: JSONB, window functions, indexing, and tuning.',

@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const fastapi: Course = {
+export const fastapi: CourseDefinition = {
     id: 'fastapi',
     title: 'FastAPI Mastery',
     tagline: 'Modern async Python APIs with automatic docs and type-driven validation.',

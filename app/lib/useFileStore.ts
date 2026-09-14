@@ -64,7 +64,7 @@ interface FileStore {
     openFiles: FileTab[];
     activeFileIndex: number | null;
     isReading: boolean;
-    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor';
+    activeView: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor' | 'extensions';
     projectRoot: string | null;
     fileToClose: FileTab | null;
     showTerminal: boolean;

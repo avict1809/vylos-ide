@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const nodeExpress: Course = {
+export const nodeExpress: CourseDefinition = {
     id: 'node-express',
     title: 'Node.js & Express',
     tagline: 'Backend JavaScript: REST APIs, databases, auth, and deployment.',

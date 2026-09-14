@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const swift: Course = {
+export const swift: CourseDefinition = {
     id: 'swift',
     title: 'Swift Mastery',
     tagline: 'Apple’s modern language — optionals, protocols, and your first SwiftUI app.',

@@ -57,6 +57,15 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
     shell: {
         showItemInFolder: (path) => electron_1.ipcRenderer.invoke('shell:showItemInFolder', path),
     },
+    extensions: {
+        scan: () => electron_1.ipcRenderer.invoke('extensions:scan'),
+        openFolder: () => electron_1.ipcRenderer.invoke('extensions:open-folder'),
+        onChanged: (callback) => {
+            const subscription = () => callback();
+            electron_1.ipcRenderer.on('extensions:changed', subscription);
+            return () => electron_1.ipcRenderer.removeListener('extensions:changed', subscription);
+        },
+    },
     shortcuts: {
         onToggleTerminal: (callback) => {
             const subscription = () => callback();

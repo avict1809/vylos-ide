@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const svelte: Course = {
+export const svelte: CourseDefinition = {
     id: 'svelte',
     title: 'Svelte & SvelteKit',
     tagline: 'The compiler framework — less code, no virtual DOM, full-stack with Kit.',

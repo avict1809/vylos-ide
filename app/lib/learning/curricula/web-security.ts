@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { SECURITY_ETHICS_GUIDELINES } from './guidelines';
 
-export const webSecurity: Course = {
+export const webSecurity: CourseDefinition = {
     id: 'web-security',
     title: 'Secure Coding & AppSec',
     tagline: 'Write code that holds up against real attacks. Find and fix vulnerabilities in your own apps.',

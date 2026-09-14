@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const aspnet: Course = {
+export const aspnet: CourseDefinition = {
     id: 'aspnet',
     title: 'ASP.NET Core Mastery',
     tagline: 'Fast, cross-platform web APIs and apps with C# and .NET.',

@@ -45,6 +45,8 @@ const promises_1 = __importDefault(require("fs/promises"));
 const fs_extra_1 = __importDefault(require("fs-extra"));
 const electron_serve_1 = __importDefault(require("electron-serve"));
 const updater_1 = require("./updater");
+const ipc_1 = require("./ipc");
+const extensions_1 = require("./extensions");
 const cli_1 = require("./cli");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
@@ -90,6 +92,10 @@ const loadURL = isDev ? null : (0, electron_serve_1.default)({
     directory: 'out',
     scheme: 'app'
 });
+const openInBrowser = (url) => {
+    if (/^https?:\/\//i.test(url))
+        void electron_1.shell.openExternal(url);
+};
 const createWindow = async () => {
     const iconPath = electron_1.app.isPackaged
         ? path_1.default.join(process.resourcesPath, "icon.png")
@@ -104,7 +110,7 @@ const createWindow = async () => {
             preload: path_1.default.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
-            sandbox: false,
+            sandbox: true,
             devTools: true,
         },
     });
@@ -122,6 +128,18 @@ const createWindow = async () => {
             await loadURL(mainWindow);
         }
     }
+    // The window only ever shows the app. Links elsewhere open in the system
+    // browser instead of inside a window that has the preload's privileges.
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        openInBrowser(url);
+        return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if ((0, ipc_1.isAppUrl)(url))
+            return;
+        event.preventDefault();
+        openInBrowser(url);
+    });
     mainWindow.on('closed', () => {
         mainWindow = null;
     });
@@ -146,6 +164,7 @@ if (isPrimaryInstance)
         await createWindow();
         // Checks for a mandatory update; the renderer blocks the app until it is applied
         (0, updater_1.initUpdater)();
+        (0, extensions_1.initExtensions)(() => mainWindow);
         void (0, cli_1.refreshShellCommand)();
         void offerShellCommand();
         electron_1.app.on('activate', async () => {
@@ -183,7 +202,7 @@ const readBody = (req) => new Promise((resolve, reject) => {
     req.on('end', () => resolve(body));
     req.on('error', reject);
 });
-electron_1.ipcMain.handle('auth:signInViaBrowser', (event, config) => {
+(0, ipc_1.handle)('auth:signInViaBrowser', (event, config) => {
     // Supersede any in-flight attempt
     settleAuth?.({ error: 'cancelled' });
     closeAuthServer();
@@ -245,19 +264,19 @@ electron_1.ipcMain.handle('auth:signInViaBrowser', (event, config) => {
         });
     });
 });
-electron_1.ipcMain.handle('auth:cancel', () => {
+(0, ipc_1.handle)('auth:cancel', () => {
     settleAuth?.({ error: 'cancelled' });
     closeAuthServer();
     return true;
 });
 // IPC Handlers will be added here
-electron_1.ipcMain.handle('app:get-version', () => electron_1.app.getVersion());
-electron_1.ipcMain.handle('app:get-path', (event, name) => electron_1.app.getPath(name));
+(0, ipc_1.handle)('app:get-version', () => electron_1.app.getVersion());
+(0, ipc_1.handle)('app:get-path', (event, name) => electron_1.app.getPath(name));
 // Window Controls
-electron_1.ipcMain.handle('window:minimize', () => {
+(0, ipc_1.handle)('window:minimize', () => {
     mainWindow?.minimize();
 });
-electron_1.ipcMain.handle('window:maximize', () => {
+(0, ipc_1.handle)('window:maximize', () => {
     if (mainWindow?.isMaximized()) {
         mainWindow?.unmaximize();
     }
@@ -265,13 +284,13 @@ electron_1.ipcMain.handle('window:maximize', () => {
         mainWindow?.maximize();
     }
 });
-electron_1.ipcMain.handle('window:close', () => {
+(0, ipc_1.handle)('window:close', () => {
     mainWindow?.close();
 });
-electron_1.ipcMain.handle('window:is-maximized', () => {
+(0, ipc_1.handle)('window:is-maximized', () => {
     return mainWindow?.isMaximized();
 });
-electron_1.ipcMain.handle('window:toggle-maximize', () => {
+(0, ipc_1.handle)('window:toggle-maximize', () => {
     if (mainWindow?.isMaximized()) {
         mainWindow?.unmaximize();
     }
@@ -282,7 +301,7 @@ electron_1.ipcMain.handle('window:toggle-maximize', () => {
 // File System Handlers
 const { dialog } = require('electron');
 let watcher = null;
-electron_1.ipcMain.handle('fs:watch', (event, rootDir) => {
+(0, ipc_1.handle)('fs:watch', (event, rootDir) => {
     if (watcher) {
         watcher.close();
     }
@@ -296,7 +315,7 @@ electron_1.ipcMain.handle('fs:watch', (event, rootDir) => {
     });
     return true;
 });
-electron_1.ipcMain.handle('fs:createFile', async (event, filePath) => {
+(0, ipc_1.handle)('fs:createFile', async (event, filePath) => {
     try {
         await promises_1.default.writeFile(filePath, '');
         return true;
@@ -305,7 +324,7 @@ electron_1.ipcMain.handle('fs:createFile', async (event, filePath) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
+(0, ipc_1.handle)('fs:createDirectory', async (event, dirPath) => {
     try {
         await promises_1.default.mkdir(dirPath, { recursive: true });
         return true;
@@ -314,7 +333,7 @@ electron_1.ipcMain.handle('fs:createDirectory', async (event, dirPath) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('fs:delete', async (event, targetPath) => {
+(0, ipc_1.handle)('fs:delete', async (event, targetPath) => {
     try {
         await fs_extra_1.default.remove(targetPath);
         return true;
@@ -324,7 +343,7 @@ electron_1.ipcMain.handle('fs:delete', async (event, targetPath) => {
     }
 });
 // Moves to the OS Trash / Recycle Bin, so a delete can be undone
-electron_1.ipcMain.handle('fs:trash', async (event, targetPath) => {
+(0, ipc_1.handle)('fs:trash', async (event, targetPath) => {
     try {
         await electron_1.shell.trashItem(targetPath);
         return true;
@@ -333,7 +352,7 @@ electron_1.ipcMain.handle('fs:trash', async (event, targetPath) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('fs:rename', async (event, oldPath, newPath) => {
+(0, ipc_1.handle)('fs:rename', async (event, oldPath, newPath) => {
     try {
         // fs.rename silently replaces an existing file; refuse instead
         // (a case-only rename on a case-insensitive disk is the same file)
@@ -348,7 +367,7 @@ electron_1.ipcMain.handle('fs:rename', async (event, oldPath, newPath) => {
 });
 // Explorer paste: copy (or move) a file/folder into destDir. Never overwrites —
 // a name clash gets a " copy" suffix like VS Code. Returns the new path or null.
-electron_1.ipcMain.handle('fs:pasteInto', async (event, srcPath, destDir, move) => {
+(0, ipc_1.handle)('fs:pasteInto', async (event, srcPath, destDir, move) => {
     try {
         const name = path_1.default.basename(srcPath);
         if (move && path_1.default.join(destDir, name) === srcPath)
@@ -373,11 +392,11 @@ electron_1.ipcMain.handle('fs:pasteInto', async (event, srcPath, destDir, move) 
         return null;
     }
 });
-electron_1.ipcMain.handle('shell:showItemInFolder', (event, targetPath) => {
+(0, ipc_1.handle)('shell:showItemInFolder', (event, targetPath) => {
     electron_1.shell.showItemInFolder(targetPath);
     return true;
 });
-electron_1.ipcMain.handle('dialog:openFile', async () => {
+(0, ipc_1.handle)('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openFile'],
         filters: [
@@ -390,7 +409,7 @@ electron_1.ipcMain.handle('dialog:openFile', async () => {
         return null;
     return filePaths[0];
 });
-electron_1.ipcMain.handle('dialog:openDirectory', async () => {
+(0, ipc_1.handle)('dialog:openDirectory', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
         properties: ['openDirectory']
     });
@@ -398,7 +417,7 @@ electron_1.ipcMain.handle('dialog:openDirectory', async () => {
         return null;
     return filePaths[0];
 });
-electron_1.ipcMain.handle('dialog:saveFile', async (event, content, defaultPath) => {
+(0, ipc_1.handle)('dialog:saveFile', async (event, content, defaultPath) => {
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
         defaultPath: defaultPath,
         filters: [{ name: 'All Files', extensions: ['*'] }]
@@ -409,7 +428,7 @@ electron_1.ipcMain.handle('dialog:saveFile', async (event, content, defaultPath)
     return filePath;
 });
 // The `vylos` shell command
-electron_1.ipcMain.handle('cli:take-pending', async () => {
+(0, ipc_1.handle)('cli:take-pending', async () => {
     await resolvingOpens;
     return pendingOpens.splice(0);
 });
@@ -437,9 +456,9 @@ const offerShellCommand = async () => {
     if (response === 0)
         await showCommandResult(await (0, cli_1.installShellCommand)());
 };
-electron_1.ipcMain.handle('cli:install-command', async () => showCommandResult(await (0, cli_1.installShellCommand)()));
-electron_1.ipcMain.handle('cli:uninstall-command', async () => showCommandResult(await (0, cli_1.uninstallShellCommand)()));
-electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
+(0, ipc_1.handle)('cli:install-command', async () => showCommandResult(await (0, cli_1.installShellCommand)()));
+(0, ipc_1.handle)('cli:uninstall-command', async () => showCommandResult(await (0, cli_1.uninstallShellCommand)()));
+(0, ipc_1.handle)('find:search', async (event, query, rootDir) => {
     const results = [];
     const MAX_RESULTS = 100;
     const MAX_FILE_SIZE = 1024 * 1024; // 1MB
@@ -504,7 +523,7 @@ electron_1.ipcMain.handle('find:search', async (event, query, rootDir) => {
         return [];
     }
 });
-electron_1.ipcMain.handle('fs:listAll', async (event, dirPath) => {
+(0, ipc_1.handle)('fs:listAll', async (event, dirPath) => {
     const results = [];
     async function recurse(current) {
         const entries = await promises_1.default.readdir(current, { withFileTypes: true });
@@ -529,7 +548,7 @@ electron_1.ipcMain.handle('fs:listAll', async (event, dirPath) => {
     }
 });
 const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-electron_1.ipcMain.handle('fs:list', async (event, dirPath) => {
+(0, ipc_1.handle)('fs:list', async (event, dirPath) => {
     try {
         const dirents = await promises_1.default.readdir(dirPath, { withFileTypes: true });
         return dirents.map((dirent) => ({
@@ -545,7 +564,7 @@ electron_1.ipcMain.handle('fs:list', async (event, dirPath) => {
         return [];
     }
 });
-electron_1.ipcMain.handle('fs:read', async (event, filePath) => {
+(0, ipc_1.handle)('fs:read', async (event, filePath) => {
     try {
         return await promises_1.default.readFile(filePath, 'utf-8');
     }
@@ -553,7 +572,7 @@ electron_1.ipcMain.handle('fs:read', async (event, filePath) => {
         return null;
     }
 });
-electron_1.ipcMain.handle('fs:write', async (event, filePath, content) => {
+(0, ipc_1.handle)('fs:write', async (event, filePath, content) => {
     try {
         await promises_1.default.writeFile(filePath, content, 'utf-8');
         return true;
@@ -570,7 +589,7 @@ const TERM_DEFAULT_TIMEOUT_MS = 30000;
 const TERM_MAX_TIMEOUT_MS = 120000;
 const termProcs = new Map();
 let nextRunId = 1;
-electron_1.ipcMain.handle('term:run', (event, opts) => {
+(0, ipc_1.handle)('term:run', (event, opts) => {
     const runId = nextRunId++;
     const command = String(opts.command ?? '').trim();
     if (!command)
@@ -618,7 +637,7 @@ electron_1.ipcMain.handle('term:run', (event, opts) => {
         });
     });
 });
-electron_1.ipcMain.handle('term:kill', (event, runId) => {
+(0, ipc_1.handle)('term:kill', (event, runId) => {
     const child = termProcs.get(runId);
     if (child) {
         child.kill('SIGKILL');
@@ -628,7 +647,7 @@ electron_1.ipcMain.handle('term:kill', (event, runId) => {
 });
 // Git Handlers with isomorphic-git
 const git = __importStar(require("isomorphic-git"));
-electron_1.ipcMain.handle('git:status', async (event, dir) => {
+(0, ipc_1.handle)('git:status', async (event, dir) => {
     try {
         const matrix = await git.statusMatrix({ fs: fs_extra_1.default, dir });
         // statusMatrix returns [filepath, head, workdir, stage]
@@ -666,7 +685,7 @@ electron_1.ipcMain.handle('git:status', async (event, dir) => {
         return { unstaged: [], staged: [] };
     }
 });
-electron_1.ipcMain.handle('git:stage', async (event, dir, filepath) => {
+(0, ipc_1.handle)('git:stage', async (event, dir, filepath) => {
     try {
         await git.add({ fs: fs_extra_1.default, dir, filepath });
         return true;
@@ -675,7 +694,7 @@ electron_1.ipcMain.handle('git:stage', async (event, dir, filepath) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('git:unstage', async (event, dir, filepath) => {
+(0, ipc_1.handle)('git:unstage', async (event, dir, filepath) => {
     try {
         await git.remove({ fs: fs_extra_1.default, dir, filepath });
         return true;
@@ -686,7 +705,7 @@ electron_1.ipcMain.handle('git:unstage', async (event, dir, filepath) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('git:stageAll', async (event, dir) => {
+(0, ipc_1.handle)('git:stageAll', async (event, dir) => {
     try {
         const matrix = await git.statusMatrix({ fs: fs_extra_1.default, dir });
         for (const [filepath, head, workdir, stage] of matrix) {
@@ -700,7 +719,7 @@ electron_1.ipcMain.handle('git:stageAll', async (event, dir) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('git:unstageAll', async (event, dir) => {
+(0, ipc_1.handle)('git:unstageAll', async (event, dir) => {
     try {
         const matrix = await git.statusMatrix({ fs: fs_extra_1.default, dir });
         for (const [filepath, head, workdir, stage] of matrix) {
@@ -715,7 +734,7 @@ electron_1.ipcMain.handle('git:unstageAll', async (event, dir) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('git:commit', async (event, dir, message) => {
+(0, ipc_1.handle)('git:commit', async (event, dir, message) => {
     try {
         await git.commit({
             fs: fs_extra_1.default,
@@ -729,7 +748,7 @@ electron_1.ipcMain.handle('git:commit', async (event, dir, message) => {
         return false;
     }
 });
-electron_1.ipcMain.handle('git:branch', async (event, dir) => {
+(0, ipc_1.handle)('git:branch', async (event, dir) => {
     try {
         return await git.currentBranch({ fs: fs_extra_1.default, dir });
     }
@@ -737,7 +756,7 @@ electron_1.ipcMain.handle('git:branch', async (event, dir) => {
         return null;
     }
 });
-electron_1.ipcMain.handle('git:push', async (event, dir) => {
+(0, ipc_1.handle)('git:push', async (event, dir) => {
     // Mock push for now as it requires auth/remote
     return new Promise(resolve => setTimeout(() => resolve(true), 1500));
 });

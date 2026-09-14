@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const dsa: Course = {
+export const dsa: CourseDefinition = {
     id: 'dsa',
     title: 'Data Structures & Algorithms',
     tagline: 'Solve problems efficiently and ace technical interviews.',

@@ -1,4 +1,4 @@
-import { Course, CourseCategory } from '../types';
+import { CourseDefinition } from '../types';
 import { python } from './python';
 import { javascript } from './javascript';
 import { typescript } from './typescript';
@@ -49,7 +49,13 @@ import { networking } from './networking';
 import { devops } from './devops';
 import { systemDesign } from './system-design';
 
-export const LANGUAGE_COURSES: Course[] = [
+/**
+ * The courses that ship with Vylos, registered by the course registry at
+ * startup. Each course's `category` decides its catalog section; order here is
+ * the order within a section.
+ */
+export const BUILTIN_COURSES: CourseDefinition[] = [
+    // Languages
     python,
     javascript,
     typescript,
@@ -66,9 +72,7 @@ export const LANGUAGE_COURSES: Course[] = [
     php,
     sql,
     postgresql,
-];
-
-export const FRAMEWORK_COURSES: Course[] = [
+    // Frameworks & Platforms
     react,
     nextjs,
     vue,
@@ -89,22 +93,16 @@ export const FRAMEWORK_COURSES: Course[] = [
     axum,
     qt,
     tailwind,
-];
-
-export const AI_COURSES: Course[] = [
+    // AI & Data Science
     ai,
     machineLearning,
     deepLearning,
     generativeAi,
     dataScience,
-];
-
-export const SECURITY_COURSES: Course[] = [
+    // Cybersecurity
     cybersecurity,
     webSecurity,
-];
-
-export const ESSENTIALS_COURSES: Course[] = [
+    // CS Essentials
     dsa,
     linux,
     git,
@@ -112,17 +110,3 @@ export const ESSENTIALS_COURSES: Course[] = [
     devops,
     systemDesign,
 ];
-
-/** Catalog sections, in display order. */
-export const COURSE_GROUPS: { category: CourseCategory; label: string; courses: Course[] }[] = [
-    { category: 'language', label: 'Languages', courses: LANGUAGE_COURSES },
-    { category: 'framework', label: 'Frameworks & Platforms', courses: FRAMEWORK_COURSES },
-    { category: 'ai', label: 'AI & Data Science', courses: AI_COURSES },
-    { category: 'security', label: 'Cybersecurity', courses: SECURITY_COURSES },
-    { category: 'essentials', label: 'CS Essentials', courses: ESSENTIALS_COURSES },
-];
-
-export const COURSES: Course[] = COURSE_GROUPS.flatMap((group) => group.courses);
-
-export const getCourse = (id: string): Course | undefined =>
-    COURSES.find((course) => course.id === id);

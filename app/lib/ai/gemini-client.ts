@@ -28,16 +28,19 @@ export function aiErrorMessage(error: unknown): string {
 /**
  * Gemini is reached through the `ai-generate` Supabase Edge Function, which
  * holds the API key — the app never ships it (supabase/functions/ai-generate).
+ *
+ * `feature` names the caller (e.g. 'hover', 'hints', or later an extension id)
+ * so usage can be attributed.
  */
-export async function generateContent(prompt: string): Promise<string> {
+export async function generateContent(prompt: string, feature: string): Promise<string> {
     const supabase = getSupabase();
     if (!supabase) return AI_ERRORS.notConfigured;
 
     const { data, error } = await supabase.functions.invoke<{ text: string }>('ai-generate', {
-        body: { prompt, system: TEXT_ASSISTANT_RULES },
+        body: { prompt, system: TEXT_ASSISTANT_RULES, feature },
     });
     if (error || !data?.text) {
-        console.error('Gemini Generation Error:', error);
+        console.error(`Gemini Generation Error (${feature}):`, error);
         return aiErrorMessage(error);
     }
     return data.text;

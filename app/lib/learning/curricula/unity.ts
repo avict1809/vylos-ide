@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const unity: Course = {
+export const unity: CourseDefinition = {
     id: 'unity',
     title: 'Unity Game Development',
     tagline: 'Build and ship real games with C# and the world’s most popular engine.',

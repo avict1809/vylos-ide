@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { AI_ACCURACY_GUIDELINES } from './guidelines';
 
-export const ai: Course = {
+export const ai: CourseDefinition = {
     id: 'ai',
     title: 'Artificial Intelligence Foundations',
     tagline: 'How machines search, reason, learn, and understand language, built from scratch in Python.',

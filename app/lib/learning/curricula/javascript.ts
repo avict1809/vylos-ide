@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const javascript: Course = {
+export const javascript: CourseDefinition = {
     id: 'javascript',
     title: 'JavaScript: The Complete Path',
     tagline: 'The language of the web — from basics to async mastery.',

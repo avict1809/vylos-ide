@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const axum: Course = {
+export const axum: CourseDefinition = {
     id: 'axum',
     title: 'Rust Web with Axum',
     tagline: 'Type-safe, blazing-fast web services on tokio.',

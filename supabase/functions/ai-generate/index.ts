@@ -16,13 +16,15 @@ Deno.serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-    let body: { prompt?: unknown; system?: unknown };
+    let body: { prompt?: unknown; system?: unknown; feature?: unknown };
     try {
         body = await req.json();
     } catch {
         return json({ error: 'Invalid JSON' }, 400);
     }
     const { prompt, system } = body ?? {};
+    // Which app feature is asking (e.g. 'hover', 'hints'); optional so older builds keep working
+    const feature = typeof body?.feature === 'string' && /^[\w.:-]{1,64}$/.test(body.feature) ? body.feature : 'unknown';
     if (typeof prompt !== 'string' || !prompt.trim()) return json({ error: 'Missing prompt' }, 400);
     if (system !== undefined && typeof system !== 'string') return json({ error: 'Invalid system' }, 400);
     if (prompt.length > MAX_PROMPT_CHARS || (system?.length ?? 0) > MAX_SYSTEM_CHARS) {
@@ -45,7 +47,7 @@ Deno.serve(async (req) => {
         }),
     });
     if (!res.ok) {
-        console.error(`Gemini ${MODEL} failed: ${res.status} ${await res.text()}`);
+        console.error(`Gemini ${MODEL} failed for ${feature}: ${res.status} ${await res.text()}`);
         return json({ error: 'AI request failed' }, 502);
     }
 
@@ -54,7 +56,7 @@ Deno.serve(async (req) => {
     const text = parts.filter((p) => !p.thought).map((p) => p.text ?? '').join('');
     if (!text) {
         // Blocked by safety filters, or the token budget went entirely to thinking
-        console.error(`Gemini ${MODEL} returned no text: finishReason=${data.candidates?.[0]?.finishReason}`);
+        console.error(`Gemini ${MODEL} returned no text for ${feature}: finishReason=${data.candidates?.[0]?.finishReason}`);
         return json({ error: 'AI returned no answer' }, 502);
     }
     return json({ text });

@@ -19,6 +19,17 @@ declare global {
         kind: 'directory' | 'file' | 'new';
     }
 
+    /** One folder in ~/.vylos/extensions as read from disk, before validation */
+    interface ExtensionScan {
+        folder: string;
+        path: string;
+        manifest?: unknown;
+        manifestError?: string;
+        courses: { path: string; json?: unknown; error?: string }[];
+        code?: string;
+        codeError?: string;
+    }
+
     interface Window {
         electron: {
             getVersion: () => Promise<string>;
@@ -58,6 +69,11 @@ declare global {
             };
             shell: {
                 showItemInFolder: (path: string) => Promise<boolean>;
+            };
+            extensions: {
+                scan: () => Promise<{ dir: string; extensions: ExtensionScan[] }>;
+                openFolder: () => Promise<boolean>;
+                onChanged: (callback: () => void) => () => void;
             };
             shortcuts: {
                 onToggleTerminal: (callback: () => void) => () => void;

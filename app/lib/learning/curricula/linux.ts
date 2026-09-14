@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const linux: Course = {
+export const linux: CourseDefinition = {
     id: 'linux',
     title: 'Linux & the Command Line',
     tagline: 'Get fluent in the terminal and automate your work with shell scripts.',

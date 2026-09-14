@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { AI_ACCURACY_GUIDELINES } from './guidelines';
 
-export const deepLearning: Course = {
+export const deepLearning: CourseDefinition = {
     id: 'deep-learning',
     title: 'Deep Learning with PyTorch',
     tagline: 'Build, train, and debug neural networks, from tensors to a tiny transformer.',

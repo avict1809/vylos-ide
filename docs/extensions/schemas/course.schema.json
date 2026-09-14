@@ -1,0 +1,73 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/avict1809/vylos-ide/main/docs/extensions/schemas/course.schema.json",
+    "title": "Vylos course",
+    "description": "One course contributed by an extension. Checked by app/lib/extensions/validate.ts; keep the two in step.",
+    "type": "object",
+    "required": ["id", "title", "tagline", "hours", "modules"],
+    "additionalProperties": false,
+    "properties": {
+        "$schema": { "type": "string" },
+        "id": {
+            "description": "Unique within your publisher; Vylos registers it as \"<publisher>.<id>\". Progress is stored under it, so don't change it after release.",
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "tagline": { "description": "One line under the title in the catalog.", "type": "string", "minLength": 1, "maxLength": 200 },
+        "level": { "description": "e.g. \"Beginner\" or \"Beginner → Advanced\". Defaults to \"All levels\".", "type": "string", "minLength": 1, "maxLength": 40 },
+        "hours": { "description": "Rough time to finish.", "type": "number", "exclusiveMinimum": 0, "maximum": 1000 },
+        "accent": { "description": "Badge color. Defaults to #4ec9b0.", "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" },
+        "badge": { "description": "1-3 characters shown in the course icon. Defaults to the title's first letters.", "type": "string", "minLength": 1, "maxLength": 3 },
+        "category": {
+            "description": "Catalog section. Defaults to \"language\".",
+            "enum": ["language", "framework", "ai", "security", "essentials"]
+        },
+        "stack": { "description": "Tag shown next to the title, e.g. \"Python\".", "type": "string", "minLength": 1, "maxLength": 30 },
+        "tutorGuidelines": {
+            "description": "Notes for the voice tutor on what to teach and how. They can't override Vylos's safety rules.",
+            "type": "array",
+            "maxItems": 20,
+            "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        },
+        "modules": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+                "type": "object",
+                "required": ["title", "lessons"],
+                "additionalProperties": false,
+                "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 120 },
+                    "description": { "type": "string", "minLength": 1, "maxLength": 500 },
+                    "lessons": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 200,
+                        "items": {
+                            "oneOf": [
+                                {
+                                    "description": "A lesson title. Its id is the title's slug: \"Numbers and strings\" → \"numbers-and-strings\".",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 200
+                                },
+                                {
+                                    "description": "A lesson with an explicit id, to reword a title without losing learners' progress.",
+                                    "type": "object",
+                                    "required": ["id", "title"],
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,99}$" },
+                                        "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

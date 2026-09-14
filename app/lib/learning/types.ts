@@ -1,7 +1,13 @@
+export interface Lesson {
+    /** Unique within its course. Progress is stored by this id, never by position. */
+    id: string;
+    title: string;
+}
+
 export interface CourseModule {
     title: string;
     description: string;
-    lessons: string[];
+    lessons: Lesson[];
 }
 
 export type CourseCategory = 'language' | 'framework' | 'ai' | 'security' | 'essentials';
@@ -23,14 +29,40 @@ export interface Course {
      * facts it must not guess, safety and ethics boundaries.
      */
     tutorGuidelines?: string[];
+    /** Set for courses from an installed extension; built-in courses have none. */
+    extension?: { id: string; displayName: string; publisher: string };
     modules: CourseModule[];
 }
 
-export const lessonId = (courseId: string, moduleIndex: number, lessonIndex: number) =>
-    `${courseId}-${moduleIndex}-${lessonIndex}`;
+/**
+ * A lesson as written in a curriculum. A bare title gets the title's slug as
+ * its id, so lessons can be added, removed or reordered without touching
+ * anyone's progress. To reword a title and keep its progress, write
+ * `{ id: '<the old slug>', title: 'New title' }`.
+ */
+export type LessonDefinition = string | { id: string; title: string };
+
+export interface CourseModuleDefinition extends Omit<CourseModule, 'lessons'> {
+    lessons: LessonDefinition[];
+}
+
+/** A course as written in a curriculum file; the course registry turns it into a Course. */
+export interface CourseDefinition extends Omit<Course, 'modules'> {
+    modules: CourseModuleDefinition[];
+}
+
+/** 'Installing Python 3 on your machine' → 'installing-python-3-on-your-machine' */
+export const lessonSlug = (title: string) =>
+    title
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '') // accents: 'é' → 'e'
+        .replace(/&/g, ' and ')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
 
 export const moduleLessonIds = (course: Course, moduleIndex: number) =>
-    course.modules[moduleIndex].lessons.map((_, li) => lessonId(course.id, moduleIndex, li));
+    course.modules[moduleIndex].lessons.map((lesson) => lesson.id);
 
 export const totalLessons = (course: Course) =>
     course.modules.reduce((sum, m) => sum + m.lessons.length, 0);
@@ -41,27 +73,18 @@ export interface CourseProgress {
     percent: number;
 }
 
-export const courseProgress = (course: Course, completed: string[] | undefined): CourseProgress => {
-    const total = totalLessons(course);
+const progressOf = (lessons: Lesson[], completed: string[] | undefined): CourseProgress => {
     const set = new Set(completed ?? []);
-    let done = 0;
-    course.modules.forEach((m, mi) =>
-        m.lessons.forEach((_, li) => {
-            if (set.has(lessonId(course.id, mi, li))) done++;
-        })
-    );
+    const total = lessons.length;
+    const done = lessons.filter((lesson) => set.has(lesson.id)).length;
     return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
 };
+
+export const courseProgress = (course: Course, completed: string[] | undefined): CourseProgress =>
+    progressOf(course.modules.flatMap((m) => m.lessons), completed);
 
 export const moduleProgress = (
     course: Course,
     moduleIndex: number,
     completed: string[] | undefined
-): CourseProgress => {
-    const set = new Set(completed ?? []);
-    const total = course.modules[moduleIndex].lessons.length;
-    const done = course.modules[moduleIndex].lessons.filter((_, li) =>
-        set.has(lessonId(course.id, moduleIndex, li))
-    ).length;
-    return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
-};
+): CourseProgress => progressOf(course.modules[moduleIndex].lessons, completed);

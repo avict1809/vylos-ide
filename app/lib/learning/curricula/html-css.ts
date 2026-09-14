@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const htmlCss: Course = {
+export const htmlCss: CourseDefinition = {
     id: 'html-css',
     title: 'HTML & CSS: Web Foundations',
     tagline: 'Build beautiful, responsive websites from a blank file to a deployed portfolio.',

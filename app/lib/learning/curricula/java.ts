@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const java: Course = {
+export const java: CourseDefinition = {
     id: 'java',
     title: 'Java: The Complete Path',
     tagline: 'From the JVM to streams and multithreading — job-ready Java.',

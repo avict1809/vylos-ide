@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, ShieldCheck, Wrench, type LucideIcon } from 'lucide-react';
-import { COURSE_GROUPS } from '@/app/lib/learning/curricula';
+import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, ShieldCheck, Wrench, Puzzle, type LucideIcon } from 'lucide-react';
+import { useCourseGroups } from '@/app/lib/learning/course-registry';
 import { Course, CourseCategory, courseProgress, totalLessons } from '@/app/lib/learning/types';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
@@ -27,6 +27,7 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
     const { completedLessons, setActiveCourse } = useCourseStore();
     const { currentRoadmap } = useRoadmapStore();
     const openCourse = onOpenCourse ?? setActiveCourse;
+    const courseGroups = useCourseGroups();
 
     const matches = (course: Course) => {
         const q = query.trim().toLowerCase();
@@ -35,11 +36,13 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
             course.title.toLowerCase().includes(q) ||
             course.id.toLowerCase().includes(q) ||
             course.tagline.toLowerCase().includes(q) ||
-            (course.stack ?? '').toLowerCase().includes(q)
+            (course.stack ?? '').toLowerCase().includes(q) ||
+            (course.extension?.displayName ?? '').toLowerCase().includes(q) ||
+            (course.extension?.publisher ?? '').toLowerCase().includes(q)
         );
     };
 
-    const groups = COURSE_GROUPS
+    const groups = courseGroups
         .map((group) => ({ ...group, courses: group.courses.filter(matches) }))
         .filter((group) => group.courses.length > 0);
 
@@ -178,6 +181,12 @@ function CourseCard({ course, completed, onOpen }: { course: Course; completed: 
                         </div>
                         <ChevronRight size={13} className="text-gray-700 group-hover:text-[var(--vylos-green)] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
+                    {course.extension && (
+                        <p className="flex items-center gap-1 mt-0.5 text-[9px] text-gray-500" title={`From the installed extension ${course.extension.id}`}>
+                            <Puzzle size={9} className="text-[var(--vylos-green-accent)] shrink-0" />
+                            <span className="truncate">by {course.extension.publisher}</span>
+                        </p>
+                    )}
                     <p className="text-[10px] text-gray-500 leading-relaxed mt-0.5 line-clamp-2">{course.tagline}</p>
                     <div className="flex items-center gap-3 mt-2 text-[9px] text-gray-600 font-medium uppercase tracking-wider">
                         <span className="flex items-center gap-1">

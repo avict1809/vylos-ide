@@ -1,7 +1,7 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 import { AI_ACCURACY_GUIDELINES } from './guidelines';
 
-export const machineLearning: Course = {
+export const machineLearning: CourseDefinition = {
     id: 'machine-learning',
     title: 'Machine Learning with scikit-learn',
     tagline: 'The practical ML workflow: clean data, train models, and evaluate them honestly.',

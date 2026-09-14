@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LessonRef } from '../learning/lesson-utils';
+import { getCourse } from '../learning/course-registry';
 
 export interface TutorVoice {
     name: string;
@@ -76,6 +77,12 @@ interface VoiceStore {
     resetSession: () => void;
 }
 
+function fromPositionalRef(ref: unknown): LessonRef | null {
+    const { courseId, moduleIndex, lessonIndex } = (ref ?? {}) as { courseId?: string; moduleIndex?: number; lessonIndex?: number };
+    const lesson = courseId ? getCourse(courseId)?.modules[moduleIndex ?? -1]?.lessons[lessonIndex ?? -1] : undefined;
+    return courseId && lesson ? { courseId, lessonId: lesson.id } : null;
+}
+
 function pushEntry(transcript: TranscriptEntry[], role: TranscriptEntry['role'], text: string): TranscriptEntry[] {
     const trimmed = text.trim();
     if (!trimmed) return transcript;
@@ -144,6 +151,13 @@ export const useVoiceStore = create<VoiceStore>()(
         }),
         {
             name: 'vylos-voice',
+            version: 1,
+            migrate: (persisted, version) => {
+                const state = persisted as Partial<VoiceStore> & { lessonContext?: unknown };
+                // Version 0 pointed at the paused lesson by position
+                if (version < 1 && state) state.lessonContext = fromPositionalRef(state.lessonContext);
+                return state as VoiceStore;
+            },
             // Keep the lesson position and chat history so an interrupted lesson
             // can be continued later — even after an app restart.
             partialize: (state) => ({

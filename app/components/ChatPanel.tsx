@@ -29,7 +29,7 @@ export default function ChatPanel() {
         setIsLoading(true);
 
         try {
-            const aiResponse = await generateContent(userMsg);
+            const aiResponse = await generateContent(userMsg, 'chat');
             addMessage('assistant', aiResponse);
         } catch (error) {
             addMessage('assistant', "Sorry, I encountered an error.");

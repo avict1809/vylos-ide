@@ -1,6 +1,6 @@
-import { Course } from '../types';
+import { CourseDefinition } from '../types';
 
-export const django: Course = {
+export const django: CourseDefinition = {
     id: 'django',
     title: 'Django Mastery',
     tagline: 'Python’s batteries-included web framework — from models to deployment.',
