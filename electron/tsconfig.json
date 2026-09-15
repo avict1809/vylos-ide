@@ -16,6 +16,8 @@
         "./cli.ts",
         "./ipc.ts",
         "./extensions.ts",
+        "./device.ts",
+        "./terminal.ts",
         "./pty-service.ts"
     ]
 }

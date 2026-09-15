@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useTerminalStore } from './stores/terminal-store';
 
 const MAX_RECENT_FILES = 20;
 const MAX_RECENT_FOLDERS = 10;
@@ -82,8 +83,6 @@ interface FileStore {
     sessionRestored: boolean;
     // Explorer cut/copy (a file or folder waiting to be pasted)
     explorerClipboard: { path: string; cut: boolean } | null;
-    // Folder the terminal runs commands in (null = project root)
-    terminalCwd: string | null;
 
     // Actions
     restoreSession: () => Promise<void>;
@@ -144,7 +143,6 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     session: null,
     sessionRestored: false,
     explorerClipboard: null,
-    terminalCwd: null,
 
     setExplorerClipboard: (clipboard) => set({ explorerClipboard: clipboard }),
 
@@ -179,7 +177,10 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
 
     collapseAll: () => set({ expandedPaths: new Set<string>() }),
 
-    openTerminalAt: (dir) => set({ terminalCwd: dir, showTerminal: true }),
+    openTerminalAt: (dir) => {
+        set({ showTerminal: true });
+        void useTerminalStore.getState().newShell(dir);
+    },
 
     restoreSession: () => {
         const electron = (window as any).electron;
@@ -220,7 +221,6 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     openFolderPath: (dirPath) => {
         set(state => ({
             projectRoot: dirPath,
-            terminalCwd: null,
             activeView: 'explorer',
             recentFolders: pushRecent(state.recentFolders, dirPath, MAX_RECENT_FOLDERS),
         }));

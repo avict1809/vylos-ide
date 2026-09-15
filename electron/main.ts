@@ -1,5 +1,4 @@
 import { app, BrowserWindow, shell } from 'electron';
-import { spawn, ChildProcess } from 'child_process';
 import http from 'http';
 import path from 'path';
 import chokidar, { FSWatcher } from 'chokidar';
@@ -9,6 +8,8 @@ import serve from 'electron-serve';
 import { initUpdater } from './updater';
 import { handle, isAppUrl } from './ipc';
 import { initExtensions } from './extensions';
+import { initDevice } from './device';
+import { initTerminal } from './terminal';
 import {
     CommandResult, OpenRequest, detachFromTerminal, installShellCommand, launchArgs,
     printCliInfo, refreshShellCommand, resolveOpenRequests, shouldOfferShellCommand, uninstallShellCommand,
@@ -126,22 +127,25 @@ const createWindow = async () => {
         mainWindow?.webContents.send('window:unmaximized');
     });
 
-    // Ctrl+` toggles the terminal. Caught here, before the page, so no focused
+    // Ctrl+` toggles the terminal (Ctrl+Shift+` opens a new one). Caught here, before the page, so no focused
     // widget (editor, inputs) can swallow it; matched by physical key so it works
     // on any keyboard layout.
     mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && input.code === 'Backquote') {
             event.preventDefault();
-            mainWindow?.webContents.send('shortcut:toggle-terminal');
+            mainWindow?.webContents.send(input.shift ? 'shortcut:new-terminal' : 'shortcut:toggle-terminal');
         }
     });
 };
 
 if (isPrimaryInstance) app.whenReady().then(async () => {
+    // Before the window: the page asks for these as soon as it mounts
+    initExtensions(() => mainWindow);
+    initTerminal(() => mainWindow);
+    initDevice();
     await createWindow();
     // Checks for a mandatory update; the renderer blocks the app until it is applied
     initUpdater();
-    initExtensions(() => mainWindow);
     void refreshShellCommand();
     void offerShellCommand();
 
@@ -391,6 +395,13 @@ handle('fs:pasteInto', async (event, srcPath: string, destDir: string, move: boo
     }
 });
 
+// The Run button on an HTML file: show it in the default browser. Limited to
+// .html/.htm so this can never launch programs.
+handle('shell:openHtml', async (event, targetPath: string) => {
+    if (typeof targetPath !== 'string' || !/\.html?$/i.test(targetPath)) return 'Only .html files can be opened';
+    return shell.openPath(targetPath);
+});
+
 handle('shell:showItemInFolder', (event, targetPath: string) => {
     shell.showItemInFolder(targetPath);
     return true;
@@ -575,79 +586,6 @@ handle('fs:write', async (event, filePath, content) => {
     } catch (e) {
         return false;
     }
-});
-
-// Terminal runner: executes shell commands (e.g. python3/node interpreters),
-// streaming output live to the renderer. Used by both the terminal panel and
-// the AI voice tutor's run_command tool.
-const TERM_MAX_OUTPUT = 200 * 1024;
-const TERM_DEFAULT_TIMEOUT_MS = 30_000;
-const TERM_MAX_TIMEOUT_MS = 120_000;
-
-const termProcs = new Map<number, ChildProcess>();
-let nextRunId = 1;
-
-handle('term:run', (event, opts: { command: string; cwd?: string; timeoutMs?: number }) => {
-    const runId = nextRunId++;
-    const command = String(opts.command ?? '').trim();
-    if (!command) return { runId, exitCode: -1, output: '', error: 'Empty command' };
-
-    return new Promise((resolve) => {
-        let output = '';
-        let truncated = false;
-        let timedOut = false;
-
-        mainWindow?.webContents.send('term:started', { runId, command, cwd: opts.cwd ?? null });
-
-        const child = spawn(command, {
-            shell: true,
-            cwd: opts.cwd || undefined,
-            env: process.env,
-        });
-        termProcs.set(runId, child);
-
-        const timeoutMs = Math.min(Math.max(opts.timeoutMs ?? TERM_DEFAULT_TIMEOUT_MS, 1000), TERM_MAX_TIMEOUT_MS);
-        const timer = setTimeout(() => {
-            timedOut = true;
-            child.kill('SIGKILL');
-        }, timeoutMs);
-
-        const onChunk = (stream: 'stdout' | 'stderr') => (data: Buffer) => {
-            const text = data.toString();
-            if (output.length < TERM_MAX_OUTPUT) {
-                output += text;
-            } else {
-                truncated = true;
-            }
-            mainWindow?.webContents.send('term:output', { runId, chunk: text, stream });
-        };
-        child.stdout?.on('data', onChunk('stdout'));
-        child.stderr?.on('data', onChunk('stderr'));
-
-        child.on('error', (err) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            mainWindow?.webContents.send('term:exit', { runId, exitCode: -1, timedOut: false, error: err.message });
-            resolve({ runId, exitCode: -1, output, truncated, timedOut: false, error: err.message });
-        });
-
-        child.on('close', (code) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            const exitCode = code ?? -1;
-            mainWindow?.webContents.send('term:exit', { runId, exitCode, timedOut });
-            resolve({ runId, exitCode, output, truncated, timedOut });
-        });
-    });
-});
-
-handle('term:kill', (event, runId: number) => {
-    const child = termProcs.get(runId);
-    if (child) {
-        child.kill('SIGKILL');
-        return true;
-    }
-    return false;
 });
 
 // Git Handlers with isomorphic-git

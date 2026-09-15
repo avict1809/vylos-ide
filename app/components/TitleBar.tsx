@@ -4,6 +4,9 @@ import { X, Minus, Square, Copy, ChevronRight } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useFileStore } from "../lib/useFileStore";
 import { cn } from "@/app/lib/utils";
+import { useTerminalStore } from "../lib/stores/terminal-store";
+import { runActiveFile } from "../lib/run/run-file";
+import { isAppShortcut, isInTerminal } from "../lib/terminal/xterm-host";
 import Image from "next/image";
 
 import SaveConfirmModal from "./SaveConfirmModal";
@@ -49,6 +52,11 @@ export function TitleBar() {
         };
     }, []);
 
+    const openNewTerminal = () => {
+        useFileStore.getState().setShowTerminal(true);
+        void useTerminalStore.getState().newShell(useFileStore.getState().projectRoot);
+    };
+
     const handleAction = (label: string) => {
         switch (label) {
             case "New Text File": createNewFile(); break;
@@ -59,7 +67,8 @@ export function TitleBar() {
             case "Close Editor": if (activeFile) closeFile(activeFile.path); break;
             case "Exit": window.electron?.window.close(); break;
             case "Toggle Terminal": toggleTerminal(); break;
-            case "New Terminal": toggleTerminal(); break;
+            case "New Terminal": openNewTerminal(); break;
+            case "Run Active File": void runActiveFile(); break;
             case "Install 'vylos' Command in PATH": window.electron?.cli?.installCommand(); break;
             case "Uninstall 'vylos' Command from PATH": window.electron?.cli?.uninstallCommand(); break;
 
@@ -148,6 +157,7 @@ export function TitleBar() {
             label: "Terminal",
             items: [
                 { label: "New Terminal", shortcut: "Ctrl+Shift+`" },
+                { label: "Run Active File", shortcut: "F5" },
                 { type: "separator" },
                 { label: "Install 'vylos' Command in PATH" },
                 { label: "Uninstall 'vylos' Command from PATH" },
@@ -158,6 +168,15 @@ export function TitleBar() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // In the terminal, keys like Ctrl+L and Ctrl+B belong to the shell
+            if (isInTerminal(e.target) && !isAppShortcut(e)) return;
+
+            if (e.key === 'F5' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+                e.preventDefault();
+                void runActiveFile();
+                return;
+            }
+
             if (e.ctrlKey || e.metaKey) {
                 if (e.key.toLowerCase() === 'k') {
                     setCtrlKTyped(true);
@@ -176,7 +195,8 @@ export function TitleBar() {
                 // main process handles Ctrl+` first and this never fires.
                 if (e.code === 'Backquote') {
                     e.preventDefault();
-                    toggleTerminal();
+                    if (e.shiftKey) openNewTerminal();
+                    else toggleTerminal();
                     return;
                 }
 
@@ -203,8 +223,9 @@ export function TitleBar() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [saveActiveFile, saveActiveFileAs, createNewFile, openExternalFile, openFolder, ctrlKTyped, handleAction]);
 
-    // Ctrl+` as caught by the Electron main process
+    // Ctrl+` and Ctrl+Shift+` as caught by the Electron main process
     useEffect(() => window.electron?.shortcuts?.onToggleTerminal(toggleTerminal), [toggleTerminal]);
+    useEffect(() => window.electron?.shortcuts?.onNewTerminal?.(openNewTerminal), []);
 
     useEffect(() => {
         if (!activeMenu) return;

@@ -8,6 +8,7 @@ export const vue: CourseDefinition = {
     hours: 24,
     accent: '#42B883',
     badge: 'V',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [

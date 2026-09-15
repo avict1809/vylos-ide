@@ -8,6 +8,7 @@ export const spring: CourseDefinition = {
     hours: 28,
     accent: '#6DB33F',
     badge: 'SPR',
+    requires: ['java'],
     category: 'framework',
     stack: 'Java',
     modules: [

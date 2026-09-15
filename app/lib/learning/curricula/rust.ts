@@ -8,6 +8,7 @@ export const rust: CourseDefinition = {
     hours: 40,
     accent: '#DEA584',
     badge: 'RS',
+    requires: ['rust'],
     modules: [
         {
             title: 'Getting Started',

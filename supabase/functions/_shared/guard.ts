@@ -1,8 +1,8 @@
-import { createClient } from 'npm:@supabase/supabase-js@2';
+import { createClient, type User } from 'npm:@supabase/supabase-js@2';
 
 export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-vylos-device',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -25,29 +25,61 @@ export function geminiKey(): string | null {
     return key ?? null;
 }
 
-const admin = createClient(
+export const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     { auth: { persistSession: false, autoRefreshToken: false } },
 );
 
+/** SHA-256 hex of the machine id, sent by the app as x-vylos-device (see electron/device.ts). */
+export const DEVICE_PATTERN = /^[0-9a-f]{64}$/;
+
 /**
- * Admits a request only from a signed-in (non-anonymous) user who is still
- * under today's `dailyLimit` for `kind`, and counts it against that limit.
- * Returns the error response to send back, or null to go ahead.
+ * The signed-in (non-anonymous) user behind the request, or the error
+ * response to send back.
  *
  * The session is checked here rather than at the gateway (verify_jwt = false
  * in config.toml) so this works with both legacy and asymmetric JWT keys.
  */
-export async function guard(req: Request, kind: 'text' | 'voice', dailyLimit: number): Promise<Response | null> {
+export async function authenticate(req: Request): Promise<{ user: User } | { response: Response }> {
     const jwt = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '');
-    if (!jwt) return json({ error: 'Not signed in' }, 401);
+    if (!jwt) return { response: json({ error: 'Not signed in' }, 401) };
 
     const { data, error } = await admin.auth.getUser(jwt);
-    if (error || !data.user || data.user.is_anonymous) return json({ error: 'Not signed in' }, 401);
+    if (error || !data.user || data.user.is_anonymous) return { response: json({ error: 'Not signed in' }, 401) };
+    return { user: data.user };
+}
+
+// Off until every installed app sends x-vylos-device; turn on
+// with `supabase secrets set REQUIRE_DEVICE=true`. See docs/DEVICE-LIMITS.md.
+const REQUIRE_DEVICE = Deno.env.get('REQUIRE_DEVICE') === 'true';
+
+/**
+ * Admits a request only from a signed-in (non-anonymous) user who is still
+ * under today's `dailyLimit` for `kind`, and counts it against that limit.
+ * With REQUIRE_DEVICE, the request must also come from a device the account
+ * is registered on (device-register), so accounts beyond a device's limit get
+ * no free AI. Returns the error response to send back, or null to go ahead.
+ */
+export async function guard(req: Request, kind: 'text' | 'voice', dailyLimit: number): Promise<Response | null> {
+    const auth = await authenticate(req);
+    if ('response' in auth) return auth.response;
+    const { user } = auth;
+
+    if (REQUIRE_DEVICE) {
+        const device = req.headers.get('x-vylos-device') ?? '';
+        const { data: known, error: deviceError } = DEVICE_PATTERN.test(device)
+            ? await admin.from('device_accounts').select('user_id').eq('device_hash', device).eq('user_id', user.id).maybeSingle()
+            : { data: null, error: null };
+        if (deviceError) {
+            console.error('device check failed:', deviceError.message);
+            return json({ error: 'Usage check failed' }, 500);
+        }
+        if (!known) return json({ error: 'This device is not registered for this account', code: 'device_unregistered' }, 403);
+    }
 
     const { data: allowed, error: quotaError } = await admin.rpc('consume_ai_quota', {
-        p_user_id: data.user.id,
+        p_user_id: user.id,
         p_kind: kind,
         p_limit: dailyLimit,
     });

@@ -3,6 +3,11 @@
 import { useFileStore } from '../useFileStore';
 import { useRoadmapStore } from '../stores/roadmap-store';
 import { useTerminalStore } from '../stores/terminal-store';
+import { useExerciseStore } from '../stores/exercise-store';
+import { checkExercise, exerciseFor, openExercise } from '../exercises/session';
+import { mainFile } from '../exercises/format';
+import { useSetupStore } from '../setup/setup-check';
+import { TOOLS } from '../setup/tools';
 import { useCourseStore } from '../stores/course-store';
 import { useVoiceStore } from '../stores/voice-store';
 import { nextLessonRef, resolveLesson } from '../learning/lesson-utils';
@@ -37,6 +42,11 @@ function resolvePath(p: string): string {
 
 function truncate(text: string, max = MAX_FILE_CHARS) {
     return text.length > max ? text.slice(0, max) + `\n… [truncated, ${text.length} chars total]` : text;
+}
+
+/** Like truncate, but keeps the end: for program output, where the errors are. */
+function tail(text: string, max: number) {
+    return text.length > max ? `[… ${text.length - max} earlier chars cut]\n` + text.slice(-max) : text;
 }
 
 function shortName(p: unknown): string {
@@ -80,16 +90,23 @@ const BUILTIN_TOOLS: TutorTool[] = [
     {
         declaration: {
             name: 'get_workspace_state',
-            description: "See what the learner sees: the open project, open tabs, the active file and its full content, and their learning roadmap. Call this before teaching so you know the context.",
+            description: "See what the learner sees: the open project, open tabs, the active file and its full content, their learning roadmap, and the output of the last program they ran with the Run button. Call this before teaching so you know the context, and when they say something went wrong.",
             parameters: { type: 'OBJECT', properties: {} },
         },
         describe: () => 'Looking at your workspace…',
         execute: () => {
             const s = store();
             const roadmap = useRoadmapStore.getState().currentRoadmap;
+            const lastRun = useTerminalStore.getState().runs.filter((r) => r.source === 'user').at(-1);
             const active = s.activeFileIndex !== null ? s.openFiles[s.activeFileIndex] : null;
             const ref = useVoiceStore.getState().lessonContext;
             const lesson = ref ? resolveLesson(ref) : null;
+            const setup = lesson?.course.requires?.length
+                ? Object.fromEntries(lesson.course.requires.map((id) => {
+                    const st = useSetupStore.getState().status[id];
+                    return [TOOLS[id]?.name ?? id, !st || st.state === 'checking' ? 'not checked yet' : st.state === 'found' ? `installed (${st.version ?? 'version unknown'})` : st.state === 'outdated' ? `too old (${st.version})` : 'NOT INSTALLED: the course page shows the learner how to install it'];
+                }))
+                : undefined;
             return {
                 project_root: s.projectRoot ?? 'No folder is open.',
                 open_tabs: s.openFiles.map((f) => f.path),
@@ -109,6 +126,15 @@ const BUILTIN_TOOLS: TutorTool[] = [
                         milestones: roadmap.milestones.map((m) => ({ title: m.title, completed: m.completed })),
                     }
                     : 'No custom roadmap.',
+                ...(setup ? { course_tools: setup } : {}),
+                learner_last_run: lastRun
+                    ? {
+                        command: lastRun.command,
+                        exit_code: lastRun.exitCode,
+                        timed_out: lastRun.timedOut,
+                        output: tail(lastRun.output, 4000) || '(no output)',
+                    }
+                    : 'The learner has not pressed Run this session.',
             };
         },
     },
@@ -286,6 +312,10 @@ const BUILTIN_TOOLS: TutorTool[] = [
             const ref = useVoiceStore.getState().lessonContext;
             const lesson = ref ? resolveLesson(ref) : null;
             if (!ref || !lesson) return { error: 'No curriculum lesson is active in this session.' };
+            // Core's rule: a lesson with an exercise is complete only once its check passes
+            if (exerciseFor(ref) && !useExerciseStore.getState().get(ref).passed) {
+                return { error: 'This lesson has an exercise and its check has not passed yet. Have the learner finish it (open_exercise), then call check_exercise. A passing check completes the lesson automatically.' };
+            }
 
             useCourseStore.getState().completeLessons(ref.courseId, [lesson.lessonId]);
 
@@ -321,14 +351,54 @@ const BUILTIN_TOOLS: TutorTool[] = [
     },
     {
         declaration: {
+            name: 'open_exercise',
+            description: "Open the CURRENT lesson's coding exercise: creates its starter files, opens the main file in the editor and shows the task and Check button in the side panel. Use it in the PRACTICE step of a lesson that has an exercise.",
+            parameters: { type: 'OBJECT', properties: {} },
+        },
+        describe: () => 'Opening the exercise…',
+        execute: async () => {
+            const ref = useVoiceStore.getState().lessonContext;
+            const info = ref ? exerciseFor(ref) : null;
+            if (!ref || !info) return { error: 'The current lesson has no exercise.' };
+            const opened = await openExercise(ref);
+            if (!opened.ok) return { error: opened.error };
+            return { ok: true, file: opened.path, task: info.exercise.prompt, hints_available: info.exercise.hints?.length ?? 0 };
+        },
+    },
+    {
+        declaration: {
+            name: 'check_exercise',
+            description: "Run the automatic check on the learner's exercise code (the same as their Check button) and get per-case results. Call it when the learner says they are done or asks whether their code works. A pass completes the lesson.",
+            parameters: { type: 'OBJECT', properties: {} },
+        },
+        describe: () => 'Checking your code…',
+        execute: async () => {
+            const ref = useVoiceStore.getState().lessonContext;
+            if (!ref || !exerciseFor(ref)) return { error: 'The current lesson has no exercise.' };
+            const result = await checkExercise(ref);
+            const progress = useExerciseStore.getState().get(ref);
+            return {
+                passed: result.passed,
+                summary: result.summary,
+                ...(result.problem ? { problem: result.problem } : {}),
+                failing_cases: result.cases.filter((c) => !c.passed).slice(0, 5).map((c) => `${c.name}: ${c.message}`),
+                attempts_so_far: progress.attempts,
+                note: result.passed
+                    ? 'Passed, and the lesson is marked complete. Celebrate briefly, ask your quiz questions if you haven\'t yet, then call complete_lesson to move to the next lesson.'
+                    : 'Not passed. Explain what the failing case means in plain words and give ONE hint. Do not write the fix for them.',
+            };
+        },
+    },
+    {
+        declaration: {
             name: 'run_command',
-            description: "Run a shell command in the integrated terminal, visible to the learner. Use it to RUN CODE with interpreters (e.g. 'python3 main.py', 'node app.js') after saving, and to show real output. Running code and reading errors together is core to practical teaching. The command runs in the project folder by default.",
+            description: "Run a shell command in the integrated terminal, visible to the learner. Use it to RUN CODE with interpreters (e.g. 'python3 main.py', 'node app.js') after saving, and to show real output. Running code and reading errors together is core to practical teaching. The command runs in the project folder by default. Programs are interactive: if the program asks for input (input(), Scanner, cin, readline), tell the learner to click the terminal and type their answer — the tool returns when the program exits, and the time limit restarts whenever they type. The learner can also run the open file themselves with the Run button (F5).",
             parameters: {
                 type: 'OBJECT',
                 properties: {
                     command: { type: 'STRING', description: "The shell command, e.g. 'python3 hello.py'." },
                     cwd: { type: 'STRING', description: 'Working directory. Defaults to the project root.' },
-                    timeout_seconds: { type: 'NUMBER', description: 'Max seconds to wait (default 30, max 120). The command is killed after this.' },
+                    timeout_seconds: { type: 'NUMBER', description: 'Max seconds to wait (default 30, max 120). The command is killed after this, unless the learner is typing input.' },
                 },
                 required: ['command'],
             },
@@ -342,12 +412,12 @@ const BUILTIN_TOOLS: TutorTool[] = [
 
             const cwd = args.cwd ? resolvePath(String(args.cwd)) : s.projectRoot ?? undefined;
             const timeoutMs = Math.min(Math.max((Number(args.timeout_seconds) || 30), 1), 120) * 1000;
-            const result = await useTerminalStore.getState().runCommand(String(args.command), cwd, timeoutMs);
+            const result = await useTerminalStore.getState().runCommand(String(args.command), cwd, timeoutMs, { source: 'tutor' });
 
             return {
                 exit_code: result.exitCode,
                 timed_out: result.timedOut,
-                output: truncate(result.output, 16000) || '(no output)',
+                output: tail(result.output, 16000) || '(no output)',
                 ...(result.error ? { error: result.error } : {}),
             };
         },
@@ -372,6 +442,17 @@ function buildLessonBlock(): string {
             return `  ${mark} ${lesson.moduleIndex + 1}.${li + 1} ${l.title}`;
         })
         .join('\n');
+
+    const exercise = exerciseFor(ref)?.exercise;
+    const exerciseProgress = exercise ? useExerciseStore.getState().get(ref) : null;
+    const exerciseBlock = !exercise ? '' : `
+THIS LESSON HAS A CODING EXERCISE, checked automatically (${exerciseProgress?.passed ? 'the learner has ALREADY PASSED it' : `not passed yet, ${exerciseProgress?.attempts ?? 0} checks so far`}):
+Task: ${exercise.prompt}
+Main file: ${mainFile(exercise)}
+- In the PRACTICE step, call open_exercise, explain the task in your own words, and let the learner write the code THEMSELVES. Never type the solution with write_code, and never read the solution out.
+- When they think they're done, call check_exercise. If it fails, explain the failing case and give one small hint at a time.
+- The lesson completes when the check passes; complete_lesson refuses until then. Still ask your quiz questions before moving on.
+`;
 
     const rules = lesson.course.tutorGuidelines?.map((g) => `- ${g}`).join('\n');
     const ext = lesson.course.extension;
@@ -403,6 +484,7 @@ LESSON WORKFLOW — follow it strictly for EVERY lesson:
 4. PASS: only when the learner answers the quiz well and you are confident they understand, call complete_lesson. If they struggle, re-teach it a different way and quiz again with different questions. NEVER call complete_lesson without a passed quiz, and never mark a lesson they didn't demonstrate.
 5. CONTINUE: complete_lesson tells you the next lesson. Briefly celebrate, then teach it with the same workflow. If the learner sounds tired, offer to stop — progress is saved.
 If the learner asks something unrelated, answer briefly and steer back to the current lesson.
+${exerciseBlock}
 The lesson title is only a topic label. Teach what the topic genuinely covers; if a title is ambiguous, say how you are interpreting it rather than inventing a meaning.
 ${guidelines}`;
 }
@@ -430,7 +512,13 @@ Do NOT restart the lesson from the beginning or repeat what was already covered.
 `;
 }
 
-export function buildTutorSystemInstruction(opts: { resume?: boolean } = {}): string {
+/**
+ * The tutor's instructions. Voice and text tutors teach the same way with the
+ * same tools; only how they talk differs. Built fresh for every text turn, so
+ * it always describes the current lesson.
+ */
+export function buildTutorSystemInstruction(opts: { resume?: boolean; mode?: 'voice' | 'text' } = {}): string {
+    const text = opts.mode === 'text';
     const s = useFileStore.getState();
     const roadmap = useRoadmapStore.getState().currentRoadmap;
     const active = s.activeFileIndex !== null ? s.openFiles[s.activeFileIndex] : null;
@@ -439,19 +527,23 @@ export function buildTutorSystemInstruction(opts: { resume?: boolean } = {}): st
     const resumeBlock = opts.resume ? buildResumeBlock() : '';
     const currentLesson = useVoiceStore.getState().lessonContext;
 
-    return `You are Vylos, a friendly, patient tutor for programming and computing (software, AI, cybersecurity, and more) speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.
+    return `You are Vylos, a friendly, patient tutor for programming and computing (software, AI, cybersecurity, and more) ${text
+        ? 'chatting in writing with a learner inside their code editor. They read your messages in a side panel next to the editor and type their replies.'
+        : 'speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.'}
 ${lessonBlock}${resumeBlock}
 ${TUTOR_ACCURACY_RULES}
 
 TEACHING STYLE:
 - Teach PRACTICALLY, like a tutor sitting next to the learner: demonstrate in the editor, don't lecture.
-- Keep spoken turns SHORT (1-4 sentences). This is a conversation, not a monologue.
+${text
+        ? '- Keep messages SHORT: a few sentences, plus a small code snippet when it helps. This is a conversation, not an article. Use Markdown: `inline code`, and fenced code blocks with the language name.\n- The learner may be reading in a second language: prefer short, plain sentences.'
+        : '- Keep spoken turns SHORT (1-4 sentences). This is a conversation, not a monologue.'}
 - Use your tools constantly: look at their workspace, open files, write code in small steps, and highlight the lines you are talking about.
 - When you write code, write a FEW LINES at a time with write_code, then explain what you wrote and why. Build programs up incrementally.
 - Frequently hand control back: ask the learner to try the next small step themselves, then check their work with get_workspace_state and give feedback.
 - Use highlight_lines whenever you refer to specific code, like pointing with a finger.
 - RUN THE CODE. After writing something meaningful, save it (save_active_file) and run it with run_command using the right interpreter (python3 for .py, node for .js). Talk about the real output together.
-- When a run fails, that's a teaching moment: read the error out loud in simple words, highlight the offending line, and fix it together — or ask the learner to try fixing it first.
+- When a run fails, that's a teaching moment: ${text ? 'explain' : 'read'} the error ${text ? '' : 'out loud '}in simple words, highlight the offending line, and fix it together — or ask the learner to try fixing it first.
 - Encourage the learner. Correct mistakes kindly and specifically.
 - Use plain, simple English. Avoid jargon unless you explain it.
 
@@ -461,7 +553,7 @@ RULES:
 - If no file is open, create or open one before writing code.
 - Always save_active_file before run_command on a file you just changed — the editor content is not on disk until saved.
 - Only run commands relevant to the lesson (running scripts, checking versions). Never run destructive commands (rm, format, etc.).
-- The terminal is NOT interactive: commands cannot receive keyboard input. Avoid anything that prompts or opens a full-screen program (sudo password prompts, editors, pagers, y/n questions). Use non-interactive forms, or ask the learner to run it themselves.
+- Programs you run can read keyboard input: when one asks for input (input(), Scanner, cin), tell the learner to click the terminal and type the answer; run_command returns when the program exits. Still avoid sudo password prompts, full-screen programs (editors, pagers) and y/n installers: ask the learner to run those themselves.
 - Never install packages or tools (pip, npm, apt, etc.) without asking the learner first and explaining what will be installed.
 - Never send requests to, scan, or probe systems outside the learner's own machine or lab.
 - The learner's editor is the single source of truth — always check it rather than assuming.

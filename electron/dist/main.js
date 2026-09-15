@@ -37,7 +37,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
-const child_process_1 = require("child_process");
 const http_1 = __importDefault(require("http"));
 const path_1 = __importDefault(require("path"));
 const chokidar_1 = __importDefault(require("chokidar"));
@@ -47,6 +46,8 @@ const electron_serve_1 = __importDefault(require("electron-serve"));
 const updater_1 = require("./updater");
 const ipc_1 = require("./ipc");
 const extensions_1 = require("./extensions");
+const device_1 = require("./device");
+const terminal_1 = require("./terminal");
 const cli_1 = require("./cli");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
@@ -149,22 +150,25 @@ const createWindow = async () => {
     mainWindow.on('unmaximize', () => {
         mainWindow?.webContents.send('window:unmaximized');
     });
-    // Ctrl+` toggles the terminal. Caught here, before the page, so no focused
+    // Ctrl+` toggles the terminal (Ctrl+Shift+` opens a new one). Caught here, before the page, so no focused
     // widget (editor, inputs) can swallow it; matched by physical key so it works
     // on any keyboard layout.
     mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && input.code === 'Backquote') {
             event.preventDefault();
-            mainWindow?.webContents.send('shortcut:toggle-terminal');
+            mainWindow?.webContents.send(input.shift ? 'shortcut:new-terminal' : 'shortcut:toggle-terminal');
         }
     });
 };
 if (isPrimaryInstance)
     electron_1.app.whenReady().then(async () => {
+        // Before the window: the page asks for these as soon as it mounts
+        (0, extensions_1.initExtensions)(() => mainWindow);
+        (0, terminal_1.initTerminal)(() => mainWindow);
+        (0, device_1.initDevice)();
         await createWindow();
         // Checks for a mandatory update; the renderer blocks the app until it is applied
         (0, updater_1.initUpdater)();
-        (0, extensions_1.initExtensions)(() => mainWindow);
         void (0, cli_1.refreshShellCommand)();
         void offerShellCommand();
         electron_1.app.on('activate', async () => {
@@ -392,6 +396,13 @@ let watcher = null;
         return null;
     }
 });
+// The Run button on an HTML file: show it in the default browser. Limited to
+// .html/.htm so this can never launch programs.
+(0, ipc_1.handle)('shell:openHtml', async (event, targetPath) => {
+    if (typeof targetPath !== 'string' || !/\.html?$/i.test(targetPath))
+        return 'Only .html files can be opened';
+    return electron_1.shell.openPath(targetPath);
+});
 (0, ipc_1.handle)('shell:showItemInFolder', (event, targetPath) => {
     electron_1.shell.showItemInFolder(targetPath);
     return true;
@@ -580,70 +591,6 @@ const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
     catch (e) {
         return false;
     }
-});
-// Terminal runner: executes shell commands (e.g. python3/node interpreters),
-// streaming output live to the renderer. Used by both the terminal panel and
-// the AI voice tutor's run_command tool.
-const TERM_MAX_OUTPUT = 200 * 1024;
-const TERM_DEFAULT_TIMEOUT_MS = 30000;
-const TERM_MAX_TIMEOUT_MS = 120000;
-const termProcs = new Map();
-let nextRunId = 1;
-(0, ipc_1.handle)('term:run', (event, opts) => {
-    const runId = nextRunId++;
-    const command = String(opts.command ?? '').trim();
-    if (!command)
-        return { runId, exitCode: -1, output: '', error: 'Empty command' };
-    return new Promise((resolve) => {
-        let output = '';
-        let truncated = false;
-        let timedOut = false;
-        mainWindow?.webContents.send('term:started', { runId, command, cwd: opts.cwd ?? null });
-        const child = (0, child_process_1.spawn)(command, {
-            shell: true,
-            cwd: opts.cwd || undefined,
-            env: process.env,
-        });
-        termProcs.set(runId, child);
-        const timeoutMs = Math.min(Math.max(opts.timeoutMs ?? TERM_DEFAULT_TIMEOUT_MS, 1000), TERM_MAX_TIMEOUT_MS);
-        const timer = setTimeout(() => {
-            timedOut = true;
-            child.kill('SIGKILL');
-        }, timeoutMs);
-        const onChunk = (stream) => (data) => {
-            const text = data.toString();
-            if (output.length < TERM_MAX_OUTPUT) {
-                output += text;
-            }
-            else {
-                truncated = true;
-            }
-            mainWindow?.webContents.send('term:output', { runId, chunk: text, stream });
-        };
-        child.stdout?.on('data', onChunk('stdout'));
-        child.stderr?.on('data', onChunk('stderr'));
-        child.on('error', (err) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            mainWindow?.webContents.send('term:exit', { runId, exitCode: -1, timedOut: false, error: err.message });
-            resolve({ runId, exitCode: -1, output, truncated, timedOut: false, error: err.message });
-        });
-        child.on('close', (code) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            const exitCode = code ?? -1;
-            mainWindow?.webContents.send('term:exit', { runId, exitCode, timedOut });
-            resolve({ runId, exitCode, output, truncated, timedOut });
-        });
-    });
-});
-(0, ipc_1.handle)('term:kill', (event, runId) => {
-    const child = termProcs.get(runId);
-    if (child) {
-        child.kill('SIGKILL');
-        return true;
-    }
-    return false;
 });
 // Git Handlers with isomorphic-git
 const git = __importStar(require("isomorphic-git"));

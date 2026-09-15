@@ -8,6 +8,7 @@ export const laravel: CourseDefinition = {
     hours: 26,
     accent: '#FF2D20',
     badge: 'LV',
+    requires: ['php'],
     category: 'framework',
     stack: 'PHP',
     modules: [

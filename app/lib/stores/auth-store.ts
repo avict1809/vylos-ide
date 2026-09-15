@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Session } from '@supabase/supabase-js';
 import { getSupabase, isSupabaseConfigured, supabaseConfig } from '../supabase';
+import { registerDevice } from '../device';
 
 export type AuthMode = 'signin' | 'signup';
 
@@ -48,6 +49,14 @@ function toUser(session: Session | null): User | null {
 // Distinguishes a stale browser sign-in attempt from the active one
 let browserSignInAttempt = 0;
 
+/** Ends a session the app decided not to use, so its tokens stop working. */
+function revokeSession(accessToken: string) {
+    void fetch(`${supabaseConfig.supabaseUrl}/auth/v1/logout?scope=local`, {
+        method: 'POST',
+        headers: { apikey: supabaseConfig.supabaseAnonKey, Authorization: `Bearer ${accessToken}` },
+    }).catch(() => { });
+}
+
 export const useAuthStore = create<AuthStore>()(
     persist(
         (set) => ({
@@ -67,6 +76,16 @@ export const useAuthStore = create<AuthStore>()(
                 supabase.auth.onAuthStateChange((_event, session) => {
                     set({ isAuthenticated: !!session, user: toUser(session) });
                 });
+
+                // A session from before device limits, or from another computer's
+                // copy of this profile: check it against this device's limits
+                if (session) {
+                    const check = await registerDevice();
+                    if (check.ok === false) {
+                        await supabase.auth.signOut();
+                        set({ isAuthenticated: false, user: null, error: check.message });
+                    }
+                }
             },
 
             signInViaBrowser: async (mode) => {
@@ -90,6 +109,14 @@ export const useAuthStore = create<AuthStore>()(
                     if (result.error === 'cancelled') return;
                     if (result.error || !result.access_token || !result.refresh_token) {
                         throw new Error(result.error || 'Sign-in was not completed.');
+                    }
+
+                    // Checked before the session is kept, so a refused account never opens the app
+                    const check = await registerDevice(result.access_token);
+                    if (attempt !== browserSignInAttempt) return;
+                    if (check.ok === false) {
+                        revokeSession(result.access_token);
+                        throw new Error(check.message);
                     }
 
                     const { error } = await supabase.auth.setSession({

@@ -8,6 +8,7 @@ export const sql: CourseDefinition = {
     hours: 20,
     accent: '#E38C00',
     badge: 'SQL',
+    requires: ['sqlite'],
     modules: [
         {
             title: 'Getting Started',

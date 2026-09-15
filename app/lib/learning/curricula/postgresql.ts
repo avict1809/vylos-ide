@@ -8,6 +8,7 @@ export const postgresql: CourseDefinition = {
     hours: 22,
     accent: '#336791',
     badge: 'PG',
+    requires: ['psql'],
     modules: [
         {
             title: 'Getting Started with Postgres',

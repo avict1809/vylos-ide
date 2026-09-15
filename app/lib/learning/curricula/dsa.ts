@@ -8,6 +8,7 @@ export const dsa: CourseDefinition = {
     hours: 40,
     accent: '#22D3EE',
     badge: 'DSA',
+    requires: ['python'],
     category: 'essentials',
     stack: 'Python',
     tutorGuidelines: [

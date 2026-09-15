@@ -8,6 +8,7 @@ export const react: CourseDefinition = {
     hours: 28,
     accent: '#61DAFB',
     badge: 'R',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [

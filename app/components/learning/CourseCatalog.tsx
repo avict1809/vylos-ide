@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, ShieldCheck, Wrench, Puzzle, type LucideIcon } from 'lucide-react';
+import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, WandSparkles, ShieldCheck, Wrench, Puzzle, type LucideIcon } from 'lucide-react';
 import { useCourseGroups } from '@/app/lib/learning/course-registry';
 import { Course, CourseCategory, courseProgress, totalLessons } from '@/app/lib/learning/types';
 import { useCourseStore } from '@/app/lib/stores/course-store';
@@ -12,6 +12,7 @@ const GROUP_ICONS: Record<CourseCategory, LucideIcon> = {
     language: Code2,
     framework: Boxes,
     ai: Brain,
+    vibe: WandSparkles,
     security: ShieldCheck,
     essentials: Wrench,
 };
@@ -150,6 +151,12 @@ function SectionHeader({ icon: Icon, label, count }: { icon: LucideIcon; label: 
 function CourseCard({ course, completed, onOpen }: { course: Course; completed: string[] | undefined; onOpen: () => void }) {
     const progress = courseProgress(course, completed);
     const started = progress.done > 0;
+    // Sits in the bottom row so the title can use the full width
+    const stackTag = course.stack && (
+        <span className="ml-auto min-w-0 truncate px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[#18181b] border border-[#27272a] text-gray-500">
+            {course.stack}
+        </span>
+    );
 
     return (
         <button
@@ -168,18 +175,11 @@ function CourseCard({ course, completed, onOpen }: { course: Course; completed: 
                     {course.badge}
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                            <h3 className="text-xs font-bold text-gray-200 group-hover:text-white truncate transition-colors">
-                                {course.title}
-                            </h3>
-                            {course.stack && (
-                                <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-[#18181b] border border-[#27272a] text-gray-500">
-                                    {course.stack}
-                                </span>
-                            )}
-                        </div>
-                        <ChevronRight size={13} className="text-gray-700 group-hover:text-[var(--vylos-green)] group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <div className="flex items-start justify-between gap-2">
+                        <h3 className="text-xs font-bold leading-snug text-gray-200 group-hover:text-white break-words transition-colors">
+                            {course.title}
+                        </h3>
+                        <ChevronRight size={13} className="mt-px text-gray-700 group-hover:text-[var(--vylos-green)] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                     {course.extension && (
                         <p className="flex items-center gap-1 mt-0.5 text-[9px] text-gray-500" title={`From the installed extension ${course.extension.id}`}>
@@ -211,10 +211,14 @@ function CourseCard({ course, completed, onOpen }: { course: Course; completed: 
                     <span className="text-[9px] font-mono text-[var(--vylos-green)] shrink-0">
                         {progress.percent === 100 ? 'Completed' : `${progress.percent}%`}
                     </span>
+                    {stackTag}
                 </div>
             ) : (
-                <div className="mt-3 text-[9px] text-gray-600 font-bold uppercase tracking-widest">
-                    {totalLessons(course)} lessons
+                <div className="mt-3 flex items-center gap-2">
+                    <span className="shrink-0 text-[9px] text-gray-600 font-bold uppercase tracking-widest">
+                        {totalLessons(course)} lessons
+                    </span>
+                    {stackTag}
                 </div>
             )}
         </button>

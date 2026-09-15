@@ -9,13 +9,17 @@ import { cn } from '@/app/lib/utils';
 import RoadmapCreator from './RoadmapCreator';
 import CourseCatalog from './CourseCatalog';
 import CourseView from './CourseView';
+import ExerciseView from './ExerciseView';
+import LessonView from './LessonView';
+import { useExerciseStore } from '@/app/lib/stores/exercise-store';
 
 export default function RoadmapView() {
     const { currentRoadmap } = useRoadmapStore();
-    const { activeCourseId, backToCatalog } = useCourseStore();
+    const { activeCourseId, backToCatalog, openLesson, setOpenLesson } = useCourseStore();
     const [view, setView] = useState<'auto' | 'catalog' | 'creator'>('auto');
 
     const course = useCourse(activeCourseId);
+    const { active: activeExercise, setActive: setActiveExercise } = useExerciseStore();
 
     if (view === 'creator' && !currentRoadmap) {
         return (
@@ -32,12 +36,19 @@ export default function RoadmapView() {
     }
 
     if (view !== 'catalog') {
+        if (course && activeExercise?.courseId === course.id) {
+            return <ExerciseView lessonRef={activeExercise} onBack={() => setActiveExercise(null)} />;
+        }
+        if (course && openLesson?.courseId === course.id) {
+            return <LessonView lessonRef={openLesson} onBack={() => setOpenLesson(null)} />;
+        }
         if (course) {
             return (
                 <CourseView
                     course={course}
                     onBack={() => {
                         backToCatalog();
+                        setActiveExercise(null);
                         setView('catalog');
                     }}
                 />

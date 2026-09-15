@@ -8,6 +8,7 @@ export const networking: CourseDefinition = {
     hours: 25,
     accent: '#14B8A6',
     badge: 'NET',
+    requires: ['python'],
     category: 'essentials',
     stack: 'Python',
     tutorGuidelines: [
