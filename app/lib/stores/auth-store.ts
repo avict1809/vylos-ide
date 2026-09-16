@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Session } from '@supabase/supabase-js';
-import { getSupabase, isSupabaseConfigured, supabaseConfig } from '../supabase';
+import { getSupabase, isSupabaseConfigured, readStoredSession, supabaseConfig } from '../supabase';
 import { registerDevice } from '../device';
 
 export type AuthMode = 'signin' | 'signup';
@@ -20,6 +20,9 @@ interface AuthStore {
     isAuthenticated: boolean;
     hasCompletedOnboarding: boolean;
     user: User | null;
+    // Signed in on a stored session that Supabase couldn't be reached to
+    // confirm, i.e. working offline
+    isOfflineSession: boolean;
     // Set while the system browser is open and we're waiting for the web
     // auth page to hand the session back
     isWaitingForBrowser: boolean;
@@ -49,6 +52,10 @@ function toUser(session: Session | null): User | null {
 // Distinguishes a stale browser sign-in attempt from the active one
 let browserSignInAttempt = 0;
 
+// initialize() subscribes to Supabase and to 'online'; those subscriptions
+// belong to the client, not to whatever mounted first
+let initialized = false;
+
 /** Ends a session the app decided not to use, so its tokens stop working. */
 function revokeSession(accessToken: string) {
     void fetch(`${supabaseConfig.supabaseUrl}/auth/v1/logout?scope=local`, {
@@ -63,18 +70,49 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: false,
             hasCompletedOnboarding: false,
             user: null,
+            isOfflineSession: false,
             isWaitingForBrowser: false,
             error: null,
 
             initialize: async () => {
                 const supabase = getSupabase();
-                if (!supabase) return;
+                if (!supabase || initialized) return;
+                initialized = true;
 
+                // Open on the stored session right away. Refreshing an expired
+                // access token with no network takes Supabase ~30s to give up
+                // on, and the learner shouldn't stare at the sign-in screen
+                // while it does.
+                const stored = readStoredSession();
+                if (stored) set({ isAuthenticated: true, user: toUser(stored) });
+
+                supabase.auth.onAuthStateChange((event, session) => {
+                    if (session) {
+                        set({ isAuthenticated: true, user: toUser(session), isOfflineSession: false });
+                        return;
+                    }
+                    // No session: signed out for real, or a refresh that never
+                    // reached Supabase — which leaves the session in storage.
+                    const offline = event === 'SIGNED_OUT' ? null : readStoredSession();
+                    set({ isAuthenticated: !!offline, user: toUser(offline), isOfflineSession: !!offline });
+                });
+
+                // Answers null when the access token has expired and it can't
+                // be refreshed; the stored session is still good in that case,
+                // so keep it rather than asking for a new sign-in.
                 const { data: { session } } = await supabase.auth.getSession();
-                set({ isAuthenticated: !!session, user: toUser(session) });
+                const active = session ?? readStoredSession();
+                set({
+                    isAuthenticated: !!active,
+                    user: toUser(active),
+                    isOfflineSession: !session && !!active,
+                });
 
-                supabase.auth.onAuthStateChange((_event, session) => {
-                    set({ isAuthenticated: !!session, user: toUser(session) });
+                // Back online: have Supabase confirm the stored session, so an
+                // account that lost access elsewhere stops working here too.
+                window.addEventListener('online', () => {
+                    const refreshToken = readStoredSession()?.refresh_token;
+                    if (refreshToken) void supabase.auth.refreshSession({ refresh_token: refreshToken });
                 });
 
                 // A session from before device limits, or from another computer's
@@ -144,7 +182,7 @@ export const useAuthStore = create<AuthStore>()(
             logout: async () => {
                 const supabase = getSupabase();
                 await supabase?.auth.signOut();
-                set({ isAuthenticated: false, user: null, hasCompletedOnboarding: false });
+                set({ isAuthenticated: false, user: null, isOfflineSession: false, hasCompletedOnboarding: false });
             },
 
             setHasCompletedOnboarding: (hasCompletedOnboarding) => set({ hasCompletedOnboarding }),

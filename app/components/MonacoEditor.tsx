@@ -15,6 +15,8 @@ import { Sparkles, Save, Search, Code, GraduationCap } from 'lucide-react';
 interface MonacoEditorProps {
     /** Picks the language from its extension; overridden by `language` */
     fileName?: string;
+    /** The tab this editor shows. Autosave writes this file, not whichever is focused. */
+    filePath?: string;
     language?: string;
     defaultValue?: string;
     value?: string;
@@ -30,6 +32,7 @@ function languageForFile(monaco: any, fileName: string | undefined): string {
 
 export default function MonacoEditor({
     fileName,
+    filePath,
     language: languageOverride,
     defaultValue = '// Start coding...',
     value = '',
@@ -49,6 +52,7 @@ export default function MonacoEditor({
 
     const {
         saveActiveFile,
+        saveFile,
         saveActiveFileAs,
         setActiveView,
         toggleTerminal,
@@ -69,11 +73,13 @@ export default function MonacoEditor({
         if (!autoSave || !value) return;
 
         const timeout = setTimeout(() => {
-            saveActiveFile();
+            // Save the file in this editor: with split groups the focused one may be another
+            if (filePath) void saveFile(filePath);
+            else void saveActiveFile();
         }, 1500); // 1.5s debounce for auto-save
 
         return () => clearTimeout(timeout);
-    }, [value, autoSave, saveActiveFile]);
+    }, [value, autoSave, filePath, saveFile, saveActiveFile]);
 
     const handleContextMenu = (e: any) => {
         e.event.preventDefault();
@@ -140,8 +146,10 @@ export default function MonacoEditor({
     const handleEditorDidMount = (editor: any, monaco: any) => {
         editorRef.current = editor;
 
-        // Give the voice tutor access for highlighting/scrolling
+        // Give the voice tutor access for highlighting/scrolling. With editor
+        // groups there is one of these per group, so the focused one takes over.
         registerEditor(editor, monaco);
+        editor.onDidFocusEditorWidget?.(() => registerEditor(editor, monaco));
         editor.onDidDispose?.(() => unregisterEditor(editor));
 
         // AI hover hints: underline functions/classes, explain them on hover
@@ -208,6 +216,24 @@ export default function MonacoEditor({
             label: 'New File',
             keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyN],
             run: () => createNewFile()
+        });
+
+        // Ctrl+\\: Move this editor into a group beside this one
+        editor.addAction({
+            id: 'vylos-move-editor-new-group',
+            label: 'Move Editor into Group Right',
+            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backslash],
+            run: () => useFileStore.getState().moveEditorToNewGroup('right')
+        });
+
+        // Ctrl+K Ctrl+\\: ... or into one below it
+        editor.addAction({
+            id: 'vylos-move-editor-group-below',
+            label: 'Move Editor into Group Below',
+            keybindings: [monaco.KeyMod.chord(
+                monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+                monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backslash)],
+            run: () => useFileStore.getState().moveEditorToNewGroup('down')
         });
 
         // Ctrl+O: Open File

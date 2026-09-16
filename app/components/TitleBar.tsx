@@ -24,6 +24,7 @@ export function TitleBar() {
         openFolder,
         setActiveView,
         closeFile,
+        moveEditorToNewGroup,
         setShowQuickOpen,
         setShowAbout,
         toggleTerminal,
@@ -65,6 +66,8 @@ export function TitleBar() {
             case "Save": saveActiveFile(); break;
             case "Save As...": saveActiveFileAs(); break;
             case "Close Editor": if (activeFile) closeFile(activeFile.path); break;
+            case "Move Editor into Group Right": moveEditorToNewGroup('right'); break;
+            case "Move Editor into Group Below": moveEditorToNewGroup('down'); break;
             case "Exit": window.electron?.window.close(); break;
             case "Toggle Terminal": toggleTerminal(); break;
             case "New Terminal": openNewTerminal(); break;
@@ -148,6 +151,8 @@ export function TitleBar() {
                 { label: "AI Assistant", shortcut: "Ctrl+Shift+I" },
                 { label: "Learning Path", shortcut: "Ctrl+Shift+L" },
                 { type: "separator" },
+                { label: "Move Editor into Group Right", shortcut: "Ctrl+\\" },
+                { label: "Move Editor into Group Below", shortcut: "Ctrl+K Ctrl+\\" },
                 { label: "Toggle Sidebar", shortcut: "Ctrl+B" },
                 { label: "Appearance" },
             ]
@@ -191,6 +196,14 @@ export function TitleBar() {
                     return;
                 }
 
+                if (e.code === 'Backslash') {
+                    e.preventDefault();
+                    // Ctrl+K first means the new group goes below instead of beside
+                    moveEditorToNewGroup(ctrlKTyped ? 'down' : 'right');
+                    setCtrlKTyped(false);
+                    return;
+                }
+
                 // Physical key, so it works on every layout. In the desktop app the
                 // main process handles Ctrl+` first and this never fires.
                 if (e.code === 'Backquote') {
@@ -221,7 +234,7 @@ export function TitleBar() {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [saveActiveFile, saveActiveFileAs, createNewFile, openExternalFile, openFolder, ctrlKTyped, handleAction]);
+    }, [saveActiveFile, saveActiveFileAs, createNewFile, openExternalFile, openFolder, moveEditorToNewGroup, ctrlKTyped, handleAction]);
 
     // Ctrl+` and Ctrl+Shift+` as caught by the Electron main process
     useEffect(() => window.electron?.shortcuts?.onToggleTerminal(toggleTerminal), [toggleTerminal]);
