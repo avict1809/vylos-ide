@@ -18,6 +18,7 @@
         "./extensions.ts",
         "./device.ts",
         "./terminal.ts",
-        "./pty-service.ts"
+        "./pty-service.ts",
+        "./site.ts"
     ]
 }

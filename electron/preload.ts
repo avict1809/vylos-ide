@@ -22,8 +22,8 @@ contextBridge.exposeInMainWorld('electron', {
         }
     },
     auth: {
-        signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
-            ipcRenderer.invoke('auth:signInViaBrowser', config),
+        signInViaBrowser: (options: { mode?: string }) =>
+            ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => ipcRenderer.invoke('auth:cancel'),
     },
     updates: {

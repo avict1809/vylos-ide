@@ -140,7 +140,7 @@ export const useAuthStore = create<AuthStore>()(
                 const attempt = ++browserSignInAttempt;
                 set({ error: null, isWaitingForBrowser: true });
                 try {
-                    const result = await window.electron.auth.signInViaBrowser({ ...supabaseConfig, mode });
+                    const result = await window.electron.auth.signInViaBrowser({ mode });
 
                     // A newer attempt or a cancel superseded this one
                     if (attempt !== browserSignInAttempt) return;

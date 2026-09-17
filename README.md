@@ -82,7 +82,7 @@ NEXT_PUBLIC_SUPABASE_URL=...         # auth + AI backend
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # auth + AI backend
 ```
 
-In the Supabase dashboard, add `http://localhost:51735/` to **Auth → URL Configuration → Redirect URLs** (the desktop app's browser sign-in flow uses it).
+Sign-in happens on the website: the app opens `https://vylos.co/auth/desktop` (from vylos-web, which must use the same Supabase project) and receives the session on `127.0.0.1:51735`. In the Supabase dashboard, add `https://vylos.co/auth/desktop` to **Auth → URL Configuration → Redirect URLs**. The site address lives in `electron/site.ts`; set `VYLOS_WEB_URL=http://localhost:3000` to test against a local copy of the site.
 
 ### AI backend (Supabase Edge Functions)
 
@@ -187,7 +187,6 @@ app/
 electron/
   main.ts                desktop shell: fs, terminal, window, auth server
   preload.ts             IPC bridge (window.electron)
-  auth-page.html         browser sign-in page
 ```
 
 ## Tech stack

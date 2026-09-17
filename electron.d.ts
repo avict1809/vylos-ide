@@ -60,7 +60,7 @@ declare global {
                 onUnmaximize: (callback: () => void) => () => void;
             };
             auth: {
-                signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
+                signInViaBrowser: (options: { mode?: string }) =>
                     Promise<{ access_token?: string; refresh_token?: string; error?: string }>;
                 cancel: () => Promise<boolean>;
             };

@@ -23,7 +23,7 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         }
     },
     auth: {
-        signInViaBrowser: (config) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', config),
+        signInViaBrowser: (options) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => electron_1.ipcRenderer.invoke('auth:cancel'),
     },
     updates: {

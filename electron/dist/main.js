@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
+const crypto_1 = __importDefault(require("crypto"));
 const http_1 = __importDefault(require("http"));
 const path_1 = __importDefault(require("path"));
 const chokidar_1 = __importDefault(require("chokidar"));
@@ -48,6 +49,7 @@ const ipc_1 = require("./ipc");
 const extensions_1 = require("./extensions");
 const device_1 = require("./device");
 const terminal_1 = require("./terminal");
+const site_1 = require("./site");
 const cli_1 = require("./cli");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
@@ -182,11 +184,13 @@ electron_1.app.on('window-all-closed', () => {
         electron_1.app.quit();
     }
 });
-// Auth: full web sign-in. The system browser opens a Vylos auth page served
-// from this localhost server; the page talks to Supabase (email + OAuth) and
-// POSTs the resulting session tokens back to /auth/complete.
+// Auth: full web sign-in. The system browser opens the sign-in page on the
+// Vylos website, which talks to Supabase (email + OAuth). When it has a
+// session it sends the browser to /callback on this localhost server, with the
+// tokens in the URL fragment; the callback page POSTs them to /auth/complete.
+// A fragment never leaves the browser, and the random state proves the
+// hand-off answers this sign-in rather than a page that guessed the port.
 const AUTH_PORT = 51735;
-const AUTH_PAGE_URL = `http://localhost:${AUTH_PORT}/`;
 const AUTH_TIMEOUT_MS = 10 * 60 * 1000;
 let authServer = null;
 let settleAuth = null;
@@ -206,10 +210,37 @@ const readBody = (req) => new Promise((resolve, reject) => {
     req.on('end', () => resolve(body));
     req.on('error', reject);
 });
-(0, ipc_1.handle)('auth:signInViaBrowser', (event, config) => {
+const AUTH_CALLBACK_PAGE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Vylos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#e5e5e5;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+h1{font-size:18px;color:#fff;margin:0 0 8px}p{font-size:13px;color:#888;margin:0;line-height:1.5}b{color:#10b981}
+</style></head><body><div><h1 id="t">Finishing sign-in…</h1><p id="m">One moment.</p></div>
+<script>
+var params = new URLSearchParams(location.hash.slice(1));
+history.replaceState(null, '', '/callback');
+function done(title, msg) { document.getElementById('t').textContent = title; document.getElementById('m').innerHTML = msg; }
+fetch('/auth/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: params.get('access_token'), refresh_token: params.get('refresh_token'), state: params.get('state') })
+}).then(function (res) {
+    if (res.ok) done("You're signed in", 'You can close this tab and return to <b>Vylos</b>.');
+    else done('Sign-in expired', 'Start again from the <b>Vylos</b> app.');
+}).catch(function () {
+    done('Could not reach Vylos', 'Is the app still running? Start sign-in again from <b>Vylos</b>.');
+});
+</script></body></html>`;
+(0, ipc_1.handle)('auth:signInViaBrowser', (event, options) => {
     // Supersede any in-flight attempt
     settleAuth?.({ error: 'cancelled' });
     closeAuthServer();
+    const state = crypto_1.default.randomBytes(24).toString('hex');
+    const signInUrl = new URL((0, site_1.webUrl)('/auth/desktop'));
+    signInUrl.searchParams.set('port', String(AUTH_PORT));
+    signInUrl.searchParams.set('state', state);
+    signInUrl.searchParams.set('mode', options?.mode === 'signup' ? 'signup' : 'signin');
     return new Promise((resolve) => {
         let settled = false;
         const settle = (result) => {
@@ -218,32 +249,22 @@ const readBody = (req) => new Promise((resolve, reject) => {
             settled = true;
             settleAuth = null;
             clearTimeout(timer);
-            // Let the success page's fetch response flush before closing
+            // Let the callback page's fetch response flush before closing
             setTimeout(closeAuthServer, 2000);
             resolve(result);
         };
         settleAuth = settle;
         const timer = setTimeout(() => settle({ error: 'Sign-in timed out. Please try again.' }), AUTH_TIMEOUT_MS);
         authServer = http_1.default.createServer(async (req, res) => {
-            const url = new URL(req.url ?? '/', AUTH_PAGE_URL);
+            const url = new URL(req.url ?? '/', `http://127.0.0.1:${AUTH_PORT}`);
             try {
-                if (req.method === 'GET' && url.pathname === '/') {
-                    const template = await promises_1.default.readFile(path_1.default.join(__dirname, '../auth-page.html'), 'utf-8');
-                    const page = template.replace('__VYLOS_AUTH_CONFIG__', JSON.stringify({
-                        url: config.supabaseUrl,
-                        anonKey: config.supabaseAnonKey,
-                        mode: config.mode === 'signup' ? 'signup' : 'signin',
-                        pageUrl: AUTH_PAGE_URL,
-                    }));
-                    res.writeHead(200, { 'Content-Type': 'text/html' }).end(page);
-                }
-                else if (req.method === 'GET' && url.pathname === '/supabase.js') {
-                    const lib = await promises_1.default.readFile(require.resolve('@supabase/supabase-js/dist/umd/supabase.js'));
-                    res.writeHead(200, { 'Content-Type': 'application/javascript' }).end(lib);
+                if (req.method === 'GET' && url.pathname === '/callback') {
+                    res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' })
+                        .end(AUTH_CALLBACK_PAGE);
                 }
                 else if (req.method === 'POST' && url.pathname === '/auth/complete') {
-                    const { access_token, refresh_token } = JSON.parse(await readBody(req));
-                    if (typeof access_token !== 'string' || typeof refresh_token !== 'string') {
+                    const { access_token, refresh_token, state: returned } = JSON.parse(await readBody(req));
+                    if (typeof access_token !== 'string' || typeof refresh_token !== 'string' || returned !== state) {
                         res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"ok":false}');
                         return;
                     }
@@ -264,7 +285,7 @@ const readBody = (req) => new Promise((resolve, reject) => {
             settle({ error: e.code === 'EADDRINUSE' ? `Port ${AUTH_PORT} is already in use by another program.` : e.message });
         });
         authServer.listen(AUTH_PORT, '127.0.0.1', () => {
-            electron_1.shell.openExternal(AUTH_PAGE_URL);
+            electron_1.shell.openExternal(signInUrl.toString());
         });
     });
 });

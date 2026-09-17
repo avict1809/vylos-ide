@@ -7,10 +7,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-// Passed to the Electron main process, which serves the web auth page on
-// localhost:51735 (the page needs the anon key — it is public by design).
-// Whitelist http://localhost:51735/ in Supabase: Auth > URL Configuration >
-// Redirect URLs (used as the OAuth return address for the auth page).
+// Sign-in itself happens on the website (vylos.co/auth/desktop), which must use
+// this same Supabase project. Whitelist https://vylos.co/auth/desktop in
+// Supabase: Auth > URL Configuration > Redirect URLs (the OAuth return address).
 export const supabaseConfig = {
     supabaseUrl: supabaseUrl ?? '',
     supabaseAnonKey: supabaseAnonKey ?? '',
