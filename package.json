@@ -82,7 +82,17 @@
       "icon": "build/icons/win/icon.ico"
     },
     "mac": {
-      "icon": "build/icons/mac/icon.icns"
+      "icon": "build/icons/mac/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Vylos-AI-${version}-${arch}.${ext}"
     },
     "linux": {
       "icon": "build/icons/icon.png",
@@ -103,7 +113,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "differentialPackage": false,
-      "artifactName": "${productName} Setup ${version} ${arch}.${ext}"
+      "artifactName": "Vylos-AI-Setup-${version}-${arch}.${ext}"
     },
     "publish": {
       "provider": "github",
