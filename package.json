@@ -102,7 +102,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "differentialPackage": false
+      "differentialPackage": false,
+      "artifactName": "${productName} Setup ${version} ${arch}.${ext}"
     },
     "publish": {
       "provider": "github",
