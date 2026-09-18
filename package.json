@@ -37,7 +37,6 @@
     "cross-env": "^10.1.0",
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
-    "electron-icon-builder": "^2.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "lucide-react": "^0.562.0",
@@ -103,5 +102,11 @@
       "owner": "avict1809",
       "repo": "vylos-ide"
     }
+  },
+  "allowScripts": {
+    "electron@39.2.7": true,
+    "electron-winstaller@5.4.0": true,
+    "sharp@0.34.5": true,
+    "unrs-resolver@1.11.1": true
   }
 }

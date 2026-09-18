@@ -1,0 +1,53 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (no publish)
+        if: github.event_name != 'push'
+        run: npm run build && npm run build:electron && npx electron-builder --${{ matrix.platform }}
+
+      - name: Build and publish release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build && npm run build:electron && npx electron-builder --${{ matrix.platform }} --publish always
+
+      - name: Upload artifacts
+        if: github.event_name != 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vylos-${{ matrix.platform }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.blockmap
+          if-no-files-found: ignore
