@@ -25,6 +25,11 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
     auth: {
         signInViaBrowser: (options) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => electron_1.ipcRenderer.invoke('auth:cancel'),
+        onCompleted: (callback) => {
+            const subscription = (_event, tokens) => callback(tokens);
+            electron_1.ipcRenderer.on('auth:completed', subscription);
+            return () => electron_1.ipcRenderer.removeListener('auth:completed', subscription);
+        },
     },
     updates: {
         getState: () => electron_1.ipcRenderer.invoke('update:get-state'),

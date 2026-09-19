@@ -63,6 +63,9 @@ declare global {
                 signInViaBrowser: (options: { mode?: string }) =>
                     Promise<{ access_token?: string; refresh_token?: string; error?: string }>;
                 cancel: () => Promise<boolean>;
+                onCompleted: (
+                    callback: (tokens: { access_token: string; refresh_token: string }) => void,
+                ) => () => void;
             };
             updates: {
                 getState: () => Promise<UpdateState>;

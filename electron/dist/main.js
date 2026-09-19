@@ -190,14 +190,46 @@ electron_1.app.on('window-all-closed', () => {
 // tokens in the URL fragment; the callback page POSTs them to /auth/complete.
 // A fragment never leaves the browser, and the random state proves the
 // hand-off answers this sign-in rather than a page that guessed the port.
+//
+// The listener stays up for the life of the app. Signing in can easily take
+// longer than the app is willing to show a spinner for — a password reset, a
+// confirmation email, an OAuth detour — and tearing the listener down on a
+// timer meant the browser arrived at a refused port with the tokens sitting in
+// the URL bar and nothing to explain it. What keeps the hand-off safe is the
+// random state, not a short window, so the state outlives the wait instead.
 const AUTH_PORT = 51735;
-const AUTH_TIMEOUT_MS = 10 * 60 * 1000;
+// How long the sign-in screen waits before it stops blocking on the browser.
+// A hand-off after this is still accepted; it just arrives as an event rather
+// than as the answer to the pending request.
+const AUTH_WAIT_MS = 10 * 60 * 1000;
+// When a state stops being accepted at all, so a link left open overnight
+// can't sign this app in tomorrow.
+const AUTH_STATE_TTL_MS = 60 * 60 * 1000;
 let authServer = null;
-let settleAuth = null;
+// Shared by callers that arrive while the socket is still binding, so two
+// quick clicks on Sign in don't race each other into EADDRINUSE.
+let authServerStarting = null;
+const pendingAuth = new Map();
 const closeAuthServer = () => {
+    authServerStarting = null;
     if (authServer) {
         authServer.close();
         authServer = null;
+    }
+};
+/** Drops every in-flight sign-in, answering any request still waiting. */
+const clearPendingAuth = (result) => {
+    for (const pending of pendingAuth.values())
+        pending.settle?.(result);
+    pendingAuth.clear();
+};
+const dropExpiredAuth = () => {
+    const now = Date.now();
+    for (const [state, pending] of pendingAuth) {
+        if (pending.expiresAt < now) {
+            pending.settle?.({ error: 'timeout' });
+            pendingAuth.delete(state);
+        }
     }
 };
 const readBody = (req) => new Promise((resolve, reject) => {
@@ -232,66 +264,114 @@ fetch('/auth/complete', {
     done('Could not reach Vylos', 'Is the app still running? Start sign-in again from <b>Vylos</b>.');
 });
 </script></body></html>`;
-(0, ipc_1.handle)('auth:signInViaBrowser', (event, options) => {
-    // Supersede any in-flight attempt
-    settleAuth?.({ error: 'cancelled' });
-    closeAuthServer();
+const handleAuthRequest = async (req, res) => {
+    const url = new URL(req.url ?? '/', `http://127.0.0.1:${AUTH_PORT}`);
+    try {
+        if (req.method === 'GET' && url.pathname === '/callback') {
+            res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' })
+                .end(AUTH_CALLBACK_PAGE);
+        }
+        else if (req.method === 'POST' && url.pathname === '/auth/complete') {
+            dropExpiredAuth();
+            const { access_token, refresh_token, state } = JSON.parse(await readBody(req));
+            const pending = typeof state === 'string' ? pendingAuth.get(state) : undefined;
+            // An unknown state is a stale tab or a page that guessed the port;
+            // the callback page turns this into "Sign-in expired".
+            if (!pending || typeof access_token !== 'string' || typeof refresh_token !== 'string') {
+                res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"ok":false}');
+                return;
+            }
+            res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
+            pendingAuth.delete(state);
+            // Bring the app back to the front
+            focusMainWindow();
+            if (pending.settle)
+                pending.settle({ access_token, refresh_token });
+            // The sign-in screen stopped waiting for this one, so hand it over
+            // out of band rather than making them sign in a second time.
+            else
+                mainWindow?.webContents.send('auth:completed', { access_token, refresh_token });
+        }
+        else {
+            res.writeHead(404).end();
+        }
+    }
+    catch (e) {
+        res.writeHead(500).end();
+    }
+};
+/** Brings the callback listener up, or resolves straight away if it's already up. */
+const startAuthServer = () => {
+    if (authServer?.listening)
+        return Promise.resolve();
+    if (authServerStarting)
+        return authServerStarting;
+    authServerStarting = new Promise((resolve, reject) => {
+        const server = http_1.default.createServer(handleAuthRequest);
+        let listening = false;
+        server.on('error', (e) => {
+            if (!listening) {
+                authServerStarting = null;
+                authServer = null;
+                reject(e);
+                return;
+            }
+            // The socket died under us. Drop it so the next sign-in opens a
+            // fresh one instead of sending the browser to a dead port.
+            authServerStarting = null;
+            authServer = null;
+            server.close();
+        });
+        server.listen(AUTH_PORT, '127.0.0.1', () => {
+            listening = true;
+            authServer = server;
+            resolve();
+        });
+    });
+    return authServerStarting;
+};
+electron_1.app.on('will-quit', closeAuthServer);
+(0, ipc_1.handle)('auth:signInViaBrowser', async (event, options) => {
+    // Supersede any in-flight attempt: whatever tab it opened must not sign
+    // this app in behind the one we're about to start.
+    clearPendingAuth({ error: 'cancelled' });
+    try {
+        await startAuthServer();
+    }
+    catch (e) {
+        const err = e;
+        return {
+            error: err.code === 'EADDRINUSE'
+                ? `Port ${AUTH_PORT} is already in use by another program.`
+                : err.message,
+        };
+    }
     const state = crypto_1.default.randomBytes(24).toString('hex');
     const signInUrl = new URL((0, site_1.webUrl)('/auth/desktop'));
     signInUrl.searchParams.set('port', String(AUTH_PORT));
     signInUrl.searchParams.set('state', state);
     signInUrl.searchParams.set('mode', options?.mode === 'signup' ? 'signup' : 'signin');
     return new Promise((resolve) => {
+        const entry = { expiresAt: Date.now() + AUTH_STATE_TTL_MS, settle: null };
         let settled = false;
-        const settle = (result) => {
+        entry.settle = (result) => {
             if (settled)
                 return;
             settled = true;
-            settleAuth = null;
+            entry.settle = null;
             clearTimeout(timer);
-            // Let the callback page's fetch response flush before closing
-            setTimeout(closeAuthServer, 2000);
             resolve(result);
         };
-        settleAuth = settle;
-        const timer = setTimeout(() => settle({ error: 'Sign-in timed out. Please try again.' }), AUTH_TIMEOUT_MS);
-        authServer = http_1.default.createServer(async (req, res) => {
-            const url = new URL(req.url ?? '/', `http://127.0.0.1:${AUTH_PORT}`);
-            try {
-                if (req.method === 'GET' && url.pathname === '/callback') {
-                    res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' })
-                        .end(AUTH_CALLBACK_PAGE);
-                }
-                else if (req.method === 'POST' && url.pathname === '/auth/complete') {
-                    const { access_token, refresh_token, state: returned } = JSON.parse(await readBody(req));
-                    if (typeof access_token !== 'string' || typeof refresh_token !== 'string' || returned !== state) {
-                        res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"ok":false}');
-                        return;
-                    }
-                    res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
-                    // Bring the app back to the front
-                    focusMainWindow();
-                    settle({ access_token, refresh_token });
-                }
-                else {
-                    res.writeHead(404).end();
-                }
-            }
-            catch (e) {
-                res.writeHead(500).end();
-            }
-        });
-        authServer.on('error', (e) => {
-            settle({ error: e.code === 'EADDRINUSE' ? `Port ${AUTH_PORT} is already in use by another program.` : e.message });
-        });
-        authServer.listen(AUTH_PORT, '127.0.0.1', () => {
-            electron_1.shell.openExternal(signInUrl.toString());
-        });
+        // Stops the sign-in screen waiting. The entry stays behind, valid
+        // until its TTL, so finishing in the browser later still works.
+        const timer = setTimeout(() => entry.settle?.({ error: 'timeout' }), AUTH_WAIT_MS);
+        pendingAuth.set(state, entry);
+        electron_1.shell.openExternal(signInUrl.toString());
     });
 });
 (0, ipc_1.handle)('auth:cancel', () => {
-    settleAuth?.({ error: 'cancelled' });
-    closeAuthServer();
+    // The listener stays up; with no pending state it can't sign anyone in.
+    clearPendingAuth({ error: 'cancelled' });
     return true;
 });
 // IPC Handlers will be added here

@@ -64,6 +64,35 @@ function revokeSession(accessToken: string) {
     }).catch(() => { });
 }
 
+interface BrowserTokens {
+    access_token: string;
+    refresh_token: string;
+}
+
+/**
+ * Takes the session the browser handed back. Shared by the sign-in the app is
+ * waiting on and by one that finished after it gave up waiting; `isCurrent`
+ * lets the waiting path bail out if a newer attempt has superseded it.
+ */
+async function applyBrowserSession(tokens: BrowserTokens, isCurrent: () => boolean = () => true) {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase is not configured.');
+
+    // Checked before the session is kept, so a refused account never opens the app
+    const check = await registerDevice(tokens.access_token);
+    if (!isCurrent()) return;
+    if (check.ok === false) {
+        revokeSession(tokens.access_token);
+        throw new Error(check.message);
+    }
+
+    const { error } = await supabase.auth.setSession({
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+    });
+    if (error) throw new Error(error.message);
+}
+
 export const useAuthStore = create<AuthStore>()(
     persist(
         (set) => ({
@@ -85,6 +114,18 @@ export const useAuthStore = create<AuthStore>()(
                 // while it does.
                 const stored = readStoredSession();
                 if (stored) set({ isAuthenticated: true, user: toUser(stored) });
+
+                // A sign-in that finished after the app stopped waiting for it.
+                // The main process only sends this for a state it is still
+                // holding, so it answers a sign-in this app really did start.
+                // Deliberately does not supersede an attempt in flight: that
+                // would leave its own resolution unable to clear the spinner.
+                window.electron?.auth?.onCompleted?.((tokens) => {
+                    set({ error: null, isWaitingForBrowser: false });
+                    void applyBrowserSession(tokens).catch((e) => {
+                        set({ error: e instanceof Error ? e.message : 'Sign-in failed.' });
+                    });
+                });
 
                 supabase.auth.onAuthStateChange((event, session) => {
                     if (session) {
@@ -145,23 +186,21 @@ export const useAuthStore = create<AuthStore>()(
                     // A newer attempt or a cancel superseded this one
                     if (attempt !== browserSignInAttempt) return;
                     if (result.error === 'cancelled') return;
+                    // The app stopped waiting, but the tab is still live and
+                    // the hand-off is still accepted, so say so rather than
+                    // sending them back to the start.
+                    if (result.error === 'timeout') {
+                        set({ error: 'Vylos stopped waiting for the browser. Finish signing in there and it will pick up from where you left off.' });
+                        return;
+                    }
                     if (result.error || !result.access_token || !result.refresh_token) {
                         throw new Error(result.error || 'Sign-in was not completed.');
                     }
 
-                    // Checked before the session is kept, so a refused account never opens the app
-                    const check = await registerDevice(result.access_token);
-                    if (attempt !== browserSignInAttempt) return;
-                    if (check.ok === false) {
-                        revokeSession(result.access_token);
-                        throw new Error(check.message);
-                    }
-
-                    const { error } = await supabase.auth.setSession({
-                        access_token: result.access_token,
-                        refresh_token: result.refresh_token,
-                    });
-                    if (error) throw new Error(error.message);
+                    await applyBrowserSession(
+                        { access_token: result.access_token, refresh_token: result.refresh_token },
+                        () => attempt === browserSignInAttempt,
+                    );
                 } catch (e) {
                     if (attempt === browserSignInAttempt) {
                         set({ error: e instanceof Error ? e.message : 'Sign-in failed.' });

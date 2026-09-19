@@ -25,6 +25,11 @@ contextBridge.exposeInMainWorld('electron', {
         signInViaBrowser: (options: { mode?: string }) =>
             ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => ipcRenderer.invoke('auth:cancel'),
+        onCompleted: (callback: (tokens: { access_token: string; refresh_token: string }) => void) => {
+            const subscription = (_event: any, tokens: any) => callback(tokens);
+            ipcRenderer.on('auth:completed', subscription);
+            return () => ipcRenderer.removeListener('auth:completed', subscription);
+        },
     },
     updates: {
         getState: () => ipcRenderer.invoke('update:get-state'),
