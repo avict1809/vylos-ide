@@ -9,6 +9,8 @@ import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
 import { useActivePersonalPlan } from '@/app/lib/stores/personal-tutor-store';
 import { PersonalTutorCard } from './PersonalTutorView';
 import { ProgressCard } from './ProgressView';
+import { useCourseLock } from '@/app/lib/learning/course-access';
+import { Coins } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 const GROUP_ICONS: Record<CourseCategory, LucideIcon> = {
@@ -161,6 +163,7 @@ function SectionHeader({ icon: Icon, label, count }: { icon: LucideIcon; label: 
 
 function CourseCard({ course, completed, onOpen }: { course: Course; completed: string[] | undefined; onOpen: () => void }) {
     const progress = courseProgress(course, completed);
+    const lock = useCourseLock(course);
     const started = progress.done > 0;
     // Sits in the bottom row so the title can use the full width
     const stackTag = course.stack && (
@@ -229,6 +232,14 @@ function CourseCard({ course, completed, onOpen }: { course: Course; completed: 
                     <span className="shrink-0 text-[9px] text-gray-600 font-bold uppercase tracking-widest">
                         {totalLessons(course)} lessons
                     </span>
+                    {lock.locked && (
+                        <span
+                            className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded text-[8.5px] font-bold border border-yellow-500/30 bg-yellow-500/10 text-yellow-300"
+                            title="Unlock with Vylos Coins, earned by learning"
+                        >
+                            <Coins size={9} /> {lock.cost}
+                        </span>
+                    )}
                     {stackTag}
                 </div>
             )}

@@ -13,7 +13,7 @@ import { mainFile } from '@/app/lib/exercises/format';
 import type { CheckResult } from '@/app/lib/exercises/checkers';
 import { useFileStore } from '@/app/lib/useFileStore';
 import { cn } from '@/app/lib/utils';
-import { comboMultiplier, useProgressStore } from '@/app/lib/stores/progress-store';
+import { useProgressStore } from '@/app/lib/stores/progress-store';
 import { PRACTICE_COURSE_ID, practiceOrigin } from '@/app/lib/learning/practice';
 
 const DEFAULT_SOLUTION_AFTER = 3;
@@ -252,8 +252,10 @@ export default function ExerciseView({ lessonRef, onBack }: { lessonRef: LessonR
                                         <span className="font-mono text-gray-200">{Math.round(award.masteryBefore * 100)}% → {Math.round(award.masteryAfter * 100)}%</span>
                                     </p>
                                 )}
-                                {comboMultiplier(award.combo) > 1 && (
-                                    <p className="text-yellow-300 font-semibold">Learning combo ×{comboMultiplier(award.combo)} · {award.combo} clean solves in a row</p>
+                                {award.multiplier > 1 ? (
+                                    <p className="text-yellow-300 font-semibold">Learning combo ×{award.multiplier} XP · {award.combo} clean solves in a row</p>
+                                ) : award.combo > 0 && (
+                                    <p className="text-gray-500">Combo {award.combo}: {award.combo < 3 ? `${3 - award.combo} more clean solve${3 - award.combo === 1 ? '' : 's'} for ×2 XP` : ''}</p>
                                 )}
                             </div>
                         )}

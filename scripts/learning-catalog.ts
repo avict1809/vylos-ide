@@ -23,6 +23,7 @@ import {
     pathId,
     requiredChallenges,
     skillIds,
+    unlockCost,
 } from '../app/lib/learning/progress-ids';
 
 const q = (value: string | null) => (value === null ? 'null' : `'${value.replace(/'/g, "''")}'`);
@@ -68,11 +69,11 @@ for (const course of courses) {
 
     out.push(`-- ${course.title}`);
     skillRows.push(
-        'insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ' +
+        'insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ' +
             `(${q(path)}, ${q(SUBJECTS[course.category ?? 'language'] ?? 'programming')}, ${q(course.title)}, ` +
-            `${q(course.tagline)}, ${requiredChallenges(course)}, 0.7)\n` +
+            `${q(course.tagline)}, ${requiredChallenges(course)}, 0.7, ${unlockCost(course)})\n` +
             'on conflict (id) do update set subject = excluded.subject, title = excluded.title, ' +
-            'description = excluded.description, min_challenges = excluded.min_challenges;'
+            'description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;'
     );
 
     skillRows.push(

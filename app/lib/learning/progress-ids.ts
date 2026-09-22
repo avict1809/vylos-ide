@@ -57,3 +57,14 @@ export function capstoneFor(course: Course): Capstone {
         }
     );
 }
+
+/**
+ * Vylos Coins to unlock a course. Beginner courses are free so anyone can
+ * start; courses that build on others cost coins, which come from learning
+ * (1 per 10 XP, plus 200 for a certificate). Finishing a beginner course like
+ * Python earns enough to unlock the next one, e.g. Machine Learning.
+ */
+export function unlockCost(course: Course): number {
+    if (/^beginner/i.test(course.level)) return 0;
+    return course.category === 'ai' ? 750 : 500;
+}

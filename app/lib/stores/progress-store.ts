@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { MyProfile, MyProgress } from '../learning/progress-api';
+import type { CourseAccess, MyProfile, MyProgress } from '../learning/progress-api';
 
 /**
  * The learner's side of the learning engine: what to send (an outbox that
@@ -30,6 +30,8 @@ export interface ExerciseAward {
     masteryBefore: number;
     masteryAfter: number;
     combo: number;
+    /** XP multiplier the combo earned on this solve */
+    multiplier: number;
     flag: string | null;
 }
 
@@ -52,6 +54,7 @@ export const ACHIEVEMENT_NAMES: Record<string, string> = {
  * A learning combo counts exercises solved cleanly in a row: passed without
  * hints and without guessing (at most one failed check first). Hints or
  * trial-and-error reset it, since they mean the understanding isn't there yet.
+ * The server keeps the count and applies the XP multiplier; this mirrors it.
  */
 export const comboMultiplier = (combo: number) => (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
 
@@ -65,6 +68,8 @@ interface ProgressStore {
     ranProgramFor: string[];
     combo: number;
     trackedPaths: string[] | null;
+    /** Which paid courses this account has unlocked, by course id */
+    access: Record<string, CourseAccess> | null;
     progress: MyProgress | null;
     profile: MyProfile | null;
     /** Whose progress and profile these are */
@@ -82,6 +87,7 @@ interface ProgressStore {
     markRanProgram: (userId: string) => void;
     setCombo: (combo: number) => void;
     setTrackedPaths: (paths: string[]) => void;
+    setAccess: (userId: string, rows: CourseAccess[]) => void;
     setProgress: (userId: string, progress: MyProgress) => void;
     setProfile: (userId: string, profile: MyProfile | null) => void;
     notify: (kind: RewardNotice['kind'], text: string) => void;
@@ -100,6 +106,7 @@ export const useProgressStore = create<ProgressStore>()(
             ranProgramFor: [],
             combo: 0,
             trackedPaths: null,
+            access: null,
             progress: null,
             profile: null,
             progressFor: null,
@@ -137,6 +144,7 @@ export const useProgressStore = create<ProgressStore>()(
             markRanProgram: (userId) => set((s) => ({ ranProgramFor: [...s.ranProgramFor, userId] })),
             setCombo: (combo) => set({ combo }),
             setTrackedPaths: (trackedPaths) => set({ trackedPaths }),
+            setAccess: (userId, rows) => set({ access: Object.fromEntries(rows.map((row) => [row.path_id, row])), progressFor: userId }),
             setProgress: (userId, progress) => set({ progress, progressFor: userId }),
             setProfile: (userId, profile) => set({ profile, progressFor: userId }),
             notify: (kind, text) => {
@@ -156,6 +164,7 @@ export const useProgressStore = create<ProgressStore>()(
                 ranProgramFor: s.ranProgramFor,
                 combo: s.combo,
                 trackedPaths: s.trackedPaths,
+                access: s.access,
                 // Last known numbers, so the dashboard has something to show offline
                 progress: s.progress,
                 profile: s.profile,

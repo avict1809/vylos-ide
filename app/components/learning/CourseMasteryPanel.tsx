@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-    Award, CheckCircle2, ChevronDown, Circle, ClipboardCheck, Dumbbell, FolderGit2, GitBranch, Loader2, Lock, TriangleAlert,
+    Award, CheckCircle2, ChevronDown, Circle, ClipboardCheck, Dumbbell, FolderGit2, GitBranch, HelpCircle, Loader2, Lock, TriangleAlert,
 } from 'lucide-react';
 import type { Course } from '@/app/lib/learning/types';
 import { useAuthStore } from '@/app/lib/stores/auth-store';
@@ -16,7 +16,7 @@ import { openExercise } from '@/app/lib/exercises/session';
 import { Bar, Card, CardTitle, pct } from './progress-ui';
 import { cn } from '@/app/lib/utils';
 
-export type CourseSubView = 'capstone' | 'assessment' | 'certificate';
+export type CourseSubView = 'capstone' | 'assessment' | 'certificate' | `quiz:${number}`;
 
 /** Lessons in a module the learner found hard: failed checks on an exercise they haven't passed, or many failures. */
 function struggles(course: Course, moduleIndex: number): string[] {
@@ -98,6 +98,7 @@ export default function CourseMasteryPanel({ course, onOpenSub }: { course: Cour
 
     const steps = readiness && [
         { label: `Lessons ${readiness.lessons.done}/${readiness.lessons.total}`, met: readiness.lessons.met },
+        { label: `Module quizzes ${readiness.quizzes.passed}/${readiness.quizzes.total}`, met: readiness.quizzes.met },
         { label: `Challenges ${Math.min(readiness.challenges.passed, readiness.challenges.required)}/${readiness.challenges.required}`, met: readiness.challenges.met },
         { label: 'Capstone project', met: readiness.capstone.met, open: 'capstone' as const },
         {
@@ -166,6 +167,7 @@ export default function CourseMasteryPanel({ course, onOpenSub }: { course: Cour
                     <>
                         <p className="mt-2 text-[9px] text-gray-600 leading-relaxed">
                             A skill unlocks once you&apos;ve shown enough of the ones before it. Locks are advice, not a wall: every lesson stays open.
+                            <HelpCircle size={9} className="inline mx-0.5" /> takes a skill&apos;s quiz, <Dumbbell size={9} className="inline mx-0.5" /> practises it.
                         </p>
                         <ul className="mt-2 space-y-1.5">
                             {tree.map((node) => {
@@ -181,6 +183,15 @@ export default function CourseMasteryPanel({ course, onOpenSub }: { course: Cour
                                         </span>
                                         {node.evidence_count > 0 && <Bar value={node.mastery} className="w-12" label={`${node.name} mastery`} />}
                                         <span className="w-8 text-right font-mono text-[9px] text-gray-500">{node.evidence_count > 0 ? pct(node.mastery) : ''}</span>
+                                        {index !== -1 && (
+                                            <button
+                                                onClick={() => onOpenSub(`quiz:${index}`)}
+                                                title={`${node.name} quiz`}
+                                                className="p-0.5 text-gray-600 hover:text-[var(--vylos-green)]"
+                                            >
+                                                <HelpCircle size={11} />
+                                            </button>
+                                        )}
                                         {practicable && index !== -1 && (
                                             <button
                                                 onClick={() => void practise(index)}

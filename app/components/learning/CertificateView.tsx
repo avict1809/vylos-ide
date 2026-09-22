@@ -43,7 +43,8 @@ export default function CertificateView({ course, onBack }: { course: Course; on
 
     const rows = readiness && [
         { label: 'Every lesson completed', detail: `${readiness.lessons.done}/${readiness.lessons.total}`, met: readiness.lessons.met },
-        { label: 'Every quiz passed', detail: readiness.quizzes.total ? `${readiness.quizzes.passed}/${readiness.quizzes.total}` : 'none in this course', met: readiness.quizzes.met },
+        { label: 'Course unlocked', detail: readiness.unlocked.cost ? `${readiness.unlocked.cost} coins` : 'free', met: readiness.unlocked.met },
+        { label: 'Every module quiz passed', detail: `${readiness.quizzes.passed}/${readiness.quizzes.total}`, met: readiness.quizzes.met },
         { label: 'Coding challenges solved', detail: `${readiness.challenges.passed}/${readiness.challenges.required}`, met: readiness.challenges.met },
         { label: 'Capstone project passed review', met: readiness.capstone.met },
         {

@@ -93,6 +93,9 @@ create table if not exists public.learning_paths (
     min_challenges integer not null default 20,
     pass_mark numeric not null default 0.7 check (pass_mark between 0 and 1),
     capstone_project_id text,
+    -- Vylos Coins to unlock the course; 0 = free. Beginner courses are free,
+    -- so everyone can start learning without coins.
+    unlock_cost integer not null default 0 check (unlock_cost >= 0),
     created_at timestamptz not null default now()
 );
 
@@ -142,6 +145,8 @@ create table if not exists public.quizzes (
     path_id text not null references public.learning_paths (id) on delete cascade,
     skill_id text references public.skills (id) on delete set null,
     title text not null,
+    -- [{"id": "q1", "question": "...", "options": [{"id": "a", "text": "..."}, ...]}]
+    questions jsonb not null default '[]',
     -- {"q1": "b", "q2": "true", ...}; never readable by learners (see grants)
     answer_key jsonb not null,
     pass_mark numeric not null default 0.7 check (pass_mark between 0 and 1)
@@ -281,8 +286,9 @@ insert into public.quests (id, cadence, title, metric, target, xp, coins, achiev
     ('weekly_project', 'weekly', 'Complete 1 project', 'projects', 1, 500, 50, 'weekly_champion')
 on conflict (id) do nothing;
 
--- Cosmetics and extras only. Grades, mastery and certificates can never be
--- bought, and core learning paths are never put behind a reward.
+-- Cosmetics and extras. Grades, mastery and certificates can never be bought.
+-- Courses beyond beginner level are unlocked with coins (course_unlocks), and
+-- coins are only ever earned by learning, never bought with money.
 create table if not exists public.rewards (
     id text primary key,
     kind text not null check (kind in (
@@ -461,6 +467,24 @@ create table if not exists public.user_rewards (
     primary key (user_id, reward_id)
 );
 
+-- Courses bought with Vylos Coins. The coins leave through coin_transactions
+-- (reason 'unlock_course'); this records what they paid for.
+create table if not exists public.course_unlocks (
+    user_id uuid not null references public.profiles (id) on delete cascade,
+    path_id text not null references public.learning_paths (id) on delete cascade,
+    cost integer not null,
+    unlocked_at timestamptz not null default now(),
+    primary key (user_id, path_id)
+);
+
+-- Learning combo: clean first-try solves in a row (no hints, at most one
+-- failed check). Kept here so the multiplier can't be claimed by the app.
+create table if not exists public.user_combos (
+    user_id uuid primary key references public.profiles (id) on delete cascade,
+    count integer not null default 0,
+    updated_at timestamptz not null default now()
+);
+
 create table if not exists public.certificates (
     id text primary key check (id ~ '^VYLOS-[0-9]{4}-[0-9A-F]{8}$'),
     user_id uuid not null references public.profiles (id) on delete cascade,
@@ -523,7 +547,8 @@ begin
         'project_submissions', 'project_comments', 'path_assessments',
         'user_skill_evidence', 'user_skills', 'xp_transactions', 'coin_transactions',
         'learning_days', 'quest_progress', 'user_achievements', 'user_rewards',
-        'certificates', 'certificate_skills', 'certificate_verifications', 'integrity_flags'
+        'certificates', 'certificate_skills', 'certificate_verifications', 'integrity_flags',
+        'course_unlocks', 'user_combos'
     ] loop
         execute format('alter table public.%I enable row level security', t);
         -- Writes only ever happen through the functions below
@@ -544,7 +569,7 @@ begin
         'course_enrollments', 'lesson_progress', 'challenge_attempts', 'quiz_attempts',
         'path_assessments', 'user_skill_evidence', 'user_skills', 'xp_transactions',
         'coin_transactions', 'learning_days', 'quest_progress', 'user_achievements',
-        'user_rewards', 'certificates'
+        'user_rewards', 'certificates', 'course_unlocks', 'user_combos'
     ] loop
         execute format('drop policy if exists "Owner can read" on public.%I', t);
         execute format('create policy "Owner can read" on public.%I for select to authenticated using (user_id = (select auth.uid()))', t);
@@ -558,7 +583,7 @@ revoke all on table public.integrity_flags, public.certificate_verifications fro
 
 -- Answer keys stay server-side
 revoke select on table public.quizzes from anon, authenticated;
-grant select (id, path_id, skill_id, title, pass_mark) on table public.quizzes to anon, authenticated;
+grant select (id, path_id, skill_id, title, pass_mark, questions) on table public.quizzes to anon, authenticated;
 drop policy if exists "Catalog is public" on public.quizzes;
 create policy "Catalog is public" on public.quizzes for select to anon, authenticated using (true);
 
@@ -691,8 +716,21 @@ as $$
     limit 1;
 $$;
 
--- Returns the XP actually awarded: 0 for a duplicate (already awarded) or
--- when the daily cap has been hit.
+-- Free courses are always unlocked; the rest once bought with coins
+create or replace function public._path_unlocked(p_user uuid, p_path text)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+    select p_path is null
+        or coalesce((select unlock_cost = 0 from public.learning_paths where id = p_path), true)
+        or exists (select 1 from public.course_unlocks where user_id = p_user and path_id = p_path);
+$$;
+
+-- Returns the XP actually awarded: 0 for a duplicate (already awarded), when
+-- the daily cap has been hit, or for work in a course that isn't unlocked.
+-- Every award also earns Vylos Coins: 1 per 10 XP.
 create or replace function public._award_xp(
     p_user uuid, p_amount integer, p_reason text, p_source text, p_path text default null
 )
@@ -705,7 +743,7 @@ declare
     v_amount integer;
     inserted integer;
 begin
-    if p_amount <= 0 then
+    if p_amount <= 0 or not public._path_unlocked(p_user, p_path) then
         return 0;
     end if;
 
@@ -727,7 +765,11 @@ begin
     values (p_user, v_amount, p_reason, p_source, p_path)
     on conflict (user_id, reason, source_id) do nothing;
     get diagnostics inserted = row_count;
-    return case when inserted > 0 then v_amount else 0 end;
+    if inserted = 0 then
+        return 0;
+    end if;
+    perform public._award_coins(p_user, v_amount / 10, p_reason, p_source);
+    return v_amount;
 end;
 $$;
 
@@ -799,7 +841,8 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-    if p_skill is null then
+    if p_skill is null
+        or not public._path_unlocked(p_user, (select path_id from public.skills where id = p_skill)) then
         return null;
     end if;
     insert into public.user_skill_evidence (user_id, skill_id, kind, score, weight, source_id)
@@ -898,7 +941,7 @@ begin
             update public.quest_progress set completed_at = now()
             where user_id = p_user and quest_id = q.id and period_start = period;
             perform public._award_xp(p_user, q.xp, 'quest', q.id || ':' || period);
-            perform public._award_coins(p_user, q.coins, 'quest', q.id || ':' || period);
+            perform public._award_coins(p_user, q.coins, 'quest_bonus', q.id || ':' || period);
             if q.achievement_id is not null then
                 perform public._grant_achievement(p_user, q.achievement_id);
             end if;
@@ -1099,6 +1142,8 @@ declare
     mastery_before numeric;
     mastery_after numeric;
     v_reason text;
+    combo integer := 0;
+    multiplier integer := 1;
 begin
     select * into ch from public.challenges where id = p_challenge_id;
     if not found or (ch.generated_for is not null and ch.generated_for <> uid) then
@@ -1136,6 +1181,23 @@ begin
     insert into public.challenge_attempts (user_id, challenge_id, passed, hints_used, duration_seconds, code_hash, suspicious)
     values (uid, ch.id, p_passed, greatest(p_hints_used, 0), greatest(p_duration_seconds, 0), p_code_hash, is_suspicious);
 
+    -- The learning combo: a clean first pass (no hints, at most one failed
+    -- check) adds one; hints, trial and error or anything suspicious resets
+    -- it; a day off lets it lapse. Generated practice doesn't count either way.
+    if ch.generated_for is null and not already_passed then
+        select case when c.updated_at > now() - interval '24 hours' then c.count else 0 end into combo
+        from public.user_combos c where c.user_id = uid;
+        combo := coalesce(combo, 0);
+        if is_suspicious or (p_passed and (p_hints_used > 0 or earlier_failures > 1)) or (not p_passed and earlier_failures + 1 >= 3) then
+            combo := 0;
+        elsif p_passed then
+            combo := combo + 1;
+        end if;
+        insert into public.user_combos as uc (user_id, count, updated_at) values (uid, combo, now())
+        on conflict (user_id) do update set count = excluded.count, updated_at = now();
+        multiplier := case when p_passed and combo >= 5 then 3 when p_passed and combo >= 3 then 2 else 1 end;
+    end if;
+
     if not is_suspicious and not already_passed then
         if p_passed then
             v_reason := case
@@ -1149,7 +1211,7 @@ begin
                     - least(earlier_failures, 3) * 0.05,
                 ch.id);
             -- Generated practice has no path, and one reason per challenge id keeps it once-only
-            xp := public._award_xp(uid, (select r.xp from public.xp_rules r where r.reason = v_reason),
+            xp := public._award_xp(uid, (select r.xp from public.xp_rules r where r.reason = v_reason) * multiplier,
                 'challenge', ch.id, ch.path_id);
             perform public._bump_quests(uid, 'challenges', 1);
             if p_hints_used = 0 then
@@ -1168,6 +1230,8 @@ begin
         'mastery_before', mastery_before,
         'mastery_after', coalesce(mastery_after, mastery_before),
         'flag', flagged,
+        'combo', combo,
+        'multiplier', multiplier,
         'achievements', to_jsonb(public._check_achievements(uid))
     );
 end;
@@ -1350,6 +1414,9 @@ declare
     uid uuid := public._require_user();
     new_id text := 'gen-' || replace(gen_random_uuid()::text, '-', '');
 begin
+    if not public._path_unlocked(uid, (select path_id from public.skills where id = p_skill_id)) then
+        raise exception 'Unlock this course first';
+    end if;
     if (
         select count(*) from public.challenges
         where generated_for = uid and created_at > now() - interval '24 hours'
@@ -1547,13 +1614,15 @@ as $$
         left join public.lesson_progress lp on lp.lesson_id = l.id and lp.user_id = p_user
         where l.path_id = p_path
     ),
+    -- One module quiz per skill, passed (quizzes are written on first request)
     quizzes as (
         select count(*) as total,
             count(*) filter (where exists (
-                select 1 from public.quiz_attempts a
-                where a.user_id = p_user and a.quiz_id = q.id and a.passed and not a.suspicious
+                select 1 from public.quizzes q
+                join public.quiz_attempts a on a.quiz_id = q.id
+                where q.skill_id = s.id and a.user_id = p_user and a.passed and not a.suspicious
             )) as passed
-        from public.quizzes q where q.path_id = p_path
+        from public.skills s where s.path_id = p_path
     ),
     challenges as (
         select count(distinct a.challenge_id) as passed
@@ -1578,7 +1647,8 @@ as $$
         ),
         'integrity', jsonb_build_object('met', not exists (
             select 1 from public.integrity_flags where user_id = p_user and resolved_at is null
-        ))
+        )),
+        'unlocked', jsonb_build_object('met', public._path_unlocked(p_user, p_path), 'cost', p.unlock_cost)
     )
     from p, lessons l, quizzes q, challenges c;
 $$;
@@ -1821,6 +1891,9 @@ begin
     update public.certificates
         set skills_demonstrated = (select count(*) from public.certificate_skills where certificate_id = cert_id)
         where id = cert_id;
+
+    -- Enough, with the course's own XP, to unlock what comes next
+    perform public._award_coins(p_user, 200, 'certificate', p_path_id);
 
     return jsonb_build_object('issued', true, 'certificate_id', cert_id);
 end;
@@ -2073,6 +2146,13 @@ begin
     for p in
         select distinct l.path_id from public.lessons l where l.id = any (p_lesson_ids)
     loop
+        -- Courses started before coins unlocked courses stay open for those learners
+        if (select created_at from public.profiles where id = uid) < timestamptz '2026-09-24' then
+            insert into public.course_unlocks (user_id, path_id, cost)
+            select uid, p, 0
+            where not public._path_unlocked(uid, p)
+            on conflict do nothing;
+        end if;
         insert into public.course_enrollments (user_id, path_id) values (uid, p) on conflict do nothing;
         perform public._sync_course_completion(uid, p);
     end loop;
@@ -2080,6 +2160,181 @@ begin
         perform public._grant_achievement(uid, 'first_steps');
     end if;
     return imported;
+end;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- Course unlocks (Vylos Coins)
+-- ---------------------------------------------------------------------------
+
+-- Every course with its price and whether this learner has it
+create or replace function public.course_access()
+returns table (path_id text, unlock_cost integer, unlocked boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select lp.id, lp.unlock_cost, public._path_unlocked(auth.uid(), lp.id)
+    from public.learning_paths lp;
+$$;
+
+create or replace function public.unlock_course(p_path_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    uid uuid := public._require_user();
+    cost integer;
+    balance bigint;
+begin
+    select unlock_cost into cost from public.learning_paths where id = p_path_id;
+    if not found then
+        raise exception 'Unknown course %', p_path_id;
+    end if;
+    if public._path_unlocked(uid, p_path_id) then
+        return jsonb_build_object('ok', true, 'already_unlocked', true);
+    end if;
+
+    perform pg_advisory_xact_lock(hashtextextended('coins:' || uid::text, 0));
+    select coalesce(sum(amount), 0) into balance from public.coin_transactions where user_id = uid;
+    if balance < cost then
+        return jsonb_build_object('ok', false, 'error', 'not_enough_coins', 'balance', balance, 'cost', cost);
+    end if;
+
+    perform public._award_coins(uid, -cost, 'unlock_course', p_path_id);
+    insert into public.course_unlocks (user_id, path_id, cost) values (uid, p_path_id, cost);
+    insert into public.course_enrollments (user_id, path_id) values (uid, p_path_id) on conflict do nothing;
+    return jsonb_build_object('ok', true, 'balance', balance - cost);
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Social: following, shared projects, feedback
+-- ---------------------------------------------------------------------------
+
+create or replace function public.follow(p_handle text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    uid uuid := public._require_user();
+    target uuid;
+begin
+    select id into target from public.profiles where handle = lower(trim(p_handle));
+    if target is null then
+        raise exception 'No learner has the handle %', p_handle;
+    end if;
+    if target = uid then
+        raise exception 'You can''t follow yourself';
+    end if;
+    insert into public.follows (follower_id, followee_id) values (uid, target) on conflict do nothing;
+    return true;
+end;
+$$;
+
+create or replace function public.unfollow(p_handle text)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+    delete from public.follows
+    where follower_id = public._require_user()
+        and followee_id = (select id from public.profiles where handle = lower(trim(p_handle)));
+$$;
+
+-- Who the learner follows. Details only for public profiles.
+create or replace function public.my_following()
+returns table (handle text, display_name text, is_public boolean, level integer, streak integer)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select p.handle, coalesce(p.display_name, p.handle), p.is_public,
+        case when p.is_public then (public._level_for((select coalesce(sum(amount), 0) from public.xp_transactions where user_id = p.id)) ->> 'level')::integer end,
+        case when p.is_public then public._current_streak(p.id) end
+    from public.follows f join public.profiles p on p.id = f.followee_id
+    where f.follower_id = public._require_user()
+    order by p.handle;
+$$;
+
+-- Shared, passed projects: from people the learner follows and their own
+-- first, then everyone else's
+create or replace function public.project_feed(p_limit integer default 30)
+returns table (
+    submission_id uuid, handle text, display_name text, project text, course text, repo_url text,
+    overall_score numeric, reviewed_at timestamptz, comments bigint, is_mine boolean, followed boolean
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select s.id, p.handle, coalesce(p.display_name, p.handle), pr.title, lp.title, s.repo_url,
+        s.overall_score, s.reviewed_at,
+        (select count(*) from public.project_comments c where c.submission_id = s.id),
+        s.user_id = auth.uid(),
+        exists (select 1 from public.follows f where f.follower_id = auth.uid() and f.followee_id = s.user_id)
+    from public.project_submissions s
+    join public.profiles p on p.id = s.user_id
+    join public.projects pr on pr.id = s.project_id
+    join public.learning_paths lp on lp.id = pr.path_id
+    where s.is_public and s.status = 'passed' and p.handle is not null
+    order by (s.user_id = auth.uid() or exists (
+        select 1 from public.follows f where f.follower_id = auth.uid() and f.followee_id = s.user_id
+    )) desc, s.reviewed_at desc
+    limit least(greatest(p_limit, 1), 100);
+$$;
+
+create or replace function public.submission_comments(p_submission_id uuid)
+returns table (id uuid, handle text, display_name text, body text, helpful boolean, created_at timestamptz, is_mine boolean, can_mark_helpful boolean)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+    select c.id, p.handle, coalesce(p.display_name, p.handle, 'A learner'), c.body, c.helpful, c.created_at,
+        c.user_id = auth.uid(),
+        s.user_id = auth.uid() and c.user_id <> auth.uid() and not c.helpful
+    from public.project_comments c
+    join public.project_submissions s on s.id = c.submission_id
+    join public.profiles p on p.id = c.user_id
+    where c.submission_id = p_submission_id and (s.is_public or s.user_id = auth.uid())
+    order by c.created_at;
+$$;
+
+create or replace function public.add_comment(p_submission_id uuid, p_body text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    uid uuid := public._require_user();
+    new_id uuid;
+begin
+    if (select handle from public.profiles where id = uid) is null then
+        raise exception 'Choose a handle before giving feedback';
+    end if;
+    if not exists (select 1 from public.project_submissions where id = p_submission_id and is_public) then
+        raise exception 'That project isn''t shared';
+    end if;
+    if char_length(trim(p_body)) not between 1 and 2000 then
+        raise exception 'Feedback must be 1 to 2000 characters';
+    end if;
+    if (select count(*) from public.project_comments where user_id = uid and created_at > now() - interval '24 hours') >= 30 then
+        raise exception 'That''s enough feedback for today';
+    end if;
+    insert into public.project_comments (submission_id, user_id, body) values (p_submission_id, uid, trim(p_body))
+    returning id into new_id;
+    return new_id;
 end;
 $$;
 
@@ -2105,7 +2360,8 @@ begin
             'redeem_reward', 'skill_tree', 'course_mastery', 'recommend_paths', 'certificate_readiness',
             'my_progress', 'record_explanation', 'review_project', 'record_assessment', 'issue_certificate',
             'revoke_certificate', 'verify_certificate', 'public_profile', 'leaderboard',
-            'import_lesson_progress'
+            'import_lesson_progress', '_path_unlocked', 'course_access', 'unlock_course', 'follow', 'unfollow',
+            'my_following', 'project_feed', 'submission_comments', 'add_comment'
         )
     loop
         execute format('revoke execute on function %s from public, anon, authenticated', f.sig);
@@ -2130,8 +2386,17 @@ grant execute on function
     public.recommend_paths(integer),
     public.certificate_readiness(text),
     public.my_progress(),
-    public.import_lesson_progress(text[])
+    public.import_lesson_progress(text[]),
+    public.unlock_course(text),
+    public.follow(text),
+    public.unfollow(text),
+    public.my_following(),
+    public.project_feed(integer),
+    public.submission_comments(uuid),
+    public.add_comment(uuid, text)
 to authenticated;
+
+grant execute on function public.course_access() to anon, authenticated;
 
 grant execute on function
     public.verify_certificate(text),

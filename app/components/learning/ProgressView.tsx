@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-    ArrowRight, Award, CheckCircle2, Circle, Coins, Compass, ExternalLink, Eye, Flame, Loader2, LogIn, Sparkles, Target, Trophy, Zap,
+    ArrowRight, Award, CheckCircle2, Circle, Coins, Compass, ExternalLink, Eye, Flame, Loader2, LogIn, Sparkles, Target, Trophy, Users, Zap,
 } from 'lucide-react';
 import { useAuthStore } from '@/app/lib/stores/auth-store';
 import { useCourseStore } from '@/app/lib/stores/course-store';
@@ -161,7 +161,12 @@ function ProfileSettings({ userId, profile }: { userId: string; profile: MyProfi
 }
 
 /** The learner's home: streak, level, daily goal, quests, skills and what to do next. */
-export default function ProgressView({ onBack, onOpenCourse }: { onBack: () => void; onOpenCourse: (id: string) => void }) {
+export default function ProgressView({ onBack, onOpenCourse, onOpenShop, onOpenCommunity }: {
+    onBack: () => void;
+    onOpenCourse: (id: string) => void;
+    onOpenShop: () => void;
+    onOpenCommunity: () => void;
+}) {
     const user = useAuthStore((s) => s.user);
     const signIn = useAuthStore((s) => s.signInViaBrowser);
     // Numbers cached for another account aren't shown
@@ -241,9 +246,13 @@ export default function ProgressView({ onBack, onOpenCourse }: { onBack: () => v
                         <Card>
                             <div className="flex items-baseline justify-between">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vylos-green)]">Level {progress.level.level}</p>
-                                <p className="flex items-center gap-1 text-[10px] text-gray-500" title="Vylos Coins: for cosmetics only">
-                                    <Coins size={10} className="text-yellow-400" /> {progress.coins}
-                                </p>
+                                <button
+                                    onClick={onOpenShop}
+                                    className="flex items-center gap-1 text-[10px] text-yellow-300 hover:text-yellow-200"
+                                    title="Vylos Coins: earned by learning, spent on unlocking courses"
+                                >
+                                    <Coins size={10} /> {progress.coins}
+                                </button>
                             </div>
                             <p className="text-lg font-black text-white leading-tight">{progress.level.title}</p>
                             <Bar value={levelFraction(progress.level)} className="mt-3 h-2" label="Progress to the next level" />
@@ -334,6 +343,23 @@ export default function ProgressView({ onBack, onOpenCourse }: { onBack: () => v
 
                 {mine && progress && (
                     <>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                onClick={onOpenShop}
+                                className="p-3 rounded-xl border border-yellow-500/20 bg-yellow-500/5 hover:border-yellow-500/40 text-left"
+                            >
+                                <p className="flex items-center gap-1 text-[12px] font-black text-yellow-300"><Coins size={12} /> {progress.coins}</p>
+                                <p className="mt-0.5 text-[9.5px] text-gray-400">Unlock your next course</p>
+                            </button>
+                            <button
+                                onClick={onOpenCommunity}
+                                className="p-3 rounded-xl border border-[#27272a] bg-[#09090b] hover:border-[#3f3f46] text-left"
+                            >
+                                <p className="flex items-center gap-1 text-[12px] font-black text-white"><Users size={12} /> Community</p>
+                                <p className="mt-0.5 text-[9.5px] text-gray-400">Friends, leaderboards, projects</p>
+                            </button>
+                        </div>
+
                         <Card>
                             <CardTitle icon={<Target size={10} />}>Today&apos;s quests</CardTitle>
                             <QuestList quests={progress.quests.filter((q) => q.cadence === 'daily')} />
@@ -348,7 +374,9 @@ export default function ProgressView({ onBack, onOpenCourse }: { onBack: () => v
                                 <Zap size={14} className="text-yellow-300" />
                                 <p className="text-[11px] text-gray-300">
                                     {combo} clean {combo === 1 ? 'solve' : 'solves'} in a row
-                                    {comboMultiplier(combo) > 1 && <span className="text-yellow-300 font-bold"> · Learning combo ×{comboMultiplier(combo)}</span>}
+                                    {comboMultiplier(combo) > 1
+                                        ? <span className="text-yellow-300 font-bold"> · Learning combo: ×{comboMultiplier(combo)} XP on challenges</span>
+                                        : <span className="text-gray-500"> · {3 - combo} more for ×2 XP</span>}
                                 </p>
                             </Card>
                         )}

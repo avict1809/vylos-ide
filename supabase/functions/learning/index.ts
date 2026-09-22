@@ -1,6 +1,7 @@
 // The parts of the learning engine that need AI judgement or the service role
 // (see migrations/*_learning_engine.sql): Acyrx's capstone review, scoring an
-// explanation the learner wrote, final assessments, and issuing certificates.
+// explanation the learner wrote, module quizzes, final assessments, and
+// issuing certificates.
 // Everything the app can safely do itself (lessons, exercise checks, time)
 // goes straight to the database's learner functions instead.
 //
@@ -256,6 +257,81 @@ async function scoreExplanation(req: Request, userId: string, body: Json): Promi
 }
 
 // ---------------------------------------------------------------------------
+// Module quizzes
+// ---------------------------------------------------------------------------
+
+const QUIZ_QUESTIONS = 5;
+
+/**
+ * The quiz for one module (skill). Written by the AI the first time anyone
+ * asks, then shared: the questions are public, the answer key stays here and
+ * in the database, and submit_quiz grades against it.
+ */
+async function getQuiz(req: Request, userId: string, body: Json): Promise<Response> {
+    const skillId = typeof body.skill_id === 'string' ? body.skill_id : '';
+    const { data: skill } = await admin.from('skills').select('id, name, path_id, learning_paths(title)').eq('id', skillId).maybeSingle();
+    if (!skill) return json({ error: 'Unknown skill' }, 404);
+
+    const { data: unlocked } = await admin.rpc('_path_unlocked', { p_user: userId, p_path: skill.path_id });
+    if (!unlocked) return json({ error: 'Unlock this course to take its quizzes', code: 'locked' }, 403);
+
+    const quizId = `${skillId}/quiz`;
+    const existing = async () => (await admin.from('quizzes').select('id, title, questions, pass_mark').eq('id', quizId).maybeSingle()).data;
+    const found = await existing();
+    if (found) return json(found);
+
+    const denied = await guard(req, 'text', DAILY_LIMIT);
+    if (denied) return denied;
+
+    const { data: lessons } = await admin.from('lessons').select('title').eq('skill_id', skillId).order('position');
+    const generated = await geminiJson<{ questions: { question: string; options: string[]; correct: number }[] }>(
+        `You write a ${QUIZ_QUESTIONS}-question multiple-choice quiz for one module of a Vylos course. Test understanding, ` +
+            'not trivia: what code prints, why something works, which fix is right, when to use what. Each question has ' +
+            'exactly 4 options with exactly one correct (its index 0-3 in "correct"). Wrong options should be plausible ' +
+            'mistakes a learner makes. Put code in fenced blocks inside the question. Vary where the correct option is.',
+        `Course: ${(skill.learning_paths as { title?: string } | null)?.title}\nModule: ${skill.name}\n` +
+            `Lessons: ${(lessons ?? []).map((l) => l.title).join('; ')}`,
+        {
+            type: 'OBJECT',
+            properties: {
+                questions: {
+                    type: 'ARRAY',
+                    items: {
+                        type: 'OBJECT',
+                        properties: {
+                            question: { type: 'STRING' },
+                            options: { type: 'ARRAY', items: { type: 'STRING' } },
+                            correct: { type: 'INTEGER' },
+                        },
+                        required: ['question', 'options', 'correct'],
+                    },
+                },
+            },
+            required: ['questions'],
+        },
+        'learning:quiz'
+    );
+    const letters = ['a', 'b', 'c', 'd'];
+    const valid = (generated?.questions ?? [])
+        .filter((q) => q.question?.trim() && Array.isArray(q.options) && q.options.length === 4 && Number.isInteger(q.correct) && q.correct >= 0 && q.correct < 4)
+        .slice(0, QUIZ_QUESTIONS);
+    if (valid.length < 3) return aiFailed();
+
+    const questions = valid.map((q, i) => ({
+        id: `q${i + 1}`,
+        question: q.question,
+        options: q.options.map((text, j) => ({ id: letters[j], text })),
+    }));
+    const answerKey = Object.fromEntries(valid.map((q, i) => [`q${i + 1}`, letters[q.correct]]));
+    // Two learners asking at once: the first one's quiz wins
+    await admin.from('quizzes').upsert(
+        { id: quizId, path_id: skill.path_id, skill_id: skillId, title: `${skill.name} quiz`, questions, answer_key: answerKey, pass_mark: 0.7 },
+        { onConflict: 'id', ignoreDuplicates: true }
+    );
+    return json(await existing());
+}
+
+// ---------------------------------------------------------------------------
 // Final assessment
 // ---------------------------------------------------------------------------
 
@@ -276,6 +352,7 @@ async function startAssessment(req: Request, userId: string, body: Json): Promis
     if (!path) return json({ error: 'Unknown course' }, 404);
 
     const { data: reqs } = await admin.rpc('_certificate_requirements', { p_user: userId, p_path: pathId });
+    if (!reqs?.unlocked?.met) return json({ error: 'Unlock this course first', code: 'locked' }, 403);
     if (!reqs?.lessons?.met) return json({ error: 'Finish every lesson in the course first', code: 'lessons_incomplete' }, 409);
 
     const { data: recent } = await admin
@@ -468,6 +545,8 @@ Deno.serve(async (req) => {
     switch (body.action) {
         case 'review_project':
             return reviewProject(req, userId, body);
+        case 'get_quiz':
+            return getQuiz(req, userId, body);
         case 'score_explanation':
             return scoreExplanation(req, userId, body);
         case 'start_assessment':

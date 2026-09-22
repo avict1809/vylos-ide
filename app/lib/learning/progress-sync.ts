@@ -87,18 +87,12 @@ function onLessonsChanged(next: Record<string, string[]>, prev: Record<string, s
 
 /**
  * Called after every exercise check, with the exercise's progress from before
- * it. Also keeps the learning combo: clean first passes in a row, reset by
- * hints or trial and error.
+ * it. The server keeps the learning combo and applies its XP multiplier.
  */
 export function reportExerciseCheck(ref: LessonRef, result: CheckResult, before: ExerciseProgress) {
     // A missing tool or file isn't an attempt, and experiments after passing aren't evidence
     if (result.setupProblem || before.passed) return;
     const store = useProgressStore.getState();
-
-    const clean = result.passed && before.hintsShown === 0 && before.failures <= 1;
-    const guessing = !result.passed && before.failures + 1 >= 3;
-    if (result.passed) store.setCombo(clean ? store.combo + 1 : 0);
-    else if (guessing) store.setCombo(0);
 
     const id = userId();
     if (!id || !isTracked(ref.courseId)) return;
@@ -154,13 +148,15 @@ async function send(event: OutboxEvent): Promise<void> {
         case 'challenge': {
             const award = await api.recordChallengeAttempt(event.challengeId, event.passed, event.hints, event.seconds);
             celebrate(award);
+            if (award.combo != null) store.setCombo(award.combo);
             if (event.passed) {
                 store.setExerciseAward(event.exerciseKey, {
                     xp: award.xp ?? 0,
                     skillName: event.skillName,
                     masteryBefore: Number(award.mastery_before ?? 0),
                     masteryAfter: Number(award.mastery_after ?? 0),
-                    combo: store.combo,
+                    combo: award.combo ?? 0,
+                    multiplier: award.multiplier ?? 1,
                     flag: award.flag ?? null,
                 });
             }
@@ -226,10 +222,11 @@ export async function refreshProgress(): Promise<void> {
     const id = userId();
     if (!id) return;
     try {
-        const [progress, profile] = await Promise.all([api.myProgress(), api.myProfile(id)]);
+        const [progress, profile, access] = await Promise.all([api.myProgress(), api.myProfile(id), api.courseAccess()]);
         const store = useProgressStore.getState();
         store.setProgress(id, progress);
         store.setProfile(id, profile);
+        store.setAccess(id, access);
     } catch (error) {
         if (!isTransient(error)) console.warn('Could not load progress:', error);
     }

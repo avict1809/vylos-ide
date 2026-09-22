@@ -79,6 +79,69 @@ export interface CertificateReadiness {
     capstone: Requirement;
     assessment: Requirement & { score: number | null; pass_mark: number };
     integrity: Requirement;
+    unlocked: Requirement & { cost: number };
+}
+
+export interface CourseAccess {
+    path_id: string;
+    unlock_cost: number;
+    unlocked: boolean;
+}
+
+export interface QuizQuestion {
+    id: string;
+    question: string;
+    options: { id: string; text: string }[];
+}
+
+export interface Quiz {
+    id: string;
+    title: string;
+    questions: QuizQuestion[];
+    pass_mark: number;
+}
+
+export interface QuizResult extends Award {
+    score: number;
+    passed: boolean;
+    correct: number;
+    total: number;
+    mastery: number | null;
+    flagged: boolean;
+}
+
+export interface FeedItem {
+    submission_id: string;
+    handle: string;
+    display_name: string;
+    project: string;
+    course: string;
+    repo_url: string | null;
+    overall_score: number;
+    reviewed_at: string;
+    comments: number;
+    is_mine: boolean;
+    followed: boolean;
+}
+
+export interface FeedComment {
+    id: string;
+    handle: string | null;
+    display_name: string;
+    body: string;
+    helpful: boolean;
+    created_at: string;
+    is_mine: boolean;
+    can_mark_helpful: boolean;
+}
+
+export interface LeaderboardRow {
+    rank: number;
+    handle: string;
+    display_name: string;
+    value: number;
+    league: string;
+    level: number;
 }
 
 /** What an activity earned; every learner RPC returns some of this. */
@@ -89,9 +152,22 @@ export interface Award {
     mastery_after?: number;
     skill_id?: string;
     flag?: string | null;
+    /** Clean solves in a row and the XP multiplier they earned (challenges) */
+    combo?: number;
+    multiplier?: number;
 }
 
 export class NotSignedIn extends Error {}
+
+/** A database function refused (the message is meant for people, e.g. "Unlock this course first"). */
+export class RpcError extends Error {
+    constructor(readonly fn: string, readonly reason: string) {
+        super(`${fn}: ${reason}`);
+    }
+}
+
+export const reasonOf = (error: unknown) =>
+    error instanceof RpcError ? error.reason : error instanceof Error ? error.message : String(error);
 
 function client() {
     const supabase = getSupabase();
@@ -107,7 +183,7 @@ export function isTransient(error: unknown): boolean {
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
     const { data, error } = await client().rpc(fn, args);
-    if (error) throw new Error(`${fn}: ${error.message}`);
+    if (error) throw new RpcError(fn, error.message);
     return data as T;
 }
 
@@ -162,6 +238,37 @@ export const api = {
     recordProgramRun: () => rpc<boolean>('record_program_run'),
 
     enroll: (pathId: string) => rpc<void>('enroll', { p_path_id: pathId }),
+
+    courseAccess: () => rpc<CourseAccess[]>('course_access'),
+
+    unlockCourse: (pathId: string) =>
+        rpc<{ ok: boolean; error?: 'not_enough_coins'; balance?: number; cost?: number; already_unlocked?: boolean }>('unlock_course', { p_path_id: pathId }),
+
+    /** The module's quiz if it has been written already (learningAi.getQuiz writes it) */
+    async quizFor(skillId: string): Promise<Quiz | null> {
+        const { data } = await client().from('quizzes').select('id, title, questions, pass_mark').eq('skill_id', skillId).maybeSingle();
+        return data ? { ...(data as Quiz), pass_mark: Number(data.pass_mark) } : null;
+    },
+
+    submitQuiz: async (quizId: string, answers: Record<string, string>, seconds: number) => {
+        const result = await rpc<QuizResult>('submit_quiz', { p_quiz_id: quizId, p_answers: answers, p_duration_seconds: Math.round(seconds) });
+        return { ...result, score: Number(result.score) };
+    },
+
+    follow: (handle: string) => rpc<boolean>('follow', { p_handle: handle }),
+    unfollow: (handle: string) => rpc<void>('unfollow', { p_handle: handle }),
+    following: () => rpc<{ handle: string; display_name: string; is_public: boolean; level: number | null; streak: number | null }[]>('my_following'),
+    async projectFeed(): Promise<FeedItem[]> {
+        const rows = await rpc<FeedItem[]>('project_feed', { p_limit: 30 });
+        return rows.map((row) => ({ ...row, overall_score: Number(row.overall_score), comments: Number(row.comments) }));
+    },
+    comments: (submissionId: string) => rpc<FeedComment[]>('submission_comments', { p_submission_id: submissionId }),
+    addComment: (submissionId: string, body: string) => rpc<string>('add_comment', { p_submission_id: submissionId, p_body: body }),
+    markHelpful: (commentId: string) => rpc<number>('mark_comment_helpful', { p_comment_id: commentId }),
+    async leaderboard(board: 'weekly' | 'all_time' | 'friends' | 'course', scope?: string): Promise<LeaderboardRow[]> {
+        const rows = await rpc<LeaderboardRow[]>('leaderboard', { p_board: board, p_scope: scope ?? null, p_limit: 50 });
+        return rows.map((row) => ({ ...row, rank: Number(row.rank), value: Number(row.value) }));
+    },
 
     async skillTree(pathId: string): Promise<SkillNode[]> {
         const rows = await rpc<SkillNode[]>('skill_tree', { p_path_id: pathId });
@@ -297,6 +404,7 @@ export const learningAi = {
             'review_project',
             { submission_id: submissionId, files }
         ),
+    getQuiz: (skillId: string) => learning<Quiz>('get_quiz', { skill_id: skillId }),
     scoreExplanation: (skillId: string, concept: string, explanation: string) =>
         learning<{ score: number; feedback: string; misconceptions: string[]; result?: Award & { mastery?: number } }>(
             'score_explanation',

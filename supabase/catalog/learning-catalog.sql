@@ -2,8 +2,8 @@
 -- 54 courses
 begin;
 
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('python', 'programming', 'Python Mastery', 'From your first "Hello World" to shipping real Python projects.', 13, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('python', 'programming', 'Python Mastery', 'From your first "Hello World" to shipping real Python projects.', 13, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('python/getting-started', 'python', 'Getting Started', 1),
     ('python/primitive-types-and-variables', 'python', 'Primitive Types & Variables', 2),
@@ -18,8 +18,8 @@ insert into public.skills (id, path_id, name, position) values
     ('python/popular-libraries', 'python', 'Popular Libraries', 11),
     ('python/capstone-project', 'python', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('javascript', 'programming', 'JavaScript: The Complete Path', 'The language of the web — from basics to async mastery.', 7, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('javascript', 'programming', 'JavaScript: The Complete Path', 'The language of the web — from basics to async mastery.', 7, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('javascript/getting-started', 'javascript', 'Getting Started', 1),
     ('javascript/basics-variables-and-types', 'javascript', 'Basics: Variables & Types', 2),
@@ -35,8 +35,8 @@ insert into public.skills (id, path_id, name, position) values
     ('javascript/error-handling-and-debugging', 'javascript', 'Error Handling & Debugging', 12),
     ('javascript/capstone-project', 'javascript', 'Capstone Project', 13)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('typescript', 'programming', 'TypeScript Mastery', 'Level up your JavaScript with static types, generics, and pro tooling.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('typescript', 'programming', 'TypeScript Mastery', 'Level up your JavaScript with static types, generics, and pro tooling.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('typescript/getting-started', 'typescript', 'Getting Started', 1),
     ('typescript/fundamentals', 'typescript', 'Fundamentals', 2),
@@ -51,8 +51,8 @@ insert into public.skills (id, path_id, name, position) values
     ('typescript/tooling-and-quality', 'typescript', 'Tooling & Quality', 11),
     ('typescript/typescript-in-the-real-world-capstone', 'typescript', 'TypeScript in the Real World + Capstone', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('java', 'programming', 'Java: The Complete Path', 'From the JVM to streams and multithreading — job-ready Java.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('java', 'programming', 'Java: The Complete Path', 'From the JVM to streams and multithreading — job-ready Java.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('java/getting-started', 'java', 'Getting Started', 1),
     ('java/types-and-variables', 'java', 'Types & Variables', 2),
@@ -68,8 +68,8 @@ insert into public.skills (id, path_id, name, position) values
     ('java/the-java-ecosystem', 'java', 'The Java Ecosystem', 12),
     ('java/capstone-project', 'java', 'Capstone Project', 13)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('cpp', 'programming', 'C++ Mastery', 'High-performance programming: memory, OOP, templates, and modern C++.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('cpp', 'programming', 'C++ Mastery', 'High-performance programming: memory, OOP, templates, and modern C++.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('cpp/getting-started', 'cpp', 'Getting Started', 1),
     ('cpp/the-basics', 'cpp', 'The Basics', 2),
@@ -86,8 +86,8 @@ insert into public.skills (id, path_id, name, position) values
     ('cpp/exceptions-and-error-handling', 'cpp', 'Exceptions & Error Handling', 13),
     ('cpp/modern-c-and-capstone', 'cpp', 'Modern C++ & Capstone', 14)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('c', 'programming', 'C Programming', 'The language beneath everything — pointers, memory, and how computers really work.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('c', 'programming', 'C Programming', 'The language beneath everything — pointers, memory, and how computers really work.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('c/getting-started', 'c', 'Getting Started', 1),
     ('c/variables-and-types', 'c', 'Variables & Types', 2),
@@ -103,8 +103,8 @@ insert into public.skills (id, path_id, name, position) values
     ('c/data-structures-in-c', 'c', 'Data Structures in C', 12),
     ('c/capstone-project', 'c', 'Capstone Project', 13)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('kotlin', 'programming', 'Kotlin Mastery', 'Modern JVM development — concise, null-safe, and Android-ready.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('kotlin', 'programming', 'Kotlin Mastery', 'Modern JVM development — concise, null-safe, and Android-ready.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('kotlin/getting-started', 'kotlin', 'Getting Started', 1),
     ('kotlin/variables-and-types', 'kotlin', 'Variables & Types', 2),
@@ -119,8 +119,8 @@ insert into public.skills (id, path_id, name, position) values
     ('kotlin/java-interop-and-ecosystem', 'kotlin', 'Java Interop & Ecosystem', 11),
     ('kotlin/first-steps-in-android-or-backend-capstone', 'kotlin', 'First Steps in Android (or Backend) + Capstone', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('swift', 'programming', 'Swift Mastery', 'Apple’s modern language — optionals, protocols, and your first SwiftUI app.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('swift', 'programming', 'Swift Mastery', 'Apple’s modern language — optionals, protocols, and your first SwiftUI app.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('swift/getting-started', 'swift', 'Getting Started', 1),
     ('swift/types-and-operators', 'swift', 'Types & Operators', 2),
@@ -135,8 +135,8 @@ insert into public.skills (id, path_id, name, position) values
     ('swift/memory-and-concurrency', 'swift', 'Memory & Concurrency', 11),
     ('swift/swiftui-first-steps-capstone', 'swift', 'SwiftUI First Steps + Capstone', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('go', 'programming', 'Go Mastery', 'Simple, fast, concurrent — the language of cloud infrastructure.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('go', 'programming', 'Go Mastery', 'Simple, fast, concurrent — the language of cloud infrastructure.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('go/getting-started', 'go', 'Getting Started', 1),
     ('go/variables-and-types', 'go', 'Variables & Types', 2),
@@ -151,8 +151,8 @@ insert into public.skills (id, path_id, name, position) values
     ('go/the-standard-library-in-practice', 'go', 'The Standard Library in Practice', 11),
     ('go/capstone-project', 'go', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('html-css', 'programming', 'HTML & CSS: Web Foundations', 'Build beautiful, responsive websites from a blank file to a deployed portfolio.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('html-css', 'programming', 'HTML & CSS: Web Foundations', 'Build beautiful, responsive websites from a blank file to a deployed portfolio.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('html-css/getting-started', 'html-css', 'Getting Started', 1),
     ('html-css/html-foundations', 'html-css', 'HTML Foundations', 2),
@@ -167,8 +167,8 @@ insert into public.skills (id, path_id, name, position) values
     ('html-css/writing-maintainable-css', 'html-css', 'Writing Maintainable CSS', 11),
     ('html-css/capstone-portfolio-website', 'html-css', 'Capstone: Portfolio Website', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('rust', 'programming', 'Rust Mastery', 'Fearless systems programming — ownership, lifetimes, and zero-cost abstractions.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('rust', 'programming', 'Rust Mastery', 'Fearless systems programming — ownership, lifetimes, and zero-cost abstractions.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('rust/getting-started', 'rust', 'Getting Started', 1),
     ('rust/variables-and-types', 'rust', 'Variables & Types', 2),
@@ -184,8 +184,8 @@ insert into public.skills (id, path_id, name, position) values
     ('rust/project-organization-and-tooling', 'rust', 'Project Organization & Tooling', 12),
     ('rust/capstone-project', 'rust', 'Capstone Project', 13)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('csharp', 'programming', 'C# & .NET Mastery', 'From console apps to LINQ and async — the full C# developer path.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('csharp', 'programming', 'C# & .NET Mastery', 'From console apps to LINQ and async — the full C# developer path.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('csharp/getting-started', 'csharp', 'Getting Started', 1),
     ('csharp/primitive-types-and-expressions', 'csharp', 'Primitive Types & Expressions', 2),
@@ -200,8 +200,8 @@ insert into public.skills (id, path_id, name, position) values
     ('csharp/modern-c-and-the-net-ecosystem', 'csharp', 'Modern C# & the .NET Ecosystem', 11),
     ('csharp/capstone-project', 'csharp', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('ruby', 'programming', 'Ruby Mastery', 'A language optimized for programmer happiness — and the road to Rails.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('ruby', 'programming', 'Ruby Mastery', 'A language optimized for programmer happiness — and the road to Rails.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('ruby/getting-started', 'ruby', 'Getting Started', 1),
     ('ruby/basics', 'ruby', 'Basics', 2),
@@ -216,8 +216,8 @@ insert into public.skills (id, path_id, name, position) values
     ('ruby/metaprogramming-and-stdlib-tour', 'ruby', 'Metaprogramming & Stdlib Tour', 11),
     ('ruby/rails-first-steps-capstone', 'ruby', 'Rails First Steps + Capstone', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('php', 'programming', 'PHP Mastery', 'Modern PHP for the web — from first script to Laravel-ready.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('php', 'programming', 'PHP Mastery', 'Modern PHP for the web — from first script to Laravel-ready.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('php/getting-started', 'php', 'Getting Started', 1),
     ('php/basics', 'php', 'Basics', 2),
@@ -232,8 +232,8 @@ insert into public.skills (id, path_id, name, position) values
     ('php/building-a-mini-mvc-app', 'php', 'Building a Mini MVC App', 11),
     ('php/laravel-first-steps-capstone', 'php', 'Laravel First Steps + Capstone', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('sql', 'programming', 'Complete SQL Mastery', 'Query, design, and optimize relational databases with confidence.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('sql', 'programming', 'Complete SQL Mastery', 'Query, design, and optimize relational databases with confidence.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('sql/getting-started', 'sql', 'Getting Started', 1),
     ('sql/retrieving-data-from-a-single-table', 'sql', 'Retrieving Data From a Single Table', 2),
@@ -250,8 +250,8 @@ insert into public.skills (id, path_id, name, position) values
     ('sql/indexing-for-high-performance', 'sql', 'Indexing for High Performance', 13),
     ('sql/securing-the-database', 'sql', 'Securing the Database', 14)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('postgresql', 'programming', 'PostgreSQL In Depth', 'Go beyond generic SQL: JSONB, window functions, indexing, and tuning.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('postgresql', 'programming', 'PostgreSQL In Depth', 'Go beyond generic SQL: JSONB, window functions, indexing, and tuning.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('postgresql/getting-started-with-postgres', 'postgresql', 'Getting Started with Postgres', 1),
     ('postgresql/postgres-data-types', 'postgresql', 'Postgres Data Types', 2),
@@ -267,8 +267,8 @@ insert into public.skills (id, path_id, name, position) values
     ('postgresql/administration-basics', 'postgresql', 'Administration Basics', 12),
     ('postgresql/performance-tuning-capstone', 'postgresql', 'Performance Tuning Capstone', 13)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('react', 'programming', 'React Mastery', 'The most in-demand UI library — components, hooks, and real apps.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('react', 'programming', 'React Mastery', 'The most in-demand UI library — components, hooks, and real apps.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('react/getting-started', 'react', 'Getting Started', 1),
     ('react/components', 'react', 'Components', 2),
@@ -283,8 +283,8 @@ insert into public.skills (id, path_id, name, position) values
     ('react/testing', 'react', 'Testing', 11),
     ('react/capstone-project', 'react', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('nextjs', 'programming', 'Next.js: Full-Stack React', 'Production React with server components, data, and deployment built in.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('nextjs', 'programming', 'Next.js: Full-Stack React', 'Production React with server components, data, and deployment built in.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('nextjs/getting-started', 'nextjs', 'Getting Started', 1),
     ('nextjs/routing-with-the-app-router', 'nextjs', 'Routing with the App Router', 2),
@@ -298,8 +298,8 @@ insert into public.skills (id, path_id, name, position) values
     ('nextjs/deployment-and-production', 'nextjs', 'Deployment & Production', 10),
     ('nextjs/capstone-project', 'nextjs', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('vue', 'programming', 'Vue.js Mastery', 'The approachable, batteries-included framework — from directives to Pinia.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('vue', 'programming', 'Vue.js Mastery', 'The approachable, batteries-included framework — from directives to Pinia.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('vue/getting-started', 'vue', 'Getting Started', 1),
     ('vue/template-syntax-and-reactivity', 'vue', 'Template Syntax & Reactivity', 2),
@@ -313,8 +313,8 @@ insert into public.skills (id, path_id, name, position) values
     ('vue/typescript-and-testing', 'vue', 'TypeScript & Testing', 10),
     ('vue/capstone-project-nuxt-preview', 'vue', 'Capstone Project (+ Nuxt Preview)', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('angular', 'programming', 'Angular Mastery', 'The full-featured enterprise framework — signals, DI, and RxJS included.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('angular', 'programming', 'Angular Mastery', 'The full-featured enterprise framework — signals, DI, and RxJS included.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('angular/getting-started', 'angular', 'Getting Started', 1),
     ('angular/components-and-templates', 'angular', 'Components & Templates', 2),
@@ -328,8 +328,8 @@ insert into public.skills (id, path_id, name, position) values
     ('angular/testing', 'angular', 'Testing', 10),
     ('angular/capstone-project', 'angular', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('svelte', 'programming', 'Svelte & SvelteKit', 'The compiler framework — less code, no virtual DOM, full-stack with Kit.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('svelte', 'programming', 'Svelte & SvelteKit', 'The compiler framework — less code, no virtual DOM, full-stack with Kit.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('svelte/getting-started', 'svelte', 'Getting Started', 1),
     ('svelte/reactivity-with-runes', 'svelte', 'Reactivity with Runes', 2),
@@ -341,8 +341,8 @@ insert into public.skills (id, path_id, name, position) values
     ('svelte/api-routes-and-deployment', 'svelte', 'API Routes & Deployment', 8),
     ('svelte/capstone-project', 'svelte', 'Capstone Project', 9)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('node-express', 'programming', 'Node.js & Express', 'Backend JavaScript: REST APIs, databases, auth, and deployment.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('node-express', 'programming', 'Node.js & Express', 'Backend JavaScript: REST APIs, databases, auth, and deployment.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('node-express/getting-started-with-node', 'node-express', 'Getting Started with Node', 1),
     ('node-express/node-fundamentals', 'node-express', 'Node Fundamentals', 2),
@@ -356,8 +356,8 @@ insert into public.skills (id, path_id, name, position) values
     ('node-express/deployment', 'node-express', 'Deployment', 10),
     ('node-express/capstone-project', 'node-express', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('django', 'programming', 'Django Mastery', 'Python’s batteries-included web framework — from models to deployment.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('django', 'programming', 'Django Mastery', 'Python’s batteries-included web framework — from models to deployment.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('django/getting-started', 'django', 'Getting Started', 1),
     ('django/views-and-urls', 'django', 'Views & URLs', 2),
@@ -371,8 +371,8 @@ insert into public.skills (id, path_id, name, position) values
     ('django/testing-and-deployment', 'django', 'Testing & Deployment', 10),
     ('django/capstone-project', 'django', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('flask', 'programming', 'Flask Mastery', 'Python’s micro-framework — small core, total control, real apps.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('flask', 'programming', 'Flask Mastery', 'Python’s micro-framework — small core, total control, real apps.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('flask/getting-started', 'flask', 'Getting Started', 1),
     ('flask/routing-and-views', 'flask', 'Routing & Views', 2),
@@ -385,8 +385,8 @@ insert into public.skills (id, path_id, name, position) values
     ('flask/testing-and-deployment', 'flask', 'Testing & Deployment', 9),
     ('flask/capstone-project', 'flask', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('fastapi', 'programming', 'FastAPI Mastery', 'Modern async Python APIs with automatic docs and type-driven validation.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('fastapi', 'programming', 'FastAPI Mastery', 'Modern async Python APIs with automatic docs and type-driven validation.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('fastapi/getting-started', 'fastapi', 'Getting Started', 1),
     ('fastapi/path-and-query-parameters', 'fastapi', 'Path & Query Parameters', 2),
@@ -400,8 +400,8 @@ insert into public.skills (id, path_id, name, position) values
     ('fastapi/deployment-and-production', 'fastapi', 'Deployment & Production', 10),
     ('fastapi/capstone-project', 'fastapi', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('spring', 'programming', 'Spring Boot Mastery', 'The framework that runs enterprise Java — REST, JPA, and security.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('spring', 'programming', 'Spring Boot Mastery', 'The framework that runs enterprise Java — REST, JPA, and security.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('spring/getting-started', 'spring', 'Getting Started', 1),
     ('spring/core-concepts-ioc-and-di', 'spring', 'Core Concepts: IoC & DI', 2),
@@ -415,8 +415,8 @@ insert into public.skills (id, path_id, name, position) values
     ('spring/deployment', 'spring', 'Deployment', 10),
     ('spring/capstone-project', 'spring', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('android', 'programming', 'Android with Jetpack Compose', 'Build real Android apps in Kotlin with the modern UI toolkit.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('android', 'programming', 'Android with Jetpack Compose', 'Build real Android apps in Kotlin with the modern UI toolkit.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('android/getting-started', 'android', 'Getting Started', 1),
     ('android/jetpack-compose-basics', 'android', 'Jetpack Compose Basics', 2),
@@ -430,8 +430,8 @@ insert into public.skills (id, path_id, name, position) values
     ('android/testing-and-release', 'android', 'Testing & Release', 10),
     ('android/capstone-project', 'android', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('ios', 'programming', 'iOS with SwiftUI', 'From your first View to the App Store.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('ios', 'programming', 'iOS with SwiftUI', 'From your first View to the App Store.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('ios/getting-started', 'ios', 'Getting Started', 1),
     ('ios/views-and-layout', 'ios', 'Views & Layout', 2),
@@ -445,8 +445,8 @@ insert into public.skills (id, path_id, name, position) values
     ('ios/testing-and-shipping', 'ios', 'Testing & Shipping', 10),
     ('ios/capstone-project', 'ios', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('aspnet', 'programming', 'ASP.NET Core Mastery', 'Fast, cross-platform web APIs and apps with C# and .NET.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('aspnet', 'programming', 'ASP.NET Core Mastery', 'Fast, cross-platform web APIs and apps with C# and .NET.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('aspnet/getting-started', 'aspnet', 'Getting Started', 1),
     ('aspnet/minimal-apis', 'aspnet', 'Minimal APIs', 2),
@@ -459,8 +459,8 @@ insert into public.skills (id, path_id, name, position) values
     ('aspnet/deployment', 'aspnet', 'Deployment', 9),
     ('aspnet/capstone-project', 'aspnet', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('unity', 'programming', 'Unity Game Development', 'Build and ship real games with C# and the world’s most popular engine.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('unity', 'programming', 'Unity Game Development', 'Build and ship real games with C# and the world’s most popular engine.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('unity/getting-started', 'unity', 'Getting Started', 1),
     ('unity/c-scripting-in-unity', 'unity', 'C# Scripting in Unity', 2),
@@ -474,8 +474,8 @@ insert into public.skills (id, path_id, name, position) values
     ('unity/project-a-complete-2d-game', 'unity', 'Project: A Complete 2D Game', 10),
     ('unity/build-and-publish', 'unity', 'Build & Publish', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('rails', 'programming', 'Ruby on Rails Mastery', 'Convention over configuration — full web apps at startup speed.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('rails', 'programming', 'Ruby on Rails Mastery', 'Convention over configuration — full web apps at startup speed.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('rails/getting-started', 'rails', 'Getting Started', 1),
     ('rails/routes-and-controllers', 'rails', 'Routes & Controllers', 2),
@@ -489,8 +489,8 @@ insert into public.skills (id, path_id, name, position) values
     ('rails/deployment', 'rails', 'Deployment', 10),
     ('rails/capstone-project', 'rails', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('laravel', 'programming', 'Laravel Mastery', 'The PHP framework with everything: Eloquent, Blade, queues, and joy.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('laravel', 'programming', 'Laravel Mastery', 'The PHP framework with everything: Eloquent, Blade, queues, and joy.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('laravel/getting-started', 'laravel', 'Getting Started', 1),
     ('laravel/routing-and-controllers', 'laravel', 'Routing & Controllers', 2),
@@ -505,8 +505,8 @@ insert into public.skills (id, path_id, name, position) values
     ('laravel/deployment', 'laravel', 'Deployment', 11),
     ('laravel/capstone-project', 'laravel', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('gin', 'programming', 'Go Web Development with Gin', 'Production Go APIs: routing, middleware, databases, and clean architecture.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('gin', 'programming', 'Go Web Development with Gin', 'Production Go APIs: routing, middleware, databases, and clean architecture.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('gin/getting-started', 'gin', 'Getting Started', 1),
     ('gin/routing', 'gin', 'Routing', 2),
@@ -519,8 +519,8 @@ insert into public.skills (id, path_id, name, position) values
     ('gin/deployment', 'gin', 'Deployment', 9),
     ('gin/capstone-project', 'gin', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('axum', 'programming', 'Rust Web with Axum', 'Type-safe, blazing-fast web services on tokio.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('axum', 'programming', 'Rust Web with Axum', 'Type-safe, blazing-fast web services on tokio.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('axum/getting-started', 'axum', 'Getting Started', 1),
     ('axum/routing-and-extractors', 'axum', 'Routing & Extractors', 2),
@@ -533,8 +533,8 @@ insert into public.skills (id, path_id, name, position) values
     ('axum/deployment', 'axum', 'Deployment', 9),
     ('axum/capstone-project', 'axum', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('qt', 'programming', 'Desktop Apps with Qt', 'Cross-platform C++ GUIs — one codebase for Windows, macOS, and Linux.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('qt', 'programming', 'Desktop Apps with Qt', 'Cross-platform C++ GUIs — one codebase for Windows, macOS, and Linux.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('qt/getting-started', 'qt', 'Getting Started', 1),
     ('qt/widgets-and-layouts', 'qt', 'Widgets & Layouts', 2),
@@ -547,8 +547,8 @@ insert into public.skills (id, path_id, name, position) values
     ('qt/packaging-and-deployment', 'qt', 'Packaging & Deployment', 9),
     ('qt/capstone-project', 'qt', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('tailwind', 'programming', 'Tailwind CSS Mastery', 'Utility-first styling — design directly in your markup, fast.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('tailwind', 'programming', 'Tailwind CSS Mastery', 'Utility-first styling — design directly in your markup, fast.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('tailwind/getting-started', 'tailwind', 'Getting Started', 1),
     ('tailwind/core-utilities', 'tailwind', 'Core Utilities', 2),
@@ -559,8 +559,8 @@ insert into public.skills (id, path_id, name, position) values
     ('tailwind/real-ui-build', 'tailwind', 'Real UI Build', 7),
     ('tailwind/capstone-project', 'tailwind', 'Capstone Project', 8)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('ai', 'ai', 'Artificial Intelligence Foundations', 'How machines search, reason, learn, and understand language, built from scratch in Python.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('ai', 'ai', 'Artificial Intelligence Foundations', 'How machines search, reason, learn, and understand language, built from scratch in Python.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('ai/what-ai-really-is', 'ai', 'What AI Really Is', 1),
     ('ai/the-math-you-actually-need', 'ai', 'The Math You Actually Need', 2),
@@ -575,8 +575,8 @@ insert into public.skills (id, path_id, name, position) values
     ('ai/ai-ethics-safety-and-responsibility', 'ai', 'AI Ethics, Safety & Responsibility', 11),
     ('ai/capstone-project', 'ai', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('machine-learning', 'ai', 'Machine Learning with scikit-learn', 'The practical ML workflow: clean data, train models, and evaluate them honestly.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('machine-learning', 'ai', 'Machine Learning with scikit-learn', 'The practical ML workflow: clean data, train models, and evaluate them honestly.', 0, 0.7, 750)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('machine-learning/the-ml-workflow', 'machine-learning', 'The ML Workflow', 1),
     ('machine-learning/working-with-data', 'machine-learning', 'Working with Data', 2),
@@ -589,8 +589,8 @@ insert into public.skills (id, path_id, name, position) values
     ('machine-learning/from-notebook-to-production', 'machine-learning', 'From Notebook to Production', 9),
     ('machine-learning/capstone-project', 'machine-learning', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('deep-learning', 'ai', 'Deep Learning with PyTorch', 'Build, train, and debug neural networks, from tensors to a tiny transformer.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('deep-learning', 'ai', 'Deep Learning with PyTorch', 'Build, train, and debug neural networks, from tensors to a tiny transformer.', 0, 0.7, 750)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('deep-learning/tensors-and-setup', 'deep-learning', 'Tensors & Setup', 1),
     ('deep-learning/autograd-and-gradient-descent', 'deep-learning', 'Autograd & Gradient Descent', 2),
@@ -603,8 +603,8 @@ insert into public.skills (id, path_id, name, position) values
     ('deep-learning/attention-and-transformers', 'deep-learning', 'Attention & Transformers', 9),
     ('deep-learning/capstone-project', 'deep-learning', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('generative-ai', 'ai', 'Generative AI & LLM Apps', 'Build reliable apps on top of large language models: prompts, RAG, tools, and evaluation.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('generative-ai', 'ai', 'Generative AI & LLM Apps', 'Build reliable apps on top of large language models: prompts, RAG, tools, and evaluation.', 0, 0.7, 750)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('generative-ai/how-llms-work', 'generative-ai', 'How LLMs Work', 1),
     ('generative-ai/prompt-engineering', 'generative-ai', 'Prompt Engineering', 2),
@@ -616,8 +616,8 @@ insert into public.skills (id, path_id, name, position) values
     ('generative-ai/beyond-text', 'generative-ai', 'Beyond Text', 8),
     ('generative-ai/capstone-project', 'generative-ai', 'Capstone Project', 9)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('data-science', 'ai', 'Data Science with Python', 'Turn raw data into answers with pandas, statistics, and clear visualizations.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('data-science', 'ai', 'Data Science with Python', 'Turn raw data into answers with pandas, statistics, and clear visualizations.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('data-science/getting-started', 'data-science', 'Getting Started', 1),
     ('data-science/numpy', 'data-science', 'NumPy', 2),
@@ -629,8 +629,8 @@ insert into public.skills (id, path_id, name, position) values
     ('data-science/intro-to-predictive-modeling', 'data-science', 'Intro to Predictive Modeling', 8),
     ('data-science/capstone-project', 'data-science', 'Capstone Project', 9)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('vibe-coding', 'programming', 'Vibe Coding Foundations', 'Build real software by describing it to Claude, ChatGPT or another AI — and learn enough to steer, check and fix what it writes.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('vibe-coding', 'programming', 'Vibe Coding Foundations', 'Build real software by describing it to Claude, ChatGPT or another AI — and learn enough to steer, check and fix what it writes.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('vibe-coding/what-vibe-coding-is', 'vibe-coding', 'What Vibe Coding Is', 1),
     ('vibe-coding/your-ai-toolkit', 'vibe-coding', 'Your AI Toolkit', 2),
@@ -640,8 +640,8 @@ insert into public.skills (id, path_id, name, position) values
     ('vibe-coding/safety-nets', 'vibe-coding', 'Safety Nets', 6),
     ('vibe-coding/capstone-your-first-vibe-coded-app', 'vibe-coding', 'Capstone: Your First Vibe-Coded App', 7)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('context-engineering', 'programming', 'Prompt & Context Engineering for Code', 'Get consistently good code from Claude, ChatGPT and coding agents by giving them the right instructions and the right context.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('context-engineering', 'programming', 'Prompt & Context Engineering for Code', 'Get consistently good code from Claude, ChatGPT and coding agents by giving them the right instructions and the right context.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('context-engineering/why-context-is-everything', 'context-engineering', 'Why Context Is Everything', 1),
     ('context-engineering/specs-before-code', 'context-engineering', 'Specs Before Code', 2),
@@ -651,8 +651,8 @@ insert into public.skills (id, path_id, name, position) values
     ('context-engineering/working-across-models', 'context-engineering', 'Working Across Models', 6),
     ('context-engineering/capstone-spec-driven-build', 'context-engineering', 'Capstone: Spec-Driven Build', 7)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('ai-coding-agents', 'programming', 'AI Coding Agents', 'Put agents like Claude Code, Codex and Cursor to work on real codebases — safely, and with you in control.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('ai-coding-agents', 'programming', 'AI Coding Agents', 'Put agents like Claude Code, Codex and Cursor to work on real codebases — safely, and with you in control.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('ai-coding-agents/from-chat-to-agent', 'ai-coding-agents', 'From Chat to Agent', 1),
     ('ai-coding-agents/getting-started-with-a-coding-agent', 'ai-coding-agents', 'Getting Started with a Coding Agent', 2),
@@ -663,8 +663,8 @@ insert into public.skills (id, path_id, name, position) values
     ('ai-coding-agents/safety-and-cost', 'ai-coding-agents', 'Safety & Cost', 7),
     ('ai-coding-agents/capstone-ship-a-change-with-an-agent', 'ai-coding-agents', 'Capstone: Ship a Change with an Agent', 8)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('mcp', 'programming', 'MCP: Model Context Protocol', 'Connect Claude, ChatGPT and coding agents to your tools and data with MCP servers — then build your own.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('mcp', 'programming', 'MCP: Model Context Protocol', 'Connect Claude, ChatGPT and coding agents to your tools and data with MCP servers — then build your own.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('mcp/what-mcp-is', 'mcp', 'What MCP Is', 1),
     ('mcp/using-mcp-servers', 'mcp', 'Using MCP Servers', 2),
@@ -674,8 +674,8 @@ insert into public.skills (id, path_id, name, position) values
     ('mcp/remote-servers', 'mcp', 'Remote Servers', 6),
     ('mcp/capstone-an-mcp-server-for-your-workflow', 'mcp', 'Capstone: An MCP Server for Your Workflow', 7)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('vibe-to-production', 'programming', 'Ship Your Vibe-Coded App', 'Take an AI-built prototype to a secure, tested, deployed product that real people can use.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('vibe-to-production', 'programming', 'Ship Your Vibe-Coded App', 'Take an AI-built prototype to a secure, tested, deployed product that real people can use.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('vibe-to-production/from-prototype-to-product', 'vibe-to-production', 'From Prototype to Product', 1),
     ('vibe-to-production/data-and-users', 'vibe-to-production', 'Data & Users', 2),
@@ -686,8 +686,8 @@ insert into public.skills (id, path_id, name, position) values
     ('vibe-to-production/growing-as-a-vibe-coder', 'vibe-to-production', 'Growing as a Vibe Coder', 7),
     ('vibe-to-production/capstone-launch-a-product', 'vibe-to-production', 'Capstone: Launch a Product', 8)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('cybersecurity', 'programming', 'Cybersecurity Fundamentals', 'Understand how attacks work and how to defend against them, practiced legally in your own lab.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('cybersecurity', 'programming', 'Cybersecurity Fundamentals', 'Understand how attacks work and how to defend against them, practiced legally in your own lab.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('cybersecurity/security-foundations', 'cybersecurity', 'Security Foundations', 1),
     ('cybersecurity/linux-for-security', 'cybersecurity', 'Linux for Security', 2),
@@ -702,8 +702,8 @@ insert into public.skills (id, path_id, name, position) values
     ('cybersecurity/governance-risk-and-compliance', 'cybersecurity', 'Governance, Risk & Compliance', 11),
     ('cybersecurity/capstone-project', 'cybersecurity', 'Capstone Project', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('web-security', 'programming', 'Secure Coding & AppSec', 'Write code that holds up against real attacks. Find and fix vulnerabilities in your own apps.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('web-security', 'programming', 'Secure Coding & AppSec', 'Write code that holds up against real attacks. Find and fix vulnerabilities in your own apps.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('web-security/the-secure-development-mindset', 'web-security', 'The Secure Development Mindset', 1),
     ('web-security/injection', 'web-security', 'Injection', 2),
@@ -717,8 +717,8 @@ insert into public.skills (id, path_id, name, position) values
     ('web-security/security-testing', 'web-security', 'Security Testing', 10),
     ('web-security/capstone-project', 'web-security', 'Capstone Project', 11)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('dsa', 'programming', 'Data Structures & Algorithms', 'Solve problems efficiently and ace technical interviews.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('dsa', 'programming', 'Data Structures & Algorithms', 'Solve problems efficiently and ace technical interviews.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('dsa/complexity-analysis', 'dsa', 'Complexity Analysis', 1),
     ('dsa/arrays-and-strings', 'dsa', 'Arrays & Strings', 2),
@@ -733,8 +733,8 @@ insert into public.skills (id, path_id, name, position) values
     ('dsa/greedy-algorithms', 'dsa', 'Greedy Algorithms', 11),
     ('dsa/interview-practice', 'dsa', 'Interview Practice', 12)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('linux', 'programming', 'Linux & the Command Line', 'Get fluent in the terminal and automate your work with shell scripts.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('linux', 'programming', 'Linux & the Command Line', 'Get fluent in the terminal and automate your work with shell scripts.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('linux/getting-started', 'linux', 'Getting Started', 1),
     ('linux/files-and-navigation', 'linux', 'Files & Navigation', 2),
@@ -747,8 +747,8 @@ insert into public.skills (id, path_id, name, position) values
     ('linux/shell-scripting', 'linux', 'Shell Scripting', 9),
     ('linux/capstone-project', 'linux', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('git', 'programming', 'Git & GitHub', 'Track every change, undo mistakes, and collaborate like a professional team.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('git', 'programming', 'Git & GitHub', 'Track every change, undo mistakes, and collaborate like a professional team.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('git/why-version-control', 'git', 'Why Version Control', 1),
     ('git/git-basics', 'git', 'Git Basics', 2),
@@ -760,8 +760,8 @@ insert into public.skills (id, path_id, name, position) values
     ('git/advanced-git', 'git', 'Advanced Git', 8),
     ('git/capstone-project', 'git', 'Capstone Project', 9)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('networking', 'programming', 'Computer Networking', 'How data really travels across the internet, explored hands-on with real tools and sockets.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('networking', 'programming', 'Computer Networking', 'How data really travels across the internet, explored hands-on with real tools and sockets.', 0, 0.7, 0)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('networking/how-the-internet-works', 'networking', 'How the Internet Works', 1),
     ('networking/network-models', 'networking', 'Network Models', 2),
@@ -774,8 +774,8 @@ insert into public.skills (id, path_id, name, position) values
     ('networking/network-security-basics', 'networking', 'Network Security Basics', 9),
     ('networking/capstone-project', 'networking', 'Capstone Project', 10)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('devops', 'programming', 'DevOps & Cloud', 'Containers, CI/CD, infrastructure as code, and the cloud, from laptop to production.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('devops', 'programming', 'DevOps & Cloud', 'Containers, CI/CD, infrastructure as code, and the cloud, from laptop to production.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('devops/devops-foundations', 'devops', 'DevOps Foundations', 1),
     ('devops/docker-and-containers', 'devops', 'Docker & Containers', 2),
@@ -787,8 +787,8 @@ insert into public.skills (id, path_id, name, position) values
     ('devops/observability', 'devops', 'Observability', 8),
     ('devops/capstone-project', 'devops', 'Capstone Project', 9)
 on conflict (id) do update set path_id = excluded.path_id, name = excluded.name, position = excluded.position;
-insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark) values ('system-design', 'programming', 'System Design', 'Design scalable, reliable systems and reason clearly about trade-offs.', 0, 0.7)
-on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges;
+insert into public.learning_paths (id, subject, title, description, min_challenges, pass_mark, unlock_cost) values ('system-design', 'programming', 'System Design', 'Design scalable, reliable systems and reason clearly about trade-offs.', 0, 0.7, 500)
+on conflict (id) do update set subject = excluded.subject, title = excluded.title, description = excluded.description, min_challenges = excluded.min_challenges, unlock_cost = excluded.unlock_cost;
 insert into public.skills (id, path_id, name, position) values
     ('system-design/foundations', 'system-design', 'Foundations', 1),
     ('system-design/building-blocks', 'system-design', 'Building Blocks', 2),
