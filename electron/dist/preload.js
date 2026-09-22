@@ -66,6 +66,11 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
     device: {
         getId: () => electron_1.ipcRenderer.invoke('device:id'),
     },
+    localAi: {
+        models: (endpoint) => electron_1.ipcRenderer.invoke('localai:models', endpoint),
+        chat: (endpoint, body, token) => electron_1.ipcRenderer.invoke('localai:chat', endpoint, body, token),
+        cancel: (token) => electron_1.ipcRenderer.invoke('localai:cancel', token),
+    },
     extensions: {
         scan: () => electron_1.ipcRenderer.invoke('extensions:scan'),
         openFolder: () => electron_1.ipcRenderer.invoke('extensions:open-folder'),
