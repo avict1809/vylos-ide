@@ -8,6 +8,7 @@ export const go: CourseDefinition = {
     hours: 25,
     accent: '#00ADD8',
     badge: 'GO',
+    requires: ['go'],
     modules: [
         {
             title: 'Getting Started',

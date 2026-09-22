@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useFileStore } from '../lib/useFileStore';
 import { X, Cpu, Github, Globe } from 'lucide-react';
 import Image from 'next/image';
+import { VYLOS_WEB_URL } from '@/electron/site';
 
 export default function AboutModal() {
     const { showAbout, setShowAbout } = useFileStore();
@@ -48,7 +49,7 @@ export default function AboutModal() {
                         </div>
                         <div className="flex items-center gap-3 px-4 py-2 bg-[#09090b] rounded-lg border border-[#27272a] text-gray-300">
                             <Globe size={16} className="text-[#10b981]" />
-                            <span className="flex-1 text-left select-text">vylos.co</span>
+                            <a href={VYLOS_WEB_URL} target="_blank" rel="noreferrer" className="flex-1 text-left hover:text-[#10b981]">{VYLOS_WEB_URL.replace(/^https?:\/\//, '')}</a>
                         </div>
                     </div>
 

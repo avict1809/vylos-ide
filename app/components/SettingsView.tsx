@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useConfigStore } from '@/app/lib/stores/config-store';
 import { useVoiceStore, TUTOR_VOICES } from '@/app/lib/stores/voice-store';
+import LocalAiSettings from './LocalAiSettings';
 import { cn } from '@/app/lib/utils';
 
 export default function SettingsView() {
@@ -69,6 +70,8 @@ export default function SettingsView() {
                             <ToggleSetting label="Word Wrap" description="Wrap long lines to viewport" enabled={wordWrap === 'on'} onChange={(val) => setWordWrap(val ? 'on' : 'off')} icon={<WrapText size={14} />} />
                         </div>
                     </section>
+
+                    <LocalAiSettings />
 
                     <section>
                         <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">

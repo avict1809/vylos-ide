@@ -8,6 +8,7 @@ export const nextjs: CourseDefinition = {
     hours: 22,
     accent: '#e5e5e5',
     badge: 'N',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [

@@ -104,9 +104,10 @@ ln -s "$PWD/my-pack" ~/.vylos/extensions/my-pack
 | `id` | yes | Vylos registers the course as `<publisher>.<id>`, so it never clashes with built-in courses or other publishers. Learners' progress is stored under it: don't change it after release. |
 | `title`, `tagline` | yes | Up to 80 and 200 characters. |
 | `hours` | yes | Rough time to finish. |
-| `modules` | yes | 1–50 modules, each with a `title`, an optional `description` and 1–200 `lessons`. |
-| `category` | no | Catalog section: `language` (default), `framework`, `ai`, `security`, `essentials`. |
+| `modules` | yes | 1–50 modules, each with a `title`, an optional `description` and 1–200 `lessons`. A lesson is a title, or an object with a `title` and optionally an `id` and an [`exercise`](#exercises). |
+| `category` | no | Catalog section: `language` (default), `framework`, `ai`, `vibe`, `security`, `essentials`. |
 | `level`, `stack`, `accent`, `badge` | no | Shown on the catalog card. |
+| `requires` | no | Tools the learner needs, from: `python`, `node`, `java`, `kotlin`, `cc`, `go`, `rust`, `dotnet`, `ruby`, `php`, `git`, `docker`, `sqlite`, `psql`, `swift`. When the course opens, Vylos checks each one and shows install steps for the learner's system if it's missing. You can't add your own checks. |
 | `tutorGuidelines` | no | Up to 20 notes for the voice tutor on what to teach and how. |
 
 Add the `$schema` line and editors such as VS Code autocomplete every field
@@ -126,6 +127,75 @@ the checkmark. To reword a title safely, keep its old id:
 ```
 
 Two lessons in one course can't have the same id.
+
+### Exercises
+
+Give a lesson an `exercise` and learners get a coding task with a **Check**
+button. The check runs on their computer against your test cases, and passing
+it completes the lesson. The voice tutor sees the task too: it opens the
+exercise, lets the learner write the code, and calls the same check.
+
+```json
+{
+    "title": "Summing a list",
+    "exercise": {
+        "prompt": "Finish `total(nums)` so it returns the sum of `nums`.",
+        "files": {
+            "total.py": "def total(nums):\n    return 0\n"
+        },
+        "check": {
+            "type": "function",
+            "function": "total",
+            "cases": [
+                { "args": [[1, 2, 3]], "expected": 6 },
+                { "args": [[]], "expected": 0 }
+            ]
+        },
+        "hints": [
+            "What should the total be before you've looked at any number?",
+            "Start at 0 and add each number inside a for loop."
+        ],
+        "solution": "def total(nums):\n    result = 0\n    for n in nums:\n        result += n\n    return result\n"
+    }
+}
+```
+
+| Field | Required | Notes |
+| --- | --- | --- |
+| `prompt` | yes | The task. `code` in backticks is shown as code. |
+| `files` | yes | Starter files by plain name (no folders). The **first** file is the main file: it opens in the editor, it's what gets checked, and its extension picks the language. |
+| `check` | yes | `output` or `function`, below. |
+| `hints` | no | Shown one at a time when the learner asks. |
+| `solution` | no | The main file, solved. Vylos shows it only after `solutionAfter` checks that didn't pass (default 3) and an "are you sure?". |
+
+**`"type": "output"`** runs the main file and compares what it prints. It works
+for any language the Run button knows (Python, JavaScript, C, C++, Java, Go,
+Rust…). Each case can give `input`: what the learner would type, one line per
+`\n`. Trailing spaces and blank lines don't matter. Set `"match": "contains"`
+when the program also prints prompts, or `"regex"` for a pattern.
+
+```json
+"check": {
+    "type": "output",
+    "cases": [
+        { "name": "3 and 5 make 8", "input": "3\n5", "expected": "8", "match": "contains" }
+    ]
+}
+```
+
+**`"type": "function"`** calls a function in a `.py` or `.js` main file with each
+case's `args` and compares the return value with `expected` (JSON: `null` is
+`None` in Python, and numbers are compared with a tiny tolerance). No test
+framework needs to be installed, and learners see exactly which call failed:
+*`total([1, 2, 3])` returned 5, expected 6*.
+
+Exercises can't run commands of their own. Vylos runs the main file with its
+fixed command for that language and passes your cases through files, so a pack
+never gets to put anything into a shell.
+
+Checks run on the learner's own computer, so a determined learner can read
+the test cases. That's fine for practice; don't use them to hand out
+certificates.
 
 ### What the tutor sees
 
@@ -253,7 +323,7 @@ stopped it. Saving a file in the extension folder reloads it.
 
 Coming in later releases of the extension platform:
 
-- **Exercises**: starter files, hidden tests and built-in checkers (`pytest`, `jest`, …), with `vylos.learning.registerChecker` for custom grading.
+- **More checkers**: `pytest`, `jest` and `go test` for exercises with test files, and `vylos.learning.registerChecker` for custom grading.
 - **Lesson content**: Markdown pages alongside the tutor.
 - **Tooling**: `vylos ext dev`, `vylos ext test` (the starter fails, the solution passes) and `vylos ext pack`.
 - **Network access** for extensions that need it, limited to the hosts they declare.

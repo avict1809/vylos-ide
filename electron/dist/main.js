@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const electron_1 = require("electron");
-const child_process_1 = require("child_process");
+const crypto_1 = __importDefault(require("crypto"));
 const http_1 = __importDefault(require("http"));
 const path_1 = __importDefault(require("path"));
 const chokidar_1 = __importDefault(require("chokidar"));
@@ -47,16 +47,30 @@ const electron_serve_1 = __importDefault(require("electron-serve"));
 const updater_1 = require("./updater");
 const ipc_1 = require("./ipc");
 const extensions_1 = require("./extensions");
+const device_1 = require("./device");
+const terminal_1 = require("./terminal");
+const local_ai_1 = require("./local-ai");
+const site_1 = require("./site");
 const cli_1 = require("./cli");
 let mainWindow;
 const isDev = process.env.NODE_ENV === 'development' || !electron_1.app.isPackaged;
+// The scheme the browser hands a finished sign-in back through:
+// vylos://auth/callback. Registered below, the way Slack and VS Code do it, so
+// the browser stays on the website instead of a raw 127.0.0.1 address.
+const AUTH_SCHEME = 'vylos';
+const isDeepLink = (arg) => arg.toLowerCase().startsWith(`${AUTH_SCHEME}://`);
 // `vylos <path>` from a terminal (see cli.ts). `--help`, a terminal launch that
 // relaunches itself detached, and a second `vylos` that hands its paths to the
 // running app all quit here without making a window.
-const cliArgs = (0, cli_1.launchArgs)(process.argv);
+//
+// A deep link arrives the same way — as a second launch, with the link in
+// place of a path — so everything travels through the lock and is sorted out
+// on the other side.
+const launchArguments = (0, cli_1.launchArgs)(process.argv);
+const cliArgs = launchArguments.filter((arg) => !isDeepLink(arg));
 const isPrimaryInstance = !(0, cli_1.printCliInfo)(process.argv) && !(0, cli_1.detachFromTerminal)()
     // Development skips the lock so it can run alongside an installed copy
-    && (isDev || electron_1.app.requestSingleInstanceLock({ args: cliArgs, cwd: process.cwd() }));
+    && (isDev || electron_1.app.requestSingleInstanceLock({ args: launchArguments, cwd: process.cwd() }));
 if (!isPrimaryInstance)
     electron_1.app.quit();
 const focusMainWindow = () => {
@@ -83,8 +97,16 @@ if (isPrimaryInstance)
     queueOpen(cliArgs, process.cwd());
 electron_1.app.on('second-instance', (_event, argv, workingDirectory, data) => {
     const { args, cwd } = (data ?? {});
-    queueOpen(args ?? (0, cli_1.launchArgs)(argv), cwd ?? workingDirectory);
+    const launched = args ?? (0, cli_1.launchArgs)(argv);
+    queueOpen(launched.filter((arg) => !isDeepLink(arg)), cwd ?? workingDirectory);
+    // Windows and Linux deliver vylos://auth/callback as a launch like this one
+    launched.filter(isDeepLink).forEach(handleAuthDeepLink);
     focusMainWindow();
+});
+// macOS hands the link to the running app instead of launching it again
+electron_1.app.on('open-url', (event, url) => {
+    event.preventDefault();
+    handleAuthDeepLink(url);
 });
 // CRITICAL: Initialize electron-serve at module level BEFORE app.whenReady()
 // This registers the 'app://' protocol handler early enough for it to work
@@ -149,22 +171,26 @@ const createWindow = async () => {
     mainWindow.on('unmaximize', () => {
         mainWindow?.webContents.send('window:unmaximized');
     });
-    // Ctrl+` toggles the terminal. Caught here, before the page, so no focused
+    // Ctrl+` toggles the terminal (Ctrl+Shift+` opens a new one). Caught here, before the page, so no focused
     // widget (editor, inputs) can swallow it; matched by physical key so it works
     // on any keyboard layout.
     mainWindow.webContents.on('before-input-event', (event, input) => {
         if (input.type === 'keyDown' && (input.control || input.meta) && !input.alt && input.code === 'Backquote') {
             event.preventDefault();
-            mainWindow?.webContents.send('shortcut:toggle-terminal');
+            mainWindow?.webContents.send(input.shift ? 'shortcut:new-terminal' : 'shortcut:toggle-terminal');
         }
     });
 };
 if (isPrimaryInstance)
     electron_1.app.whenReady().then(async () => {
+        // Before the window: the page asks for these as soon as it mounts
+        (0, extensions_1.initExtensions)(() => mainWindow);
+        (0, terminal_1.initTerminal)(() => mainWindow);
+        (0, device_1.initDevice)();
+        (0, local_ai_1.initLocalAi)();
         await createWindow();
         // Checks for a mandatory update; the renderer blocks the app until it is applied
         (0, updater_1.initUpdater)();
-        (0, extensions_1.initExtensions)(() => mainWindow);
         void (0, cli_1.refreshShellCommand)();
         void offerShellCommand();
         electron_1.app.on('activate', async () => {
@@ -178,18 +204,87 @@ electron_1.app.on('window-all-closed', () => {
         electron_1.app.quit();
     }
 });
-// Auth: full web sign-in. The system browser opens a Vylos auth page served
-// from this localhost server; the page talks to Supabase (email + OAuth) and
-// POSTs the resulting session tokens back to /auth/complete.
+// Auth: full web sign-in. The system browser opens the sign-in page on the
+// Vylos website, which talks to Supabase (email + OAuth). When it has a
+// session it hands it back to this app one of two ways:
+//
+//  1. vylos://auth/callback#<tokens> — the deep link, used whenever the OS
+//     knows this app owns the scheme. The browser stays on vylos.co and shows
+//     its own "you're signed in" page; the OS brings Vylos to the front. This
+//     is the path Slack, VS Code and Zoom use, and the one learners see.
+//  2. http://127.0.0.1:<port>/callback#<tokens> — the loopback fallback, for
+//     installs where the scheme isn't registered (Linux without a desktop
+//     entry, unpackaged development). Its page posts the tokens back here and
+//     then sends the browser to the website, so even this path doesn't leave
+//     anyone looking at an IP address.
+//
+// Either way the tokens ride in the fragment, which never reaches a server,
+// and the random state proves the hand-off answers this sign-in rather than a
+// page (or another app on this machine) that guessed the port.
+//
+// The listener stays up for the life of the app. Signing in can easily take
+// longer than the app is willing to show a spinner for — a password reset, a
+// confirmation email, an OAuth detour — and tearing the listener down on a
+// timer meant the browser arrived at a refused port with the tokens sitting in
+// the URL bar and nothing to explain it. What keeps the hand-off safe is the
+// random state, not a short window, so the state outlives the wait instead.
 const AUTH_PORT = 51735;
-const AUTH_PAGE_URL = `http://localhost:${AUTH_PORT}/`;
-const AUTH_TIMEOUT_MS = 10 * 60 * 1000;
+// How long the sign-in screen waits before it stops blocking on the browser.
+// A hand-off after this is still accepted; it just arrives as an event rather
+// than as the answer to the pending request.
+const AUTH_WAIT_MS = 10 * 60 * 1000;
+// When a state stops being accepted at all, so a link left open overnight
+// can't sign this app in tomorrow.
+const AUTH_STATE_TTL_MS = 60 * 60 * 1000;
+/**
+ * Claims vylos:// for this app. Unpackaged, the scheme has to name the Electron
+ * binary and this project explicitly, or the OS would launch bare Electron.
+ */
+function registerAuthScheme() {
+    try {
+        if (!process.defaultApp)
+            return electron_1.app.setAsDefaultProtocolClient(AUTH_SCHEME);
+        const entry = process.argv[1];
+        return !!entry && electron_1.app.setAsDefaultProtocolClient(AUTH_SCHEME, process.execPath, [path_1.default.resolve(entry)]);
+    }
+    catch {
+        return false;
+    }
+}
+const authSchemeRegistered = isPrimaryInstance && registerAuthScheme();
+/**
+ * Whether to ask the website for the deep-link hand-off. Windows and Linux
+ * deliver the link as a fresh launch, which only reaches this window through
+ * the single-instance lock — development skips that lock, so there the link
+ * would start a second app instead. macOS delivers it to the running app
+ * itself, lock or not.
+ */
+const deepLinkReady = () => authSchemeRegistered && (process.platform === 'darwin' || !isDev);
 let authServer = null;
-let settleAuth = null;
+// Shared by callers that arrive while the socket is still binding, so two
+// quick clicks on Sign in don't race each other into EADDRINUSE.
+let authServerStarting = null;
+const pendingAuth = new Map();
 const closeAuthServer = () => {
+    authServerStarting = null;
     if (authServer) {
         authServer.close();
         authServer = null;
+    }
+};
+/** Drops every in-flight sign-in, answering any request still waiting. */
+const clearPendingAuth = (result) => {
+    for (const pending of pendingAuth.values())
+        pending.settle?.(result);
+    pendingAuth.clear();
+};
+const dropExpiredAuth = () => {
+    const now = Date.now();
+    for (const [state, pending] of pendingAuth) {
+        if (pending.expiresAt < now) {
+            pending.settle?.({ error: 'timeout' });
+            pendingAuth.delete(state);
+        }
     }
 };
 const readBody = (req) => new Promise((resolve, reject) => {
@@ -202,71 +297,176 @@ const readBody = (req) => new Promise((resolve, reject) => {
     req.on('end', () => resolve(body));
     req.on('error', reject);
 });
-(0, ipc_1.handle)('auth:signInViaBrowser', (event, config) => {
-    // Supersede any in-flight attempt
-    settleAuth?.({ error: 'cancelled' });
-    closeAuthServer();
+/** Where the browser is sent once the hand-off is done: back onto the website. */
+const authReturnUrl = () => (0, site_1.webUrl)('/auth/desktop?signedin=1');
+/**
+ * The loopback fallback page. It posts the tokens to this app and then leaves
+ * for the website, so nobody is left looking at a 127.0.0.1 address.
+ */
+const authCallbackPage = (returnUrl) => `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Vylos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#e5e5e5;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;text-align:center;padding:24px;box-sizing:border-box}
+.card{max-width:360px}
+.mark{width:44px;height:44px;margin:0 auto 20px;border-radius:14px;border:1px solid rgba(16,185,129,.35);background:rgba(16,185,129,.08);display:flex;align-items:center;justify-content:center;font-weight:800;font-style:italic;color:#10b981}
+h1{font-size:18px;color:#fff;margin:0 0 8px}p{font-size:13px;color:#888;margin:0;line-height:1.6}b{color:#10b981}
+</style></head><body><div class="card"><div class="mark">V</div><h1 id="t">Finishing sign-in…</h1><p id="m">One moment.</p></div>
+<script>
+var params = new URLSearchParams(location.hash.slice(1));
+history.replaceState(null, '', '/callback');
+function done(title, msg) { document.getElementById('t').textContent = title; document.getElementById('m').innerHTML = msg; }
+fetch('/auth/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: params.get('access_token'), refresh_token: params.get('refresh_token'), state: params.get('state') })
+}).then(function (res) {
+    // Signed in: hand the tab back to the website rather than leave it here
+    if (res.ok) location.replace(${JSON.stringify(returnUrl)});
+    else done('Sign-in expired', 'Start again from the <b>Vylos</b> app.');
+}).catch(function () {
+    done('Could not reach Vylos', 'Is the app still running? Start sign-in again from <b>Vylos</b>.');
+});
+</script></body></html>`;
+/**
+ * Hands a finished sign-in to the app, however its tokens arrived. False means
+ * the state is not one this app is waiting for — a stale tab, a link opened
+ * tomorrow, or a page that guessed the port.
+ */
+function completeAuth(accessToken, refreshToken, state) {
+    dropExpiredAuth();
+    const pending = typeof state === 'string' ? pendingAuth.get(state) : undefined;
+    if (!pending || typeof accessToken !== 'string' || typeof refreshToken !== 'string')
+        return false;
+    pendingAuth.delete(state);
+    // Bring the app back to the front
+    focusMainWindow();
+    const tokens = { access_token: accessToken, refresh_token: refreshToken };
+    if (pending.settle)
+        pending.settle(tokens);
+    // The sign-in screen stopped waiting for this one, so hand it over out of
+    // band rather than making them sign in a second time.
+    else
+        mainWindow?.webContents.send('auth:completed', tokens);
+    return true;
+}
+/**
+ * A vylos://auth/callback link from the browser. It carries the same tokens
+ * and state the loopback page posts, in the same fragment, so both ways in
+ * meet at completeAuth.
+ */
+function handleAuthDeepLink(rawUrl) {
+    let url;
+    try {
+        url = new URL(rawUrl);
+    }
+    catch {
+        return false;
+    }
+    if (url.protocol !== `${AUTH_SCHEME}:` || url.host !== 'auth')
+        return false;
+    if (url.pathname.replace(/\/+$/, '') !== '/callback')
+        return false;
+    const params = new URLSearchParams(url.hash.slice(1) || url.search.slice(1));
+    return completeAuth(params.get('access_token'), params.get('refresh_token'), params.get('state'));
+}
+const handleAuthRequest = async (req, res) => {
+    const url = new URL(req.url ?? '/', `http://127.0.0.1:${AUTH_PORT}`);
+    try {
+        if (req.method === 'GET' && url.pathname === '/callback') {
+            res.writeHead(200, { 'Content-Type': 'text/html', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' })
+                .end(authCallbackPage(authReturnUrl()));
+        }
+        else if (req.method === 'POST' && url.pathname === '/auth/complete') {
+            const { access_token, refresh_token, state } = JSON.parse(await readBody(req));
+            // An unknown state turns into "Sign-in expired" on the page
+            const ok = completeAuth(access_token, refresh_token, state);
+            res.writeHead(ok ? 200 : 400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ ok }));
+        }
+        else {
+            res.writeHead(404).end();
+        }
+    }
+    catch (e) {
+        res.writeHead(500).end();
+    }
+};
+/** Brings the callback listener up, or resolves straight away if it's already up. */
+const startAuthServer = () => {
+    if (authServer?.listening)
+        return Promise.resolve();
+    if (authServerStarting)
+        return authServerStarting;
+    authServerStarting = new Promise((resolve, reject) => {
+        const server = http_1.default.createServer(handleAuthRequest);
+        let listening = false;
+        server.on('error', (e) => {
+            if (!listening) {
+                authServerStarting = null;
+                authServer = null;
+                reject(e);
+                return;
+            }
+            // The socket died under us. Drop it so the next sign-in opens a
+            // fresh one instead of sending the browser to a dead port.
+            authServerStarting = null;
+            authServer = null;
+            server.close();
+        });
+        server.listen(AUTH_PORT, '127.0.0.1', () => {
+            listening = true;
+            authServer = server;
+            resolve();
+        });
+    });
+    return authServerStarting;
+};
+electron_1.app.on('will-quit', closeAuthServer);
+(0, ipc_1.handle)('auth:signInViaBrowser', async (event, options) => {
+    // Supersede any in-flight attempt: whatever tab it opened must not sign
+    // this app in behind the one we're about to start.
+    clearPendingAuth({ error: 'cancelled' });
+    try {
+        await startAuthServer();
+    }
+    catch (e) {
+        const err = e;
+        return {
+            error: err.code === 'EADDRINUSE'
+                ? `Port ${AUTH_PORT} is already in use by another program.`
+                : err.message,
+        };
+    }
+    const state = crypto_1.default.randomBytes(24).toString('hex');
+    const signInUrl = new URL((0, site_1.webUrl)('/auth/desktop'));
+    signInUrl.searchParams.set('port', String(AUTH_PORT));
+    signInUrl.searchParams.set('state', state);
+    signInUrl.searchParams.set('mode', options?.mode === 'signup' ? 'signup' : 'signin');
+    // Tells the page it can hand the session straight to this app, so the
+    // browser never has to visit the loopback address at all
+    if (deepLinkReady())
+        signInUrl.searchParams.set('deeplink', AUTH_SCHEME);
     return new Promise((resolve) => {
+        const entry = { expiresAt: Date.now() + AUTH_STATE_TTL_MS, settle: null };
         let settled = false;
-        const settle = (result) => {
+        entry.settle = (result) => {
             if (settled)
                 return;
             settled = true;
-            settleAuth = null;
+            entry.settle = null;
             clearTimeout(timer);
-            // Let the success page's fetch response flush before closing
-            setTimeout(closeAuthServer, 2000);
             resolve(result);
         };
-        settleAuth = settle;
-        const timer = setTimeout(() => settle({ error: 'Sign-in timed out. Please try again.' }), AUTH_TIMEOUT_MS);
-        authServer = http_1.default.createServer(async (req, res) => {
-            const url = new URL(req.url ?? '/', AUTH_PAGE_URL);
-            try {
-                if (req.method === 'GET' && url.pathname === '/') {
-                    const template = await promises_1.default.readFile(path_1.default.join(__dirname, '../auth-page.html'), 'utf-8');
-                    const page = template.replace('__VYLOS_AUTH_CONFIG__', JSON.stringify({
-                        url: config.supabaseUrl,
-                        anonKey: config.supabaseAnonKey,
-                        mode: config.mode === 'signup' ? 'signup' : 'signin',
-                        pageUrl: AUTH_PAGE_URL,
-                    }));
-                    res.writeHead(200, { 'Content-Type': 'text/html' }).end(page);
-                }
-                else if (req.method === 'GET' && url.pathname === '/supabase.js') {
-                    const lib = await promises_1.default.readFile(require.resolve('@supabase/supabase-js/dist/umd/supabase.js'));
-                    res.writeHead(200, { 'Content-Type': 'application/javascript' }).end(lib);
-                }
-                else if (req.method === 'POST' && url.pathname === '/auth/complete') {
-                    const { access_token, refresh_token } = JSON.parse(await readBody(req));
-                    if (typeof access_token !== 'string' || typeof refresh_token !== 'string') {
-                        res.writeHead(400, { 'Content-Type': 'application/json' }).end('{"ok":false}');
-                        return;
-                    }
-                    res.writeHead(200, { 'Content-Type': 'application/json' }).end('{"ok":true}');
-                    // Bring the app back to the front
-                    focusMainWindow();
-                    settle({ access_token, refresh_token });
-                }
-                else {
-                    res.writeHead(404).end();
-                }
-            }
-            catch (e) {
-                res.writeHead(500).end();
-            }
-        });
-        authServer.on('error', (e) => {
-            settle({ error: e.code === 'EADDRINUSE' ? `Port ${AUTH_PORT} is already in use by another program.` : e.message });
-        });
-        authServer.listen(AUTH_PORT, '127.0.0.1', () => {
-            electron_1.shell.openExternal(AUTH_PAGE_URL);
-        });
+        // Stops the sign-in screen waiting. The entry stays behind, valid
+        // until its TTL, so finishing in the browser later still works.
+        const timer = setTimeout(() => entry.settle?.({ error: 'timeout' }), AUTH_WAIT_MS);
+        pendingAuth.set(state, entry);
+        electron_1.shell.openExternal(signInUrl.toString());
     });
 });
 (0, ipc_1.handle)('auth:cancel', () => {
-    settleAuth?.({ error: 'cancelled' });
-    closeAuthServer();
+    // The listener stays up; with no pending state it can't sign anyone in.
+    clearPendingAuth({ error: 'cancelled' });
     return true;
 });
 // IPC Handlers will be added here
@@ -391,6 +591,13 @@ let watcher = null;
     catch (e) {
         return null;
     }
+});
+// The Run button on an HTML file: show it in the default browser. Limited to
+// .html/.htm so this can never launch programs.
+(0, ipc_1.handle)('shell:openHtml', async (event, targetPath) => {
+    if (typeof targetPath !== 'string' || !/\.html?$/i.test(targetPath))
+        return 'Only .html files can be opened';
+    return electron_1.shell.openPath(targetPath);
 });
 (0, ipc_1.handle)('shell:showItemInFolder', (event, targetPath) => {
     electron_1.shell.showItemInFolder(targetPath);
@@ -580,70 +787,6 @@ const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 
     catch (e) {
         return false;
     }
-});
-// Terminal runner: executes shell commands (e.g. python3/node interpreters),
-// streaming output live to the renderer. Used by both the terminal panel and
-// the AI voice tutor's run_command tool.
-const TERM_MAX_OUTPUT = 200 * 1024;
-const TERM_DEFAULT_TIMEOUT_MS = 30000;
-const TERM_MAX_TIMEOUT_MS = 120000;
-const termProcs = new Map();
-let nextRunId = 1;
-(0, ipc_1.handle)('term:run', (event, opts) => {
-    const runId = nextRunId++;
-    const command = String(opts.command ?? '').trim();
-    if (!command)
-        return { runId, exitCode: -1, output: '', error: 'Empty command' };
-    return new Promise((resolve) => {
-        let output = '';
-        let truncated = false;
-        let timedOut = false;
-        mainWindow?.webContents.send('term:started', { runId, command, cwd: opts.cwd ?? null });
-        const child = (0, child_process_1.spawn)(command, {
-            shell: true,
-            cwd: opts.cwd || undefined,
-            env: process.env,
-        });
-        termProcs.set(runId, child);
-        const timeoutMs = Math.min(Math.max(opts.timeoutMs ?? TERM_DEFAULT_TIMEOUT_MS, 1000), TERM_MAX_TIMEOUT_MS);
-        const timer = setTimeout(() => {
-            timedOut = true;
-            child.kill('SIGKILL');
-        }, timeoutMs);
-        const onChunk = (stream) => (data) => {
-            const text = data.toString();
-            if (output.length < TERM_MAX_OUTPUT) {
-                output += text;
-            }
-            else {
-                truncated = true;
-            }
-            mainWindow?.webContents.send('term:output', { runId, chunk: text, stream });
-        };
-        child.stdout?.on('data', onChunk('stdout'));
-        child.stderr?.on('data', onChunk('stderr'));
-        child.on('error', (err) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            mainWindow?.webContents.send('term:exit', { runId, exitCode: -1, timedOut: false, error: err.message });
-            resolve({ runId, exitCode: -1, output, truncated, timedOut: false, error: err.message });
-        });
-        child.on('close', (code) => {
-            clearTimeout(timer);
-            termProcs.delete(runId);
-            const exitCode = code ?? -1;
-            mainWindow?.webContents.send('term:exit', { runId, exitCode, timedOut });
-            resolve({ runId, exitCode, output, truncated, timedOut });
-        });
-    });
-});
-(0, ipc_1.handle)('term:kill', (event, runId) => {
-    const child = termProcs.get(runId);
-    if (child) {
-        child.kill('SIGKILL');
-        return true;
-    }
-    return false;
 });
 // Git Handlers with isomorphic-git
 const git = __importStar(require("isomorphic-git"));

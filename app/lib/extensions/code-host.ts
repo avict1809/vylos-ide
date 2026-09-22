@@ -321,7 +321,7 @@ async function handleCall(extId: string, method: string, params: Record<string, 
             const cwd = params.cwd ? projectPath(params.cwd) : s.projectRoot ?? undefined;
             const timeoutMs = Math.min(Math.max(Number(params.timeoutSeconds) || 30, 1), 120) * 1000;
             log(extId, 'info', `Ran: ${command}`);
-            const result = await useTerminalStore.getState().runCommand(command, cwd, timeoutMs);
+            const result = await useTerminalStore.getState().runCommand(command, cwd, timeoutMs, { source: 'extension' });
             return { exitCode: result.exitCode, output: result.output.slice(-MAX_RESULT_CHARS), timedOut: !!result.timedOut };
         }
 

@@ -19,6 +19,8 @@ A built-in course catalog with **36 curated, Mosh-style curricula** — each one
 
 Each course is 9–14 modules with detailed lesson topics (~80–130 lessons per course). Progress is tracked per lesson with module and course progress bars, persists across restarts, and multiple courses can be in progress at once. The catalog is searchable (searching "python" also finds Django/Flask/FastAPI).
 
+**Exercises that check themselves**: lessons marked *Practice* come with a small coding task, starter code and a **Check** button. The check runs the learner's code against test cases on their own machine, calling their function or feeding their program input, and explains each failure in plain words (*`total([1, 2, 3])` returned 5, expected 6*). Hints unlock one at a time; the solution only after a few honest tries. Passing the check is what completes the lesson, for the learner and for the voice tutor alike. Python and JavaScript have the first 24 exercises, and course packs can add their own (see [docs/EXTENSIONS.md](docs/EXTENSIONS.md#exercises)).
+
 Don't see your goal? **Custom Path** lets the AI architect a personalized roadmap for anything.
 
 ### 🎙️ Voice Tutor — a teacher inside your editor
@@ -35,14 +37,26 @@ A real-time voice tutor (Gemini Live) that talks with you and works in your edit
 
 - **Hover explanations**: functions and classes get a subtle dotted underline — hover one and the AI explains in plain English what that block does, its inputs/outputs, and common mistakes. Cached, so repeat hovers are instant.
 - **Step-by-step problem solving**: write your problem as a comment (`// how do I reverse a linked list?` or `# problem: ...`) and a clickable lens appears offering graded help — **Hint 1 → Hint 2 → Algorithm idea → Pseudocode → Implementation (optional)** — one step per click, inserted as comments below your question. You learn to solve it; you don't just copy it.
-- **AI chat**: a chat panel for questions about your learning path and code.
+- **Learn in writing, too**: every lesson has short written notes, and **Learn by chatting** runs the same teach → practise → quiz lesson as the voice tutor, in the Vylos AI chat. It uses the same tools (it can open files, run code and check exercises) and the same rules, so a lesson can't be marked complete without a passed exercise. For learners who can't talk out loud, or have used up the day's voice sessions.
+- **Explain this error**: when a program fails, one click explains the error in plain words, shows where it happened, and gives hints before the fix.
+- **Setup check**: each course checks that the tools it needs (Python, Node.js, a JDK, …) are installed, and shows install steps for the learner's operating system when they aren't.
+
+### 🖥️ Your own models, if you want them
+
+Settings → **AI Models** points Vylos at any server that speaks the OpenAI chat API — Ollama, LM Studio, llama.cpp, or one on another machine on your network. Two models are chosen separately, because they are asked for very different things:
+
+- **Teaching model** — runs the lessons, which is an agent loop over 15 tools (reading the editor, writing code, running it, checking exercises). It only works on a model that can call tools: **Qwen** and **Devstral** can, **Gemma** cannot, and anything under about 7B tends to return nothing on a teaching prompt. Picking a model tests it on the spot and says which kind it is.
+- **Quick answers** — hover explanations, lesson notes, hints and error help. No tools, so any model will do.
+
+`Auto` uses your models where they fit and Vylos AI for the rest; a teaching model that failed the tool test is never handed a lesson. Local requests skip the Edge Functions entirely — no daily limit, no account check, and the text tutor keeps working offline. **The voice tutor always uses Vylos AI**: it is a realtime audio session with Gemini Live and has no local equivalent.
 
 ### 🛠️ A real IDE
 
 - **Monaco editor** (the engine behind VS Code) with the Vylos dark theme, multiple tabs, autosave, and format-on-demand
 - **File explorer** like VS Code: file-type icons, folders first, a right-click menu (new file/folder, rename, cut/copy/paste, copy path, reveal in file manager, open in terminal, delete to Trash), drag and drop to move, and quick open (**Ctrl+P**)
 - **Picks up where you left off**: reopens your last folder and tabs, with recently opened files and folders under **File → Open Recent**
-- **Integrated terminal** — run your code without leaving the app
+- **Run button (F5)** — runs the open file with the usual command for its language (`python3 main.py`, `node app.js`, `gcc … && ./main`, `java Main.java`…), so learners see the real command; HTML files open in the browser
+- **Interactive terminal** — a real terminal (node-pty + xterm.js): programs that ask for input (`input()`, `Scanner`, `cin`) work, as do REPLs, colors and Ctrl+C. Terminal tabs for your own shell, your runs, and code the voice tutor runs
 - **Workspace search** and a **Git view**
 - **Settings**: font size, minimap, line numbers, word wrap, autosave
 - Custom title bar, status bar, and a keyboard-first workflow
@@ -77,11 +91,15 @@ NEXT_PUBLIC_SUPABASE_URL=...         # auth + AI backend
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # auth + AI backend
 ```
 
-In the Supabase dashboard, add `http://localhost:51735/` to **Auth → URL Configuration → Redirect URLs** (the desktop app's browser sign-in flow uses it).
+Sign-in happens on the website: the app opens `https://vylos.co/auth/desktop` (from vylos-web, which must use the same Supabase project). The finished session comes back through the `vylos://auth/callback` deep link, so the browser stays on vylos.co and shows its own "you're signed in" page. Where the OS hasn't registered the scheme — Linux without a desktop entry, and unpackaged development — the app falls back to its loopback listener on `127.0.0.1:51735`, whose page posts the session over and then returns the browser to the site. In the Supabase dashboard, add `https://vylos.co/auth/desktop` to **Auth → URL Configuration → Redirect URLs**. The site address lives in `electron/site.ts`; set `VYLOS_WEB_URL=http://localhost:3000` to test against a local copy of the site.
 
 ### AI backend (Supabase Edge Functions)
 
 The Gemini API key never ships in the app. Signed-in users reach Gemini through two Edge Functions in `supabase/functions/`: `ai-generate` for text features and `ai-live-token`, which hands the voice tutor a single-use token. Each user gets a daily request limit, tracked in the `ai_usage` table.
+
+Local models bypass all of this (see *Your own models*): those requests go straight from the desktop app to the learner's own server, so they cost nothing and count against nothing. Only the voice tutor always goes through `ai-live-token`.
+
+The text tutor (Vylos AI chat) sends whole conversations with tool calls to `ai-generate`. **Deploy the updated function before releasing an app version with the text tutor**: an older `ai-generate` only takes single prompts, and the chat will say the server needs an update.
 
 ```bash
 npx supabase login
@@ -95,7 +113,7 @@ Optional secrets (set the same way; no redeploy needed):
 
 | Secret | Default | Meaning |
 |---|---|---|
-| `AI_DAILY_TEXT_LIMIT` | `200` | Text requests per user per day (UTC) |
+| `AI_DAILY_TEXT_LIMIT` | `200` | Text requests per user per day (UTC). Each step of a text-tutor reply counts, and one reply that uses tools can take several |
 | `AI_DAILY_VOICE_LIMIT` | `20` | Voice sessions per user per day (UTC) |
 | `AI_MAX_OUTPUT_TOKENS` | `8192` | Cap per text answer, thinking included |
 | `AI_TEXT_MODEL` | `gemini-3.6-flash` | Gemini model for text features |
@@ -180,7 +198,6 @@ app/
 electron/
   main.ts                desktop shell: fs, terminal, window, auth server
   preload.ts             IPC bridge (window.electron)
-  auth-page.html         browser sign-in page
 ```
 
 ## Tech stack

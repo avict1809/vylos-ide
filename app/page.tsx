@@ -91,14 +91,7 @@ export default function Home() {
                 <>
                   <Separator className="h-[1px] bg-[var(--vylos-black)] hover:bg-[var(--vylos-green)] transition-all duration-200" />
                   <Panel defaultSize={30} minSize={100} className="bg-[#09090b]">
-                    <div className="h-full flex flex-col">
-                      <div className="h-7 border-b border-[#27272a] flex items-center px-4 bg-[#09090b]">
-                        <span className="text-[10px] uppercase tracking-widest text-[#10b981] font-bold">Terminal</span>
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <Terminal />
-                      </div>
-                    </div>
+                    <Terminal />
                   </Panel>
                 </>
               )}

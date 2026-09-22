@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useTerminalStore } from './stores/terminal-store';
 
 const MAX_RECENT_FILES = 20;
 const MAX_RECENT_FOLDERS = 10;
@@ -12,15 +13,27 @@ interface FileNode {
     isExpanded?: boolean;
 }
 
-interface FileTab extends FileNode {
+export interface FileTab extends FileNode {
     content: string;
     originalContent: string;
     isDirty: boolean;
+    // The editor group showing this tab, as a cell in the grid of groups:
+    // `column` counts from the left, `row` from the top of that column. Both are
+    // packed to 0..n-1 after every change, so a group closes with its last tab.
+    column: number;
+    row: number;
+    // Bumped whenever the tab is focused. The highest in a group is the tab that
+    // group shows — per-group selection without a second index to keep in sync.
+    activatedAt: number;
 }
 
 // Open editors as saved between launches (paths only; content is re-read from disk)
 interface WorkspaceSession {
-    files: string[];
+    // Editor groups, each with its place in the grid and the tab it was showing.
+    // A group without a column/row is one written before groups could stack.
+    groups?: { column?: number; row?: number; files: string[]; activePath: string | null }[];
+    // Written before editor groups existed: one group's worth of paths
+    files?: string[];
     activePath: string | null;
 }
 
@@ -39,8 +52,120 @@ const retarget = (path: string, from: string, to: string) =>
 const pushRecent = (list: string[], path: string, max: number) =>
     [path, ...list.filter(p => p !== path)].slice(0, max);
 
+/** How many editor groups can be open at once, counting every cell of the grid. */
+export const MAX_EDITOR_GROUPS = 4;
+
+/**
+ * One editor group's place in the layout: groups sit in columns across the
+ * editor area, and stack in rows inside their column. A half-step number asks
+ * for a new column or row in that position — `packGroups` turns it into a real
+ * one, so `{ column: 0.5, row: 0 }` means "a new column between 0 and 1".
+ */
+export interface EditorCell {
+    column: number;
+    row: number;
+}
+
+export const sameCell = (a: EditorCell, b: EditorCell) => a.column === b.column && a.row === b.row;
+const cellOf = (tab: FileTab): EditorCell => ({ column: tab.column, row: tab.row });
+const inCell = (tab: FileTab, cell: EditorCell) => tab.column === cell.column && tab.row === cell.row;
+
+// Focus order for tabs. Only the relative values matter, so it isn't persisted.
+let activationSeq = 0;
+const nextActivation = () => ++activationSeq;
+
+/** The columns of groups, left to right. */
+export const editorColumns = (files: FileTab[]): number[] =>
+    [...new Set(files.map(f => f.column))].sort((a, b) => a - b);
+
+/** The rows of groups stacked in one column, top to bottom. */
+export const editorRows = (files: FileTab[], column: number): number[] =>
+    [...new Set(files.filter(f => f.column === column).map(f => f.row))].sort((a, b) => a - b);
+
+/** Every open group, in reading order. */
+export const editorCells = (files: FileTab[]): EditorCell[] =>
+    editorColumns(files).flatMap(column => editorRows(files, column).map(row => ({ column, row })));
+
+/** The tab a group shows: whichever of its tabs was focused last. */
+export const visibleTab = (files: FileTab[], cell: EditorCell): FileTab | null =>
+    files.reduce<FileTab | null>(
+        (best, f) => (inCell(f, cell) && (!best || f.activatedAt > best.activatedAt) ? f : best), null);
+
+/** Where a file opens when no group is named: the group holding the focused tab. */
+const focusedCell = (files: FileTab[], activeFileIndex: number | null): EditorCell => {
+    const tab = activeFileIndex !== null ? files[activeFileIndex] : undefined;
+    return tab ? cellOf(tab) : { column: 0, row: 0 };
+};
+
+/**
+ * Renumbers columns and rows to 0..n-1: emptied groups disappear, and the
+ * half-step numbers that ask for a new column or row become real ones.
+ */
+const packGroups = (files: FileTab[]): FileTab[] => {
+    const columns = editorColumns(files);
+    return files.map(f => {
+        const column = columns.indexOf(f.column);
+        const row = editorRows(files, f.column).indexOf(f.row);
+        return column === f.column && row === f.row ? f : { ...f, column, row };
+    });
+};
+
+/** Holds a drop target inside the group limit; past it, the nearest group takes the tab. */
+const withinGroupLimit = (files: FileTab[], cell: EditorCell): EditorCell => {
+    const cells = editorCells(files);
+    if (cells.some(c => sameCell(c, cell)) || cells.length < MAX_EDITOR_GROUPS) return cell;
+
+    const distance = (c: EditorCell) => Math.abs(c.column - cell.column) + Math.abs(c.row - cell.row);
+    return cells.reduce((best, c) => (distance(c) < distance(best) ? c : best), cells[0]);
+};
+
+/** Puts `path` in `cell`, before `beforePath` or else last in that group. */
+const placeTab = (files: FileTab[], path: string, cell: EditorCell, beforePath?: string): FileTab[] => {
+    const moving = files.find(f => f.path === path);
+    if (!moving) return files;
+
+    const rest = files.filter(f => f.path !== path);
+    const placed: FileTab = { ...moving, ...cell, activatedAt: nextActivation() };
+    const before = beforePath ? rest.findIndex(f => f.path === beforePath) : -1;
+    if (before !== -1) return [...rest.slice(0, before), placed, ...rest.slice(before)];
+
+    // Tab order within a group follows this array, so append after the group's last tab
+    let last = -1;
+    rest.forEach((f, i) => { if (inCell(f, cell)) last = i; });
+    return last === -1 ? [...rest, placed] : [...rest.slice(0, last + 1), placed, ...rest.slice(last + 1)];
+};
+
+/** State after a tab closes: focus stays in its group, and an emptied group closes. */
+const closedTabState = (files: FileTab[], activeFileIndex: number | null, path: string): Partial<FileStore> => {
+    const index = files.findIndex(f => f.path === path);
+    if (index === -1) return {};
+
+    const closing = files[index];
+    const activePath = activeFileIndex !== null ? files[activeFileIndex]?.path : null;
+    const remaining = packGroups(files.filter(f => f.path !== path));
+    if (remaining.length === 0) return { openFiles: remaining, activeFileIndex: null, fileToClose: null };
+
+    // Focus moves only when the closing tab had it: to its neighbour in the same
+    // group, or to the nearest tab anywhere when the group closes with it
+    const keep = (activePath && activePath !== path
+        ? files[activeFileIndex!]
+        : files.slice(0, index).filter(f => inCell(f, cellOf(closing))).pop()
+        ?? files.slice(index + 1).find(f => inCell(f, cellOf(closing)))
+        ?? files[index - 1] ?? files[index + 1])?.path;
+
+    const openFiles = remaining.map(f => (f.path === keep ? { ...f, activatedAt: nextActivation() } : f));
+    const active = openFiles.findIndex(f => f.path === keep);
+    return { openFiles, activeFileIndex: active === -1 ? 0 : active, fileToClose: null };
+};
+
 const snapshotSession = ({ openFiles, activeFileIndex }: Pick<FileStore, 'openFiles' | 'activeFileIndex'>): WorkspaceSession => ({
-    files: openFiles.filter(f => !isUntitled(f.path)).map(f => f.path),
+    groups: editorCells(openFiles)
+        .map(cell => {
+            const files = openFiles.filter(f => inCell(f, cell) && !isUntitled(f.path)).map(f => f.path);
+            const visible = visibleTab(openFiles, cell)?.path;
+            return { ...cell, files, activePath: visible && files.includes(visible) ? visible : files.at(-1) ?? null };
+        })
+        .filter(g => g.files.length > 0),
     activePath: activeFileIndex !== null ? openFiles[activeFileIndex]?.path ?? null : null,
 });
 
@@ -82,8 +207,6 @@ interface FileStore {
     sessionRestored: boolean;
     // Explorer cut/copy (a file or folder waiting to be pasted)
     explorerClipboard: { path: string; cut: boolean } | null;
-    // Folder the terminal runs commands in (null = project root)
-    terminalCwd: string | null;
 
     // Actions
     restoreSession: () => Promise<void>;
@@ -104,16 +227,24 @@ interface FileStore {
     createFolder: (dirPath: string, folderName: string) => Promise<boolean>;
     deletePath: (path: string, permanent?: boolean) => Promise<boolean>;
     renamePath: (oldPath: string, newPath: string) => Promise<boolean>;
-    openFile: (file: FileNode, content: string, searchMetadata?: { query: string; line?: number }) => void;
-    openFileByPath: (path: string) => Promise<void>;
+    openFile: (file: FileNode, content: string, searchMetadata?: { query: string; line?: number }, cell?: EditorCell) => void;
+    openFileByPath: (path: string, cell?: EditorCell) => Promise<void>;
     openExternalFile: () => Promise<void>;
     openFolder: () => Promise<void>;
     createNewFile: () => void;
     closeFile: (path: string) => void;
+    /** Closes a tab whose edits the learner chose not to keep (the save prompt). */
+    discardAndCloseFile: (path: string) => void;
     setFileToClose: (file: FileTab | null) => void;
     setActiveIndex: (index: number | null) => void;
+    /** Drops a tab into another editor group, before `beforePath` or last in it. */
+    moveTabToGroup: (path: string, cell: EditorCell, beforePath?: string) => void;
+    /** Moves the focused tab into a new group beside ('right') or under ('down') its own. */
+    moveEditorToNewGroup: (direction?: 'right' | 'down') => void;
     updateActiveContent: (content: string) => void;
+    updateFileContent: (path: string, content: string) => void;
     saveActiveFile: () => Promise<void>;
+    saveFile: (path: string) => Promise<void>;
     saveActiveFileAs: () => Promise<void>;
     setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor') => void;
     toggleTerminal: () => void;
@@ -144,7 +275,6 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     session: null,
     sessionRestored: false,
     explorerClipboard: null,
-    terminalCwd: null,
 
     setExplorerClipboard: (clipboard) => set({ explorerClipboard: clipboard }),
 
@@ -179,37 +309,60 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
 
     collapseAll: () => set({ expandedPaths: new Set<string>() }),
 
-    openTerminalAt: (dir) => set({ terminalCwd: dir, showTerminal: true }),
+    openTerminalAt: (dir) => {
+        set({ showTerminal: true });
+        void useTerminalStore.getState().newShell(dir);
+    },
 
     restoreSession: () => {
         const electron = (window as any).electron;
         if (get().sessionRestored || !electron) return Promise.resolve();
 
         restoringSession ??= (async () => {
-            const paths = get().session?.files ?? [];
+            // Sessions saved before editor groups existed hold one flat list of paths
+            const saved = get().session;
+            const groups = saved?.groups ?? (saved?.files ? [{ files: saved.files, activePath: saved.activePath }] : []);
+            const paths = groups.flatMap(g => g.files);
             const contents: (string | null)[] = await Promise.all(paths.map(p => electron.fs.read(p)));
+            const readByPath = new Map(paths.map((path, i) => [path, contents[i]] as const));
 
             // Files deleted or moved since the last launch are skipped (and dropped from recents)
             const restored: FileTab[] = [];
             const missing = new Set<string>();
-            paths.forEach((path, i) => {
-                const content = contents[i];
-                if (content == null) {
-                    missing.add(path);
-                    return;
+            groups.forEach((g, i) => {
+                // Groups saved before they could stack sat in a single row
+                const cell = { column: g.column ?? i, row: g.row ?? 0 };
+                for (const path of g.files) {
+                    const content = readByPath.get(path);
+                    if (content == null) {
+                        missing.add(path);
+                        continue;
+                    }
+                    restored.push({
+                        name: baseName(path), path, isDirectory: false,
+                        content, originalContent: content, isDirty: false,
+                        ...cell, activatedAt: nextActivation(),
+                    });
                 }
-                restored.push({ name: baseName(path), path, isDirectory: false, content, originalContent: content, isDirty: false });
             });
 
+            // Each group opens on the tab it was showing
+            for (const g of groups) {
+                const tab = restored.find(f => f.path === g.activePath);
+                if (tab) tab.activatedAt = nextActivation();
+            }
+
             // Keep anything the user opened while the session was being read
-            const { openFiles, activeFileIndex, session, recentFiles } = get();
-            const merged = [...restored, ...openFiles.filter(f => !restored.some(r => r.path === f.path))];
-            const activePath = activeFileIndex !== null ? openFiles[activeFileIndex]?.path : session?.activePath;
-            const index = merged.findIndex(f => f.path === activePath);
+            const { openFiles, activeFileIndex, recentFiles } = get();
+            const merged = packGroups([...restored, ...openFiles.filter(f => !restored.some(r => r.path === f.path))]);
+            const activePath = activeFileIndex !== null ? openFiles[activeFileIndex]?.path : saved?.activePath;
+            const found = merged.findIndex(f => f.path === activePath);
+            const index = found !== -1 ? found : merged.length > 0 ? 0 : null;
+            if (index !== null) merged[index] = { ...merged[index], activatedAt: nextActivation() };
 
             set({
                 openFiles: merged,
-                activeFileIndex: index !== -1 ? index : merged.length > 0 ? 0 : null,
+                activeFileIndex: index,
                 recentFiles: recentFiles.filter(p => !missing.has(p)),
                 sessionRestored: true,
             });
@@ -220,7 +373,6 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     openFolderPath: (dirPath) => {
         set(state => ({
             projectRoot: dirPath,
-            terminalCwd: null,
             activeView: 'explorer',
             recentFolders: pushRecent(state.recentFolders, dirPath, MAX_RECENT_FOLDERS),
         }));
@@ -320,7 +472,7 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
             // Close editors for what was deleted; unsaved ones stay open so the edits aren't lost
             const { openFiles, activeFileIndex } = get();
             const activePath = activeFileIndex !== null ? openFiles[activeFileIndex]?.path : null;
-            const remaining = openFiles.filter(f => f.isDirty || !isInside(f.path, targetPath));
+            const remaining = packGroups(openFiles.filter(f => f.isDirty || !isInside(f.path, targetPath)));
             const index = remaining.findIndex(f => f.path === activePath);
             set(state => ({
                 openFiles: remaining,
@@ -345,13 +497,22 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
         return success;
     },
 
-    openFile: (file, content, searchMetadata) => {
-        const { openFiles, recentFiles } = get();
+    // `cell` is the editor group to open in (a drop target); it defaults to the
+    // group in use, and a half-step column or row asks for a new group there.
+    openFile: (file, content, searchMetadata, cell) => {
+        const { openFiles, activeFileIndex, recentFiles } = get();
         const existingIndex = openFiles.findIndex(f => f.path === file.path);
         const newRecent = isUntitled(file.path) ? recentFiles : pushRecent(recentFiles, file.path, MAX_RECENT_FILES);
 
+        // Already open: focus it where it is, or move it when another group asked for it
         if (existingIndex !== -1) {
-            set({ activeFileIndex: existingIndex, recentFiles: newRecent });
+            const tab = openFiles[existingIndex];
+            const target = cell !== undefined ? withinGroupLimit(openFiles, cell) : cellOf(tab);
+            const files = !sameCell(target, cellOf(tab))
+                ? packGroups(placeTab(openFiles, tab.path, target))
+                : openFiles.map((f, i) => (i === existingIndex ? { ...f, activatedAt: nextActivation() } : f));
+
+            set({ openFiles: files, activeFileIndex: files.findIndex(f => f.path === file.path), recentFiles: newRecent });
             return;
         }
 
@@ -359,12 +520,15 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
             ...file,
             content,
             originalContent: content,
-            isDirty: false
+            isDirty: false,
+            ...withinGroupLimit(openFiles, cell ?? focusedCell(openFiles, activeFileIndex)),
+            activatedAt: nextActivation(),
         };
+        const files = packGroups([...openFiles, newTab]);
 
         set({
-            openFiles: [...openFiles, newTab],
-            activeFileIndex: openFiles.length,
+            openFiles: files,
+            activeFileIndex: files.findIndex(f => f.path === file.path),
             searchMetadata: searchMetadata || null,
             recentFiles: newRecent
         });
@@ -390,7 +554,7 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     },
 
     createNewFile: () => {
-        const { openFiles } = get();
+        const { openFiles, activeFileIndex } = get();
         const untitledPaths = openFiles.filter(f => f.path.startsWith('untitled-')).map(f => f.path);
         let nextNum = 1;
         while (untitledPaths.includes(`untitled-${nextNum}`)) nextNum++;
@@ -402,7 +566,9 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
             isDirectory: false,
             content: '',
             originalContent: '',
-            isDirty: true
+            isDirty: true,
+            ...focusedCell(openFiles, activeFileIndex),
+            activatedAt: nextActivation(),
         };
 
         set({
@@ -413,69 +579,96 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
 
     closeFile: (path) => {
         const { openFiles, activeFileIndex } = get();
-        const index = openFiles.findIndex(f => f.path === path);
-        if (index === -1) return;
+        const file = openFiles.find(f => f.path === path);
+        if (!file) return;
 
-        const file = openFiles[index];
         if (file.isDirty) {
             set({ fileToClose: file });
             return;
         }
+        set(closedTabState(openFiles, activeFileIndex, path));
+    },
 
-        const newFiles = openFiles.filter(f => f.path !== path);
-        let newIndex = activeFileIndex;
-
-        if (newFiles.length === 0) {
-            newIndex = null;
-        } else if (activeFileIndex === index) {
-            newIndex = Math.max(0, index - 1);
-        } else if (activeFileIndex !== null && activeFileIndex > index) {
-            newIndex = activeFileIndex - 1;
-        }
-
-        set({ openFiles: newFiles, activeFileIndex: newIndex });
+    discardAndCloseFile: (path) => {
+        const { openFiles, activeFileIndex } = get();
+        set(closedTabState(openFiles, activeFileIndex, path));
     },
 
     setFileToClose: (file) => set({ fileToClose: file }),
 
-    setActiveIndex: (index) => set({ activeFileIndex: index }),
+    setActiveIndex: (index) => {
+        if (index === null) {
+            set({ activeFileIndex: null });
+            return;
+        }
+        set(state => ({
+            activeFileIndex: index,
+            openFiles: state.openFiles.map((f, i) => (i === index ? { ...f, activatedAt: nextActivation() } : f)),
+        }));
+    },
+
+    moveTabToGroup: (path, cell, beforePath) => {
+        const { openFiles } = get();
+        const tab = openFiles.find(f => f.path === path);
+        if (!tab) return;
+
+        const target = withinGroupLimit(openFiles, cell);
+        // Dropped back where it came from: just focus it
+        if (sameCell(target, cellOf(tab)) && !beforePath) {
+            get().setActiveIndex(openFiles.indexOf(tab));
+            return;
+        }
+
+        const files = packGroups(placeTab(openFiles, path, target, beforePath));
+        set({ openFiles: files, activeFileIndex: files.findIndex(f => f.path === path) });
+    },
+
+    moveEditorToNewGroup: (direction = 'right') => {
+        const { openFiles, activeFileIndex } = get();
+        if (activeFileIndex === null) return;
+
+        const tab = openFiles[activeFileIndex];
+        // A group with one tab would only swap places with the new one
+        if (openFiles.filter(f => inCell(f, cellOf(tab))).length < 2) return;
+        get().moveTabToGroup(tab.path, direction === 'down'
+            ? { column: tab.column, row: tab.row + 0.5 }
+            : { column: tab.column + 0.5, row: 0 });
+    },
 
     updateActiveContent: (content) => {
         const { openFiles, activeFileIndex } = get();
         if (activeFileIndex === null) return;
-
-        const newFiles = [...openFiles];
-        const tab = newFiles[activeFileIndex];
-        tab.content = content;
-        tab.isDirty = content !== tab.originalContent;
-
-        set({ openFiles: newFiles });
+        get().updateFileContent(openFiles[activeFileIndex].path, content);
     },
+
+    // Edits go to the tab that made them, which need not be the focused one
+    updateFileContent: (path, content) => set(state => ({
+        openFiles: state.openFiles.map(f =>
+            f.path === path ? { ...f, content, isDirty: content !== f.originalContent } : f),
+    })),
 
     saveActiveFile: async () => {
         const { openFiles, activeFileIndex } = get();
-        const electron = (window as any).electron;
-        if (activeFileIndex === null || !electron) return;
+        if (activeFileIndex === null) return;
 
         const tab = openFiles[activeFileIndex];
+        // A virtual untitled file needs somewhere to go first
+        return isUntitled(tab.path) ? get().saveActiveFileAs() : get().saveFile(tab.path);
+    },
 
-        // If it's a virtual untitled file, use "Save As" logic
-        if (tab.path.startsWith('untitled-')) {
-            return get().saveActiveFileAs();
-        }
+    saveFile: async (path) => {
+        const electron = (window as any).electron;
+        const tab = get().openFiles.find(f => f.path === path);
+        // Untitled files are only saved through the Save As dialog
+        if (!electron || !tab || !tab.isDirty || isUntitled(tab.path)) return;
 
-        if (!tab.isDirty) return;
-
-        const success = await electron.fs.write(tab.path, tab.content);
-        if (success) {
-            const newFiles = [...openFiles];
-            newFiles[activeFileIndex] = {
-                ...tab,
-                originalContent: tab.content,
-                isDirty: false
-            };
-            set({ openFiles: newFiles });
-        }
+        const written = tab.content;
+        if (!await electron.fs.write(tab.path, written)) return;
+        set(state => ({
+            openFiles: state.openFiles.map(f =>
+                // Anything typed while the write was in flight keeps the tab dirty
+                f.path === path ? { ...f, originalContent: written, isDirty: f.content !== written } : f),
+        }));
     },
 
     saveActiveFileAs: async () => {
@@ -507,11 +700,11 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
 
     setShowQuickOpen: (show) => set({ showQuickOpen: show }),
 
-    openFileByPath: async (filePath) => {
+    openFileByPath: async (filePath, cell) => {
         const { openFiles, openFile } = get();
-        const existingIndex = openFiles.findIndex(f => f.path === filePath);
-        if (existingIndex !== -1) {
-            set({ activeFileIndex: existingIndex });
+        const open = openFiles.find(f => f.path === filePath);
+        if (open) {
+            openFile(open, open.content, undefined, cell);
             return;
         }
 
@@ -521,7 +714,7 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
             set(state => ({ recentFiles: state.recentFiles.filter(p => p !== filePath) }));
             return;
         }
-        openFile({ name: baseName(filePath), path: filePath, isDirectory: false }, content);
+        openFile({ name: baseName(filePath), path: filePath, isDirectory: false }, content, undefined, cell);
     },
 
     setShowAbout: (show) => set({ showAbout: show }),

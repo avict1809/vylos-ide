@@ -9,6 +9,7 @@ export const deepLearning: CourseDefinition = {
     hours: 40,
     accent: '#EE4C2C',
     badge: 'DL',
+    requires: ['python'],
     category: 'ai',
     stack: 'Python',
     tutorGuidelines: [

@@ -1,12 +1,12 @@
 'use client';
 
 import React from 'react';
-import { User, ShieldCheck, CreditCard, LogOut, ExternalLink, Zap, CheckCircle2 } from 'lucide-react';
+import { User, ShieldCheck, CreditCard, LogOut, ExternalLink, Zap, CheckCircle2, WifiOff } from 'lucide-react';
 import { useAuthStore } from '@/app/lib/stores/auth-store';
 import { cn } from '@/app/lib/utils';
 
 export default function AccountView() {
-    const { user, logout } = useAuthStore();
+    const { user, logout, isOfflineSession } = useAuthStore();
 
     if (!user) return null;
 
@@ -46,6 +46,13 @@ export default function AccountView() {
                         <ShieldCheck size={12} className="text-[var(--vylos-green)]" />
                         <span className="text-[10px] font-bold text-[var(--vylos-green)] uppercase tracking-wider">{user.subscription} Edition</span>
                     </div>
+
+                    {isOfflineSession && (
+                        <p className="mt-3 text-[10px] text-gray-500 flex items-center gap-1.5">
+                            <WifiOff size={11} className="text-yellow-500" />
+                            Offline — signed in from your saved session
+                        </p>
+                    )}
                 </div>
 
                 {/* Subscription Details */}

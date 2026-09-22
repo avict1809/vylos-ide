@@ -1,6 +1,6 @@
 {
   "name": "vylos",
-  "version": "0.2.0",
+  "version": "0.4.2",
   "private": true,
   "description": "Vylos AI - An intelligent learning IDE for programming education",
   "author": "Vylos Team",
@@ -13,7 +13,8 @@
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && npm run build:electron && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && npm run build:electron && electron-builder",
-    "release": "npm run build && npm run build:electron && electron-builder --publish always"
+    "release": "npm run build && npm run build:electron && electron-builder --publish always",
+    "catalog:sql": "jiti scripts/learning-catalog.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",
@@ -21,7 +22,8 @@
     "electron-serve": "^3.0.0",
     "electron-updater": "^6.8.9",
     "fs-extra": "^11.3.3",
-    "isomorphic-git": "^1.36.1"
+    "isomorphic-git": "^1.36.1",
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -32,6 +34,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/xterm": "^6.0.0",
     "clsx": "^2.1.1",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
@@ -54,12 +59,20 @@
   "build": {
     "productName": "Vylos AI",
     "appId": "ai.vylos.app",
+    "protocols": [
+      {
+        "name": "Vylos",
+        "role": "Viewer",
+        "schemes": [
+          "vylos"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },
     "files": [
       "electron/dist/**/*",
-      "electron/auth-page.html",
       "out/**/*",
       "package.json"
     ],
@@ -69,6 +82,9 @@
         "to": "icon.png"
       }
     ],
+    "asarUnpack": [
+      "node_modules/node-pty/**"
+    ],
     "npmRebuild": false,
     "buildDependenciesFromSource": false,
     "win": {
@@ -76,7 +92,17 @@
       "icon": "build/icons/win/icon.ico"
     },
     "mac": {
-      "icon": "build/icons/mac/icon.icns"
+      "icon": "build/icons/mac/icon.icns",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "Vylos-AI-${version}-${arch}.${ext}"
     },
     "linux": {
       "icon": "build/icons/icon.png",
@@ -96,7 +122,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "differentialPackage": false
+      "differentialPackage": false,
+      "artifactName": "Vylos-AI-Setup-${version}-${arch}.${ext}"
     },
     "publish": {
       "provider": "github",

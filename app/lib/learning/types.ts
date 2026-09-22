@@ -2,6 +2,47 @@ export interface Lesson {
     /** Unique within its course. Progress is stored by this id, never by position. */
     id: string;
     title: string;
+    /** Hands-on practice graded by a built-in checker; passing it completes the lesson. */
+    exercise?: Exercise;
+}
+
+/**
+ * Checks the program's output. Each case runs the main file with `input` as
+ * what the learner would type, and compares what it prints with `expected`.
+ */
+export interface OutputCheck {
+    type: 'output';
+    cases: {
+        name?: string;
+        /** Typed into the program (input(), Scanner, cin); lines separated by \n */
+        input?: string;
+        expected: string;
+        /** exact (default): the whole output, ignoring trailing spaces; contains; regex */
+        match?: 'exact' | 'contains' | 'regex';
+    }[];
+}
+
+/** Calls a function in the main file (Python or JavaScript) and compares what it returns. */
+export interface FunctionCheck {
+    type: 'function';
+    function: string;
+    cases: { name?: string; args: unknown[]; expected: unknown }[];
+}
+
+export type ExerciseCheck = OutputCheck | FunctionCheck;
+
+export interface Exercise {
+    /** What to build, in a few sentences. `code` in backticks is shown as code. */
+    prompt: string;
+    /** Starter files by name. The first is the main file: it opens in the editor and it's what gets checked. */
+    files: Record<string, string>;
+    check: ExerciseCheck;
+    /** From a gentle nudge to nearly the answer, one revealed at a time */
+    hints?: string[];
+    /** The main file, solved. Shown only after `solutionAfter` failed checks and an explicit request. */
+    solution?: string;
+    /** Failed checks before the solution can be shown. Default 3. */
+    solutionAfter?: number;
 }
 
 export interface CourseModule {
@@ -10,7 +51,7 @@ export interface CourseModule {
     lessons: Lesson[];
 }
 
-export type CourseCategory = 'language' | 'framework' | 'ai' | 'security' | 'essentials';
+export type CourseCategory = 'language' | 'framework' | 'ai' | 'vibe' | 'security' | 'essentials';
 
 export interface Course {
     id: string;
@@ -29,18 +70,36 @@ export interface Course {
      * facts it must not guess, safety and ethics boundaries.
      */
     tutorGuidelines?: string[];
+    /**
+     * Tools the learner needs installed (ids from app/lib/setup/tools.ts, e.g.
+     * 'python', 'java'). The course page checks for them and explains how to
+     * install what's missing.
+     */
+    requires?: string[];
     /** Set for courses from an installed extension; built-in courses have none. */
     extension?: { id: string; displayName: string; publisher: string };
+    /** Kept out of the catalog (the learner's generated practice lives in one). */
+    hidden?: boolean;
+    /** The project that ends the course. Courses without one get a general capstone (see progress-ids.ts). */
+    capstone?: Capstone;
     modules: CourseModule[];
+}
+
+/** A course's final project: built by the learner, reviewed by Acyrx, required for the certificate. */
+export interface Capstone {
+    title: string;
+    description: string;
+    requirements: string[];
 }
 
 /**
  * A lesson as written in a curriculum. A bare title gets the title's slug as
  * its id, so lessons can be added, removed or reordered without touching
  * anyone's progress. To reword a title and keep its progress, write
- * `{ id: '<the old slug>', title: 'New title' }`.
+ * `{ id: '<the old slug>', title: 'New title' }`. Turning a title into
+ * `{ title, exercise }` keeps its id, so adding an exercise keeps progress too.
  */
-export type LessonDefinition = string | { id: string; title: string };
+export type LessonDefinition = string | { id?: string; title: string; exercise?: Exercise };
 
 export interface CourseModuleDefinition extends Omit<CourseModule, 'lessons'> {
     lessons: LessonDefinition[];

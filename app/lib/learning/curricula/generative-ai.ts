@@ -9,6 +9,7 @@ export const generativeAi: CourseDefinition = {
     hours: 25,
     accent: '#10A37F',
     badge: 'GEN',
+    requires: ['python'],
     category: 'ai',
     stack: 'Python',
     tutorGuidelines: [

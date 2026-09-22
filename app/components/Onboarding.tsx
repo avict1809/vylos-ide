@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Sparkles, GraduationCap, ArrowRight, Layout, Zap, Globe, AlertTriangle, ExternalLink, X, UserPlus } from 'lucide-react';
 import { useAuthStore, isSupabaseConfigured } from '@/app/lib/stores/auth-store';
 import { cn } from '@/app/lib/utils';
+import { VYLOS_WEB_URL } from '@/electron/site';
 
 export default function Onboarding() {
     const [step, setStep] = useState(1);
@@ -178,7 +179,10 @@ function AuthStep() {
             </div>
 
             <p className="mt-6 text-[10px] text-center text-gray-600">
-                By continuing, you agree to our Terms of Service.
+                By continuing, you agree to our{' '}
+                <a href={`${VYLOS_WEB_URL}/terms`} target="_blank" rel="noreferrer" className="underline hover:text-gray-400">Terms of Service</a>
+                {' '}and{' '}
+                <a href={`${VYLOS_WEB_URL}/privacy`} target="_blank" rel="noreferrer" className="underline hover:text-gray-400">Privacy Policy</a>.
             </p>
         </div>
     );
