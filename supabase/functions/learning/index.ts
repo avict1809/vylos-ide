@@ -283,7 +283,7 @@ async function getQuiz(req: Request, userId: string, body: Json): Promise<Respon
     const denied = await guard(req, 'text', DAILY_LIMIT);
     if (denied) return denied;
 
-    const { data: lessons } = await admin.from('lessons').select('title').eq('skill_id', skillId).order('position');
+    const { data: lessons } = await admin.from('course_lessons').select('title').eq('skill_id', skillId).order('position');
     const generated = await geminiJson<{ questions: { question: string; options: string[]; correct: number }[] }>(
         `You write a ${QUIZ_QUESTIONS}-question multiple-choice quiz for one module of a Vylos course. Test understanding, ` +
             'not trivia: what code prints, why something works, which fix is right, when to use what. Each question has ' +
@@ -380,7 +380,7 @@ async function startAssessment(req: Request, userId: string, body: Json): Promis
     const picked = skills.length <= MAX_ASSESSMENT_QUESTIONS
         ? skills
         : Array.from({ length: MAX_ASSESSMENT_QUESTIONS }, (_, i) => skills[Math.floor((i * skills.length) / MAX_ASSESSMENT_QUESTIONS)]);
-    const { data: lessons } = await admin.from('lessons').select('skill_id, title').in('skill_id', picked.map((s) => s.id));
+    const { data: lessons } = await admin.from('course_lessons').select('skill_id, title').in('skill_id', picked.map((s) => s.id));
 
     const denied = await guard(req, 'text', DAILY_LIMIT);
     if (denied) return denied;

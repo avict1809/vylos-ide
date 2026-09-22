@@ -100,7 +100,7 @@ for (const course of courses) {
     }
 
     out.push(
-        'insert into public.lessons (id, path_id, skill_id, title, position) values\n' +
+        'insert into public.course_lessons (id, path_id, skill_id, title, position) values\n' +
             lessons
                 .map(({ lesson, skill }, i) => `    (${q(lessonDbId(course.id, lesson.id))}, ${q(path)}, ${q(skill)}, ${q(lesson.title)}, ${i + 1})`)
                 .join(',\n') +
@@ -134,7 +134,7 @@ for (const course of courses) {
 
     // What the curriculum no longer has
     out.push(
-        `delete from public.lessons where path_id = ${q(path)} and not (id = any (${textArray(lessons.map(({ lesson }) => lessonDbId(course.id, lesson.id)))}));`
+        `delete from public.course_lessons where path_id = ${q(path)} and not (id = any (${textArray(lessons.map(({ lesson }) => lessonDbId(course.id, lesson.id)))}));`
     );
     out.push(
         `delete from public.challenges where path_id = ${q(path)} and generated_for is null and not (id = any (${textArray(challenges.map(({ lesson }) => challengeDbId(course.id, lesson.id)))}));`

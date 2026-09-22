@@ -43,7 +43,7 @@ create table if not exists public.profiles (
     created_at timestamptz not null default now()
 );
 
-create or replace function public.handle_new_user()
+create or replace function public.handle_new_learner()
 returns trigger
 language plpgsql
 security definer
@@ -58,7 +58,7 @@ $$;
 drop trigger if exists on_auth_user_created_profile on auth.users;
 create trigger on_auth_user_created_profile
     after insert on auth.users
-    for each row execute function public.handle_new_user();
+    for each row execute function public.handle_new_learner();
 
 -- Accounts created before this file was run
 insert into public.profiles (id) select id from auth.users on conflict do nothing;
@@ -116,7 +116,7 @@ create table if not exists public.skill_prerequisites (
     check (skill_id <> requires_skill_id)
 );
 
-create table if not exists public.lessons (
+create table if not exists public.course_lessons (
     id text primary key,
     path_id text not null references public.learning_paths (id) on delete cascade,
     skill_id text references public.skills (id) on delete set null,
@@ -317,7 +317,7 @@ create table if not exists public.course_enrollments (
 
 create table if not exists public.lesson_progress (
     user_id uuid not null references public.profiles (id) on delete cascade,
-    lesson_id text not null references public.lessons (id) on delete cascade,
+    lesson_id text not null references public.course_lessons (id) on delete cascade,
     seconds_spent integer not null default 0,
     completed_at timestamptz not null default now(),
     primary key (user_id, lesson_id)
@@ -541,7 +541,7 @@ declare
 begin
     foreach t in array array[
         'profiles', 'creator_profiles', 'follows',
-        'learning_paths', 'skills', 'skill_prerequisites', 'lessons', 'challenges', 'quizzes', 'projects',
+        'learning_paths', 'skills', 'skill_prerequisites', 'course_lessons', 'challenges', 'quizzes', 'projects',
         'xp_rules', 'levels', 'level_titles', 'achievements', 'quests', 'rewards',
         'course_enrollments', 'lesson_progress', 'challenge_attempts', 'quiz_attempts',
         'project_submissions', 'project_comments', 'path_assessments',
@@ -557,7 +557,7 @@ begin
 
     -- Catalog: public
     foreach t in array array[
-        'learning_paths', 'skills', 'skill_prerequisites', 'lessons', 'projects',
+        'learning_paths', 'skills', 'skill_prerequisites', 'course_lessons', 'projects',
         'xp_rules', 'levels', 'level_titles', 'achievements', 'quests', 'rewards'
     ] loop
         execute format('drop policy if exists "Catalog is public" on public.%I', t);
@@ -1014,7 +1014,7 @@ as $$
     insert into public.course_enrollments (user_id, path_id, completed_at)
     select p_user, p_path, now()
     where not exists (
-        select 1 from public.lessons l
+        select 1 from public.course_lessons l
         where l.path_id = p_path
             and not exists (select 1 from public.lesson_progress lp where lp.user_id = p_user and lp.lesson_id = l.id)
     )
@@ -1064,13 +1064,13 @@ set search_path = ''
 as $$
 declare
     uid uuid := public._require_user();
-    lesson public.lessons;
+    lesson public.course_lessons;
     is_new boolean;
     total_seconds integer;
     xp integer := 0;
     local_hour integer;
 begin
-    select * into lesson from public.lessons where id = p_lesson_id;
+    select * into lesson from public.course_lessons where id = p_lesson_id;
     if not found then
         raise exception 'Unknown lesson %', p_lesson_id;
     end if;
@@ -1549,7 +1549,7 @@ as $$
     with lessons as (
         select count(*) as total,
             count(lp.lesson_id) as done
-        from public.lessons l
+        from public.course_lessons l
         left join public.lesson_progress lp on lp.lesson_id = l.id and lp.user_id = auth.uid()
         where l.path_id = p_path_id
     ),
@@ -1610,7 +1610,7 @@ as $$
     with p as (select * from public.learning_paths where id = p_path),
     lessons as (
         select count(*) as total, count(lp.lesson_id) as done
-        from public.lessons l
+        from public.course_lessons l
         left join public.lesson_progress lp on lp.lesson_id = l.id and lp.user_id = p_user
         where l.path_id = p_path
     ),
@@ -2138,13 +2138,13 @@ begin
 
     insert into public.lesson_progress (user_id, lesson_id, seconds_spent)
     select uid, l.id, 0
-    from public.lessons l
+    from public.course_lessons l
     where l.id = any (p_lesson_ids)
     on conflict do nothing;
     get diagnostics imported = row_count;
 
     for p in
-        select distinct l.path_id from public.lessons l where l.id = any (p_lesson_ids)
+        select distinct l.path_id from public.course_lessons l where l.id = any (p_lesson_ids)
     loop
         -- Courses started before coins unlocked courses stay open for those learners
         if (select created_at from public.profiles where id = uid) < timestamptz '2026-09-24' then
@@ -2351,7 +2351,7 @@ begin
         select p.oid::regprocedure as sig
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
         where n.nspname = 'public' and p.proname in (
-            'handle_new_user', '_daily_xp_cap', '_today', '_flag', '_level_for', '_award_xp', '_award_coins',
+            'handle_new_learner', '_daily_xp_cap', '_today', '_flag', '_level_for', '_award_xp', '_award_coins',
             '_grant_achievement', '_recompute_mastery', '_add_evidence', '_current_streak', '_weekly_streak',
             '_bump_quests', '_check_achievements', '_sync_course_completion', '_require_user', '_league',
             '_certificate_requirements',
