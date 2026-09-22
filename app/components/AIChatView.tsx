@@ -1,18 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, BookOpen, Loader2, MessageSquarePlus, Send, Square, Wrench, X } from 'lucide-react';
+import { AlertTriangle, BookOpen, Loader2, MessageSquarePlus, Send, Square, UserRound, Wrench, X } from 'lucide-react';
 import Markdown from './ui/Markdown';
 import { newTextChat, sendTutorMessage, stopTextTutor, useTextTutorStore, voiceIsLive } from '../lib/ai/text-tutor';
 import { useVoiceStore } from '../lib/stores/voice-store';
 import { resolveLesson } from '../lib/learning/lesson-utils';
+import { useActivePersonalPlan } from '../lib/stores/personal-tutor-store';
+import { leavePersonalTutoring, startPersonalChat } from '../lib/learning/personal-tutor';
 import { cn } from '../lib/utils';
 
 /**
  * Vylos AI: the tutor in writing. With a lesson selected it teaches that
  * lesson step by step (teach → practice → quiz), exactly like the voice
- * tutor; without one it's a coding helper that can see and run the
- * learner's code.
+ * tutor; with a personal topic instead, it tutors that topic one to one;
+ * with neither it's a coding helper that can see and run the learner's code.
  */
 
 const SUGGESTIONS = [
@@ -26,6 +28,9 @@ export default function AIChatView() {
     const lessonContext = useVoiceStore((s) => s.lessonContext);
     const voiceStatus = useVoiceStore((s) => s.status);
     const lesson = lessonContext ? resolveLesson(lessonContext) : null;
+    // A course lesson outranks the personal topic, exactly as it does in the prompt
+    const activePlan = useActivePersonalPlan();
+    const personal = lesson ? null : activePlan;
     const voiceLive = voiceStatus === 'live' || voiceStatus === 'connecting';
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -65,6 +70,22 @@ export default function AIChatView() {
                         </button>
                     )}
                 </div>
+                {personal && (
+                    <div className="flex items-center gap-2 rounded-md bg-[#111113] border border-[#27272a] px-2 py-1.5">
+                        <UserRound size={12} className="text-[var(--vylos-green-accent)] shrink-0" />
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[9px] uppercase tracking-widest text-gray-500">Personal tutoring</p>
+                            <p className="text-[11px] text-gray-200 truncate">{personal.topic}</p>
+                        </div>
+                        <button
+                            onClick={leavePersonalTutoring}
+                            title="Leave this topic and chat freely"
+                            className="p-0.5 text-gray-600 hover:text-gray-300"
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                )}
                 {lesson && (
                     <div className="flex items-center gap-2 rounded-md bg-[#111113] border border-[#27272a] px-2 py-1.5">
                         <BookOpen size={12} className="text-[var(--vylos-green-accent)] shrink-0" />
@@ -97,6 +118,22 @@ export default function AIChatView() {
                                     Start the lesson
                                 </button>
                             </>
+                        ) : personal ? (
+                            <>
+                                <p className="text-sm text-gray-400">
+                                    Your personal topic: <span className="text-gray-200">{personal.topic}</span>.
+                                </p>
+                                <button
+                                    onClick={() => void startPersonalChat(personal)}
+                                    disabled={voiceLive}
+                                    className="px-4 py-2 rounded-lg bg-[var(--vylos-green)] hover:bg-[var(--vylos-green-accent)] disabled:opacity-50 text-black text-[10px] font-bold uppercase tracking-widest"
+                                >
+                                    {personal.covered.length ? 'Pick up where you left off' : 'Start tutoring'}
+                                </button>
+                                <p className="text-[10px] text-gray-600 leading-relaxed">
+                                    The tutor teaches one small step at a time and remembers what you got, session to session.
+                                </p>
+                            </>
                         ) : (
                             <>
                                 <p className="text-sm text-[var(--vylos-text-secondary)]">Ask about your code, or anything you&apos;re learning.</p>
@@ -113,6 +150,7 @@ export default function AIChatView() {
                                 </div>
                                 <p className="text-[10px] text-gray-600 leading-relaxed">
                                     To be taught a course lesson in writing, open it in Learning Path and choose <span className="text-gray-400">Learn by chatting</span>.
+                                    For something no course covers, open <span className="text-gray-400">Personal Tutor</span> there instead.
                                 </p>
                             </>
                         )}
@@ -182,7 +220,7 @@ export default function AIChatView() {
                                 send(input);
                             }
                         }}
-                        placeholder={lesson ? 'Answer, or ask a question…' : 'Ask about your code…'}
+                        placeholder={lesson || personal ? 'Answer, or ask a question…' : 'Ask about your code…'}
                         aria-label="Message the tutor"
                         className="bg-transparent border-none outline-none text-[13px] w-full resize-none leading-relaxed placeholder-[var(--vylos-text-secondary)]"
                         disabled={voiceLive}

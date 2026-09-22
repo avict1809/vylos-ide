@@ -10,6 +10,18 @@ export const javascript: CourseDefinition = {
     accent: '#F7DF1E',
     badge: 'JS',
     requires: ['node'],
+    capstone: {
+        title: 'Weather app',
+        description: 'A small web app that looks up the weather for a city from a real weather API.',
+        requirements: [
+            'Fetches data from a weather API',
+            'Search by city name',
+            'Shows a loading state while it waits',
+            'Handles errors: unknown city, no network, API failures',
+            'A clear, usable UI',
+            'Deployed somewhere, or with instructions to run it',
+        ],
+    },
     modules: [
         {
             title: 'Getting Started',

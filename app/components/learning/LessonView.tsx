@@ -10,6 +10,7 @@ import { exerciseKey, useExerciseStore } from '@/app/lib/stores/exercise-store';
 import { openExercise } from '@/app/lib/exercises/session';
 import { startTextLesson } from '@/app/lib/ai/text-tutor';
 import { cn } from '@/app/lib/utils';
+import ExplainBack from './ExplainBack';
 
 /** One lesson: written notes, and every way to learn it (chat, voice, practice). */
 export default function LessonView({ lessonRef, onBack }: { lessonRef: LessonRef; onBack: () => void }) {
@@ -115,6 +116,7 @@ export default function LessonView({ lessonRef, onBack }: { lessonRef: LessonRef
                         </div>
                     </>
                 )}
+                <ExplainBack key={k} lesson={lesson} />
             </div>
 
             <div className="px-5 py-3 border-t border-[var(--vylos-grey-border)] flex items-center justify-between gap-2">

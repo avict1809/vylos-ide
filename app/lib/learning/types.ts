@@ -78,7 +78,18 @@ export interface Course {
     requires?: string[];
     /** Set for courses from an installed extension; built-in courses have none. */
     extension?: { id: string; displayName: string; publisher: string };
+    /** Kept out of the catalog (the learner's generated practice lives in one). */
+    hidden?: boolean;
+    /** The project that ends the course. Courses without one get a general capstone (see progress-ids.ts). */
+    capstone?: Capstone;
     modules: CourseModule[];
+}
+
+/** A course's final project: built by the learner, reviewed by Acyrx, required for the certificate. */
+export interface Capstone {
+    title: string;
+    description: string;
+    requirements: string[];
 }
 
 /**

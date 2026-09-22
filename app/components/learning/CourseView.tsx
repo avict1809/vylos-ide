@@ -24,14 +24,16 @@ import { exerciseKey, useExerciseStore } from '@/app/lib/stores/exercise-store';
 import { openExercise } from '@/app/lib/exercises/session';
 import { startTextLesson } from '@/app/lib/ai/text-tutor';
 import SetupCard from './SetupCard';
+import CourseMasteryPanel, { type CourseSubView } from './CourseMasteryPanel';
 import { cn } from '@/app/lib/utils';
 
 interface CourseViewProps {
     course: Course;
     onBack: () => void;
+    onOpenSub: (view: CourseSubView) => void;
 }
 
-export default function CourseView({ course, onBack }: CourseViewProps) {
+export default function CourseView({ course, onBack, onOpenSub }: CourseViewProps) {
     const { completedLessons, toggleLesson, completeLessons, resetCourse, setOpenLesson } = useCourseStore();
     const { lessonContext, status: voiceStatus } = useVoiceStore();
     const completed = completedLessons[course.id] ?? [];
@@ -150,6 +152,9 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
             {/* Modules */}
             <div className="flex-1 overflow-y-auto">
             <SetupCard course={course} />
+            <div className="px-4 pt-4">
+                <CourseMasteryPanel course={course} onOpenSub={onOpenSub} />
+            </div>
             <div className="p-4 space-y-2">
                 {course.modules.map((mod, mi) => {
                     const mp = moduleProgress(course, mi, completed);
@@ -296,7 +301,7 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                 <div className="p-4 bg-[var(--vylos-green-dark)]/20 border-t border-[var(--vylos-green-dark)]/30 flex items-center justify-center gap-2">
                     <Trophy size={16} className="text-[var(--vylos-green)]" />
                     <span className="text-[10px] font-black text-[var(--vylos-green)] uppercase tracking-[0.2em]">
-                        {course.title} — Mastery Achieved
+                        Every lesson done · now show what you know
                     </span>
                 </div>
             )}

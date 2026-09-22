@@ -3,6 +3,7 @@
 import { useFileStore } from '../useFileStore';
 import { useTerminalStore } from '../stores/terminal-store';
 import { commandFor, extensionOf, hasRunner, OPENS_IN_BROWSER, quote } from './runners';
+import { reportProgramRun } from '../learning/progress-sync';
 
 /**
  * The Run button (F5): saves the active file and runs it in the Run tab with
@@ -68,6 +69,7 @@ export async function runActiveFile() {
     const python = (ext === 'py' && (await pythonFor(dir, files.projectRoot, windows))) || undefined;
     const command = commandFor(name, { windows, python })!;
 
+    reportProgramRun();
     // No time limit: it's the learner's program, they can stop it (Stop, or Ctrl+C)
     await terminal.runCommand(command, dir, null, { source: 'user', target: tab.path });
 }

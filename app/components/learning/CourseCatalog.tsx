@@ -6,6 +6,9 @@ import { useCourseGroups } from '@/app/lib/learning/course-registry';
 import { Course, CourseCategory, courseProgress, totalLessons } from '@/app/lib/learning/types';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
+import { useActivePersonalPlan } from '@/app/lib/stores/personal-tutor-store';
+import { PersonalTutorCard } from './PersonalTutorView';
+import { ProgressCard } from './ProgressView';
 import { cn } from '@/app/lib/utils';
 
 const GROUP_ICONS: Record<CourseCategory, LucideIcon> = {
@@ -21,12 +24,15 @@ interface CourseCatalogProps {
     onCustomPath?: () => void;
     onResumeRoadmap?: () => void;
     onOpenCourse?: (id: string) => void;
+    onPersonalTutor?: () => void;
+    onOpenProgress?: () => void;
 }
 
-export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCourse }: CourseCatalogProps) {
+export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCourse, onPersonalTutor, onOpenProgress }: CourseCatalogProps) {
     const [query, setQuery] = useState('');
     const { completedLessons, setActiveCourse } = useCourseStore();
     const { currentRoadmap } = useRoadmapStore();
+    const personalPlan = useActivePersonalPlan();
     const openCourse = onOpenCourse ?? setActiveCourse;
     const courseGroups = useCourseGroups();
 
@@ -78,6 +84,8 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
 
             {/* Course list */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {onOpenProgress && <ProgressCard onOpen={onOpenProgress} />}
+
                 {/* Resume AI roadmap card */}
                 {currentRoadmap && onResumeRoadmap && (
                     <button
@@ -94,6 +102,9 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
                         <ChevronRight size={14} className="text-gray-600 group-hover:text-[var(--vylos-green)] group-hover:translate-x-0.5 transition-all shrink-0" />
                     </button>
                 )}
+
+                {/* Tutoring outside the catalog: the learner's own topic, no enrolling */}
+                {onPersonalTutor && <PersonalTutorCard onOpen={onPersonalTutor} activeTopic={personalPlan?.topic} />}
 
                 {groups.map((group) => (
                     <div key={group.category} className="space-y-3 pt-3 first:pt-0">

@@ -13,6 +13,8 @@ import { mainFile } from '@/app/lib/exercises/format';
 import type { CheckResult } from '@/app/lib/exercises/checkers';
 import { useFileStore } from '@/app/lib/useFileStore';
 import { cn } from '@/app/lib/utils';
+import { comboMultiplier, useProgressStore } from '@/app/lib/stores/progress-store';
+import { PRACTICE_COURSE_ID, practiceOrigin } from '@/app/lib/learning/practice';
 
 const DEFAULT_SOLUTION_AFTER = 3;
 
@@ -109,6 +111,7 @@ export default function ExerciseView({ lessonRef, onBack }: { lessonRef: LessonR
     const checking = useExerciseStore((s) => s.checking === exerciseKey(lessonRef));
     const { showNextHint, showSolution } = useExerciseStore();
     const openFileByPath = useFileStore((s) => s.openFileByPath);
+    const award = useProgressStore((s) => s.exerciseAwards[exerciseKey(lessonRef)]);
     const [confirm, setConfirm] = useState<'reset' | 'solution' | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -154,7 +157,7 @@ export default function ExerciseView({ lessonRef, onBack }: { lessonRef: LessonR
                         onClick={onBack}
                         className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-[var(--vylos-green)] transition-colors"
                     >
-                        <ArrowLeft size={11} /> {lesson.course.title}
+                        <ArrowLeft size={11} /> {lesson.course.id === PRACTICE_COURSE_ID ? practiceOrigin(lessonRef.lessonId)?.title ?? 'Practice' : lesson.course.title}
                     </button>
                     <button
                         onClick={() => startLessonWithTutor(lessonRef)}
@@ -166,7 +169,7 @@ export default function ExerciseView({ lessonRef, onBack }: { lessonRef: LessonR
                 </div>
                 <div>
                     <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-[var(--vylos-green-accent)]">
-                        <Dumbbell size={10} /> Exercise · {lesson.number}
+                        <Dumbbell size={10} /> {lesson.course.id === PRACTICE_COURSE_ID ? 'Practice · written for you by Acyrx' : `Exercise · ${lesson.number}`}
                     </p>
                     <h2 className="mt-1 text-sm font-black text-white leading-snug">{lesson.lessonTitle}</h2>
                     <p className="mt-1 text-[10px] text-gray-500">
@@ -239,8 +242,22 @@ export default function ExerciseView({ lessonRef, onBack }: { lessonRef: LessonR
 
                 {progress?.passed && (
                     <div className="rounded-lg border border-[var(--vylos-green-dark)]/40 bg-[var(--vylos-green-dark)]/10 p-3 space-y-2">
-                        <p className="text-[11px] text-gray-300">Lesson complete. Nice work!</p>
-                        {next && (
+                        <p className="text-[11px] text-gray-300">{lesson.course.id === PRACTICE_COURSE_ID ? 'Solved. Nice work!' : 'Lesson complete. Nice work!'}</p>
+                        {award && (
+                            <div className="space-y-0.5 text-[10.5px]">
+                                {award.xp > 0 && <p className="font-bold text-[var(--vylos-green)]">+{award.xp} XP</p>}
+                                {award.skillName && award.masteryAfter > award.masteryBefore && (
+                                    <p className="text-gray-400">
+                                        Mastery · {award.skillName}{' '}
+                                        <span className="font-mono text-gray-200">{Math.round(award.masteryBefore * 100)}% → {Math.round(award.masteryAfter * 100)}%</span>
+                                    </p>
+                                )}
+                                {comboMultiplier(award.combo) > 1 && (
+                                    <p className="text-yellow-300 font-semibold">Learning combo ×{comboMultiplier(award.combo)} · {award.combo} clean solves in a row</p>
+                                )}
+                            </div>
+                        )}
+                        {next && lesson.course.id !== PRACTICE_COURSE_ID && (
                             <button
                                 onClick={() => (nextHasExercise ? void openExercise(next) : onBack())}
                                 className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--vylos-green)] hover:text-[var(--vylos-green-accent)]"

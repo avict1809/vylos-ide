@@ -2,6 +2,8 @@ import { FunctionsHttpError } from '@supabase/supabase-js';
 import { getSupabase } from '../supabase';
 import { deviceHeaders } from '../device';
 import { TEXT_ASSISTANT_RULES } from './guidelines';
+import { cannotUseTools, localTarget } from '../stores/ai-provider-store';
+import { localGenerateContent, localGenerateTurn } from './local-provider';
 
 // Failures come back as one of these strings rather than a throw, so every
 // caller can show them as-is; use isAiError() before caching a result.
@@ -11,6 +13,7 @@ const AI_ERRORS = {
     dailyLimit: "You've reached today's Vylos AI limit. It resets at midnight UTC.",
     device: "Vylos AI can't be used with this account on this computer. Sign out and back in, or use an account registered here.",
     failed: 'Error generating content. Please try again.',
+    noTools: "The local model you picked can't call tools, so it can't teach a lesson. Choose a tool-capable model (Qwen or Devstral, for example) in Settings, or switch back to Vylos AI.",
 } as const;
 
 export function isAiError(text: string): boolean {
@@ -66,6 +69,13 @@ export async function generateTurn(
     contents: GeminiContent[],
     opts: { system: string; tools?: GeminiFunctionDeclaration[]; feature: string }
 ): Promise<{ content: GeminiContent; text: string } | { error: string }> {
+    // The learner's own model teaches this one, if they set one up
+    const target = localTarget('tutor');
+    if (target) {
+        if (opts.tools?.length && cannotUseTools(target.model)) return { error: AI_ERRORS.noTools };
+        return localGenerateTurn(contents, { system: opts.system, tools: opts.tools, target });
+    }
+
     const supabase = getSupabase();
     if (!supabase) return { error: AI_ERRORS.notConfigured };
 
@@ -85,6 +95,9 @@ export async function generateTurn(
 }
 
 export async function generateContent(prompt: string, feature: string): Promise<string> {
+    const target = localTarget('quick');
+    if (target) return localGenerateContent(prompt, target);
+
     const supabase = getSupabase();
     if (!supabase) return AI_ERRORS.notConfigured;
 

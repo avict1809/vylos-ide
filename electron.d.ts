@@ -96,6 +96,17 @@ declare global {
                 /** SHA-256 hex of this computer's OS install id */
                 getId: () => Promise<string>;
             };
+            /** A local OpenAI-compatible model server (Ollama, LM Studio, llama.cpp…) */
+            localAi: {
+                models: (endpoint: string) => Promise<
+                    { ok: true; endpoint: string; models: { id: string; size?: number }[] } | { ok: false; error: string }
+                >;
+                /** One chat completion; `token` lets it be cancelled. */
+                chat: (endpoint: string, body: unknown, token?: string) => Promise<
+                    { ok: true; data: unknown } | { ok: false; error: string }
+                >;
+                cancel: (token: string) => Promise<boolean>;
+            };
             extensions: {
                 scan: () => Promise<{ dir: string; extensions: ExtensionScan[] }>;
                 openFolder: () => Promise<boolean>;

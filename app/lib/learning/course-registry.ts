@@ -56,7 +56,7 @@ function changed() {
         .map((category) => ({
             category,
             label: CATEGORY_LABELS[category],
-            courses: [...courses.values()].filter((c) => (c.category ?? 'language') === category),
+            courses: [...courses.values()].filter((c) => !c.hidden && (c.category ?? 'language') === category),
         }))
         .filter((group) => group.courses.length > 0);
     listeners.forEach((listener) => listener());

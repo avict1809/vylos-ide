@@ -8,6 +8,7 @@ import { useTerminalStore } from '../stores/terminal-store';
 import { useFileStore } from '../useFileStore';
 import { CHECK_TIMEOUT_MS, gradeCheck, planCheck, type CheckResult, type RunOutput } from './checkers';
 import { mainFile } from './format';
+import { reportExerciseCheck } from '../learning/progress-sync';
 
 /**
  * Opening, resetting and checking exercises in the desktop app. Each exercise
@@ -143,7 +144,9 @@ export async function checkExercise(ref: LessonRef): Promise<CheckResult> {
         }
 
         const result = gradeCheck(info.exercise, outputs);
+        const before = useExerciseStore.getState().get(ref);
         useExerciseStore.getState().recordCheck(ref, result);
+        reportExerciseCheck(ref, result, before);
         if (result.passed) useCourseStore.getState().completeLessons(ref.courseId, [ref.lessonId]);
         return result;
     } finally {

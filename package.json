@@ -13,7 +13,8 @@
     "build:electron": "tsc -p electron/tsconfig.json",
     "electron:dev": "concurrently -k \"cross-env BROWSER=none npm run dev\" \"wait-on tcp:3000 && npm run build:electron && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && npm run build:electron && electron-builder",
-    "release": "npm run build && npm run build:electron && electron-builder --publish always"
+    "release": "npm run build && npm run build:electron && electron-builder --publish always",
+    "catalog:sql": "jiti scripts/learning-catalog.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",
@@ -58,6 +59,15 @@
   "build": {
     "productName": "Vylos AI",
     "appId": "ai.vylos.app",
+    "protocols": [
+      {
+        "name": "Vylos",
+        "role": "Viewer",
+        "schemes": [
+          "vylos"
+        ]
+      }
+    ],
     "directories": {
       "buildResources": "build"
     },

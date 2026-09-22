@@ -10,6 +10,7 @@ import { useSetupStore } from '../setup/setup-check';
 import { TOOLS } from '../setup/tools';
 import { useCourseStore } from '../stores/course-store';
 import { useVoiceStore } from '../stores/voice-store';
+import { activePersonalPlan, LEVEL_DESCRIPTIONS, PERSONAL_LEVELS, usePersonalTutorStore, type PersonalLevel } from '../stores/personal-tutor-store';
 import { nextLessonRef, resolveLesson } from '../learning/lesson-utils';
 import { highlightLines, clearHighlights, revealLine } from '../editor-bridge';
 import { TUTOR_ACCURACY_RULES } from './guidelines';
@@ -101,6 +102,7 @@ const BUILTIN_TOOLS: TutorTool[] = [
             const active = s.activeFileIndex !== null ? s.openFiles[s.activeFileIndex] : null;
             const ref = useVoiceStore.getState().lessonContext;
             const lesson = ref ? resolveLesson(ref) : null;
+            const personal = activePersonalPlan();
             const setup = lesson?.course.requires?.length
                 ? Object.fromEntries(lesson.course.requires.map((id) => {
                     const st = useSetupStore.getState().status[id];
@@ -120,6 +122,14 @@ const BUILTIN_TOOLS: TutorTool[] = [
                         lesson: `${lesson.number} ${lesson.lessonTitle}`,
                     }
                     : 'No curriculum lesson selected — free-form session.',
+                personal_topic: personal
+                    ? {
+                        topic: personal.topic,
+                        starting_point: personal.level,
+                        covered_so_far: personal.covered.length ? personal.covered : 'nothing recorded yet',
+                        still_struggling_with: personal.struggling.length ? personal.struggling : 'nothing recorded',
+                    }
+                    : 'The learner has no personal tutoring topic.',
                 roadmap: roadmap
                     ? {
                         goal: roadmap.goal,
@@ -422,6 +432,86 @@ const BUILTIN_TOOLS: TutorTool[] = [
             };
         },
     },
+    {
+        declaration: {
+            name: 'start_personal_topic',
+            description: "Start personal tutoring on a topic the learner asked for that no course lesson covers — their own project, a skill they named, something they're stuck on at work. Call it when they say what they want to learn and you are not already teaching that topic. If a course lesson is open, this sets it aside; only do that when the learner asked to move on. The topic is remembered between sessions, so use the learner's own words for it.",
+            parameters: {
+                type: 'OBJECT',
+                properties: {
+                    topic: { type: 'STRING', description: "What they want to learn, short and concrete, e.g. 'Recursion in Python' or 'Add login to my Next.js app'." },
+                    level: { type: 'STRING', description: `Where they are starting from: ${PERSONAL_LEVELS.map((l) => l.id).join(', ')}. Ask them if you don't know; defaults to 'new'.` },
+                    goal: { type: 'STRING', description: 'Why they want it, in their words. Optional.' },
+                },
+                required: ['topic'],
+            },
+        },
+        describe: (args) => `Setting up personal tutoring: ${String(args.topic ?? '').slice(0, 50)}`,
+        execute: (args) => {
+            const topic = String(args.topic ?? '').trim();
+            if (!topic) return { error: 'A topic is required.' };
+
+            const personalStore = usePersonalTutorStore.getState();
+            const level = PERSONAL_LEVELS.some((l) => l.id === args.level) ? (args.level as PersonalLevel) : 'new';
+            // The learner may be coming back to something they already started
+            const existing = personalStore.plans.find((p) => p.topic.toLowerCase() === topic.toLowerCase());
+            if (existing) {
+                personalStore.setActivePlan(existing.id);
+                personalStore.touchPlan(existing.id);
+            } else {
+                personalStore.createPlan({ topic, level, goal: args.goal ? String(args.goal) : '' });
+            }
+
+            const hadLesson = useVoiceStore.getState().lessonContext;
+            useVoiceStore.getState().setLessonContext(null);
+            const plan = activePersonalPlan();
+            return {
+                ok: true,
+                topic: plan?.topic ?? topic,
+                resumed: !!existing,
+                covered_so_far: existing?.covered ?? [],
+                still_struggling_with: existing?.struggling ?? [],
+                ...(hadLesson ? { note: 'The course lesson was set aside; the learner can reopen it from Learning Path.' } : {}),
+                next: existing
+                    ? 'Welcome them back, recap in one sentence what you covered, and continue from there.'
+                    : 'Ask a couple of short questions to find out what they already know, then agree on a first small step and teach it.',
+            };
+        },
+    },
+    {
+        declaration: {
+            name: 'remember_progress',
+            description: "Personal tutoring only: write down what the learner has now understood, or what they are still struggling with, so the next session picks up from there. Call it as soon as they demonstrate something (not merely hear it), and when you spot a gap. One idea per call, in a short phrase.",
+            parameters: {
+                type: 'OBJECT',
+                properties: {
+                    covered: { type: 'STRING', description: "Something they showed they understand, e.g. 'writes for loops over a list'." },
+                    struggling: { type: 'STRING', description: "Something they still find hard, e.g. 'confuses = and =='." },
+                    resolved: { type: 'STRING', description: 'Something previously recorded as hard that they have now got. Use the same wording it was recorded with.' },
+                },
+            },
+        },
+        describe: () => 'Noting your progress…',
+        execute: (args) => {
+            const plan = activePersonalPlan();
+            if (!plan) return { error: 'No personal topic is active. Use start_personal_topic first, or complete_lesson for a course lesson.' };
+            const note = {
+                covered: args.covered ? String(args.covered) : undefined,
+                struggling: args.struggling ? String(args.struggling) : undefined,
+                resolved: args.resolved ? String(args.resolved) : undefined,
+            };
+            if (!note.covered && !note.struggling && !note.resolved) return { error: 'Nothing to record: pass covered, struggling or resolved.' };
+
+            usePersonalTutorStore.getState().recordProgress(plan.id, note);
+            const updated = activePersonalPlan();
+            return {
+                ok: true,
+                topic: plan.topic,
+                covered_so_far: updated?.covered ?? [],
+                still_struggling_with: updated?.struggling ?? [],
+            };
+        },
+    },
 ];
 
 BUILTIN_TOOLS.forEach(registerTutorTool);
@@ -489,6 +579,40 @@ The lesson title is only a topic label. Teach what the topic genuinely covers; i
 ${guidelines}`;
 }
 
+/**
+ * What the tutor is told when the learner is not following a course: their own
+ * topic, where they started, and what has stuck so far. Empty when they have
+ * no personal topic, which leaves the tutor in its free-form coding-helper role.
+ */
+function buildPersonalBlock(): string {
+    const plan = activePersonalPlan();
+    if (!plan) return '';
+
+    const covered = plan.covered.length
+        ? `\nALREADY COVERED with them — do NOT re-teach these unless they ask or get them wrong:\n${plan.covered.map((c) => `- ${c}`).join('\n')}\n`
+        : '\nYou have not recorded anything covered yet — this is the start of their topic.\n';
+    const struggling = plan.struggling.length
+        ? `STILL HARD FOR THEM — come back to these, gently, when they fit:\n${plan.struggling.map((c) => `- ${c}`).join('\n')}\n`
+        : '';
+
+    return `
+PERSONAL TUTORING MODE — there is no fixed curriculum here. You are this learner's personal tutor for a topic they chose themselves:
+- TOPIC: "${plan.topic}"
+- Where they started: ${LEVEL_DESCRIPTIONS[plan.level]}
+- Why they want it: ${plan.goal || 'they did not say — ask once, briefly, if it would change how you teach'}
+${covered}${struggling}
+HOW TO TUTOR PERSONALLY:
+1. PLAN WITH THEM, don't hand down a syllabus. At the very start, ask 2-3 short questions to find out what they already know and what they want to be able to DO. Then say in one or two sentences what you suggest tackling first, and check they're happy with it.
+2. ONE SMALL THING AT A TIME. Pick the next smallest useful step towards their topic, teach it hands-on in the editor, and stop there. Never plan out ten steps aloud.
+3. PRACTICE EVERY STEP. After you show something, hand it over: ask them to write the next bit themselves, then check with get_workspace_state and give specific feedback.
+4. REMEMBER WHAT HAPPENED. Call remember_progress as soon as they demonstrate something themselves (covered), whenever you find a gap (struggling), and when an old gap is closed (resolved). This is the only memory you have of them between sessions — without it you will re-teach what they already know.
+5. FOLLOW THEM. They set the direction. If they want to go sideways within the topic, go with them. If they ask for something off-topic, answer briefly and offer to make it a topic of its own with start_personal_topic.
+6. CLOSE THE SESSION WELL. When they stop, or after a solid chunk, say in one sentence what they got today and what you'd do next time.
+- complete_lesson is for course lessons and will refuse here; progress on a personal topic is recorded with remember_progress instead.
+- Their topic is their own words, not a syllabus title: if it's vague, ask what they actually want to build or understand rather than guessing.
+`;
+}
+
 function buildResumeBlock(): string {
     const transcript = useVoiceStore.getState().transcript;
     if (transcript.length === 0) return '';
@@ -524,13 +648,17 @@ export function buildTutorSystemInstruction(opts: { resume?: boolean; mode?: 'vo
     const active = s.activeFileIndex !== null ? s.openFiles[s.activeFileIndex] : null;
     const nextMilestone = roadmap?.milestones.find((m) => !m.completed);
     const lessonBlock = buildLessonBlock();
+    // A course lesson is the more specific instruction, so it wins over the
+    // learner's personal topic while it is open.
+    const personalBlock = lessonBlock ? '' : buildPersonalBlock();
     const resumeBlock = opts.resume ? buildResumeBlock() : '';
     const currentLesson = useVoiceStore.getState().lessonContext;
+    const personal = personalBlock ? activePersonalPlan() : null;
 
     return `You are Vylos, a friendly, patient tutor for programming and computing (software, AI, cybersecurity, and more) ${text
         ? 'chatting in writing with a learner inside their code editor. They read your messages in a side panel next to the editor and type their replies.'
         : 'speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.'}
-${lessonBlock}${resumeBlock}
+${lessonBlock}${personalBlock}${resumeBlock}
 ${TUTOR_ACCURACY_RULES}
 
 TEACHING STYLE:
@@ -562,12 +690,14 @@ RULES:
 CURRENT CONTEXT:
 - Project folder: ${s.projectRoot ?? 'none open yet'}
 - Active file: ${active ? active.path : 'none'}
-- Learning goal: ${roadmap ? roadmap.goal : currentLesson ? 'the structured course above' : 'none chosen — ask the learner what they want to learn'}
+- Learning goal: ${currentLesson ? 'the structured course above' : personal ? `their personal topic above — ${personal.topic}` : roadmap ? roadmap.goal : 'none chosen — ask the learner what they want to learn'}
 - Next milestone: ${nextMilestone ? nextMilestone.title : 'n/a'}
 
 ${resumeBlock
         ? 'Start with a brief "welcome back", recap in ONE sentence where you left off, check the workspace with get_workspace_state, then continue the lesson from that exact point.'
         : currentLesson
             ? 'Start the session by greeting the learner briefly, looking at their workspace, then begin teaching the CURRENT LESSON right away.'
-            : 'Start the session by greeting the learner briefly, looking at their workspace, and suggesting one concrete practical thing to do together.'}`;
+            : personal
+                ? `Start by greeting the learner briefly and looking at their workspace, then ${personal.covered.length || personal.struggling.length ? 'recap in ONE sentence where you left off on their topic and continue from there' : 'find out what they already know about their topic with a couple of short questions before you teach anything'}.`
+                : 'Start the session by greeting the learner briefly, looking at their workspace, and suggesting one concrete practical thing to do together.'}`;
 }

@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateTurn, type GeminiContent, type GeminiFunctionDeclaration, type GeminiPart } from './gemini-client';
 import { buildTutorSystemInstruction, cancelTutorActions, describeTutorTool, executeTutorTool, getTutorToolDeclarations } from './tutor-tools';
+import { cancelLocalTurn } from './local-provider';
 import { useVoiceStore } from '../stores/voice-store';
 import { useFileStore } from '../useFileStore';
 import type { LessonRef } from '../learning/lesson-utils';
@@ -164,6 +165,8 @@ export async function sendTutorMessage(text: string, opts: { hidden?: boolean } 
 export function stopTextTutor() {
     runToken++;
     cancelTutorActions();
+    // A local model can be slow; don't leave it generating into nothing
+    cancelLocalTurn();
     useTextTutorStore.setState({ busy: false, activity: null });
 }
 

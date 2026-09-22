@@ -10,6 +10,18 @@ export const python: CourseDefinition = {
     accent: '#3776AB',
     badge: 'PY',
     requires: ['python'],
+    capstone: {
+        title: 'Command-line expense tracker',
+        description: 'A program you run in the terminal to record what you spend, see it by category, and keep it between runs.',
+        requirements: [
+            'Add expenses (amount, category, note)',
+            'Delete expenses',
+            'List expenses and totals by category',
+            'Save data to a file',
+            'Read the data back when the program starts',
+            'Handle bad input and a missing or broken data file without crashing',
+        ],
+    },
     modules: [
         {
             title: 'Getting Started',

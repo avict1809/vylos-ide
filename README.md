@@ -41,6 +41,15 @@ A real-time voice tutor (Gemini Live) that talks with you and works in your edit
 - **Explain this error**: when a program fails, one click explains the error in plain words, shows where it happened, and gives hints before the fix.
 - **Setup check**: each course checks that the tools it needs (Python, Node.js, a JDK, …) are installed, and shows install steps for the learner's operating system when they aren't.
 
+### 🖥️ Your own models, if you want them
+
+Settings → **AI Models** points Vylos at any server that speaks the OpenAI chat API — Ollama, LM Studio, llama.cpp, or one on another machine on your network. Two models are chosen separately, because they are asked for very different things:
+
+- **Teaching model** — runs the lessons, which is an agent loop over 15 tools (reading the editor, writing code, running it, checking exercises). It only works on a model that can call tools: **Qwen** and **Devstral** can, **Gemma** cannot, and anything under about 7B tends to return nothing on a teaching prompt. Picking a model tests it on the spot and says which kind it is.
+- **Quick answers** — hover explanations, lesson notes, hints and error help. No tools, so any model will do.
+
+`Auto` uses your models where they fit and Vylos AI for the rest; a teaching model that failed the tool test is never handed a lesson. Local requests skip the Edge Functions entirely — no daily limit, no account check, and the text tutor keeps working offline. **The voice tutor always uses Vylos AI**: it is a realtime audio session with Gemini Live and has no local equivalent.
+
 ### 🛠️ A real IDE
 
 - **Monaco editor** (the engine behind VS Code) with the Vylos dark theme, multiple tabs, autosave, and format-on-demand
@@ -82,11 +91,13 @@ NEXT_PUBLIC_SUPABASE_URL=...         # auth + AI backend
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...    # auth + AI backend
 ```
 
-Sign-in happens on the website: the app opens `https://vylos.co/auth/desktop` (from vylos-web, which must use the same Supabase project) and receives the session on `127.0.0.1:51735`. In the Supabase dashboard, add `https://vylos.co/auth/desktop` to **Auth → URL Configuration → Redirect URLs**. The site address lives in `electron/site.ts`; set `VYLOS_WEB_URL=http://localhost:3000` to test against a local copy of the site.
+Sign-in happens on the website: the app opens `https://vylos.co/auth/desktop` (from vylos-web, which must use the same Supabase project). The finished session comes back through the `vylos://auth/callback` deep link, so the browser stays on vylos.co and shows its own "you're signed in" page. Where the OS hasn't registered the scheme — Linux without a desktop entry, and unpackaged development — the app falls back to its loopback listener on `127.0.0.1:51735`, whose page posts the session over and then returns the browser to the site. In the Supabase dashboard, add `https://vylos.co/auth/desktop` to **Auth → URL Configuration → Redirect URLs**. The site address lives in `electron/site.ts`; set `VYLOS_WEB_URL=http://localhost:3000` to test against a local copy of the site.
 
 ### AI backend (Supabase Edge Functions)
 
 The Gemini API key never ships in the app. Signed-in users reach Gemini through two Edge Functions in `supabase/functions/`: `ai-generate` for text features and `ai-live-token`, which hands the voice tutor a single-use token. Each user gets a daily request limit, tracked in the `ai_usage` table.
+
+Local models bypass all of this (see *Your own models*): those requests go straight from the desktop app to the learner's own server, so they cost nothing and count against nothing. Only the voice tutor always goes through `ai-live-token`.
 
 The text tutor (Vylos AI chat) sends whole conversations with tool calls to `ai-generate`. **Deploy the updated function before releasing an app version with the text tutor**: an older `ai-generate` only takes single prompts, and the chat will say the server needs an update.
 
