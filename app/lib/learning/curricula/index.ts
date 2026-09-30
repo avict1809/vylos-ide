@@ -40,6 +40,11 @@ import { machineLearning } from './machine-learning';
 import { deepLearning } from './deep-learning';
 import { generativeAi } from './generative-ai';
 import { dataScience } from './data-science';
+import { vibeCoding } from './vibe-coding';
+import { contextEngineering } from './context-engineering';
+import { aiCodingAgents } from './ai-coding-agents';
+import { mcp } from './mcp';
+import { vibeToProduction } from './vibe-to-production';
 import { cybersecurity } from './cybersecurity';
 import { webSecurity } from './web-security';
 import { dsa } from './dsa';
@@ -99,6 +104,12 @@ export const BUILTIN_COURSES: CourseDefinition[] = [
     deepLearning,
     generativeAi,
     dataScience,
+    // Vibe Coding — a path: foundations → prompting → agents → MCP → shipping
+    vibeCoding,
+    contextEngineering,
+    aiCodingAgents,
+    mcp,
+    vibeToProduction,
     // Cybersecurity
     cybersecurity,
     webSecurity,

@@ -8,6 +8,7 @@ export const typescript: CourseDefinition = {
     hours: 20,
     accent: '#3178C6',
     badge: 'TS',
+    requires: ['node'],
     modules: [
         {
             title: 'Getting Started',

@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { getCourse } from '../learning/course-registry';
+import type { LessonRef } from '../learning/lesson-utils';
 
 interface CourseState {
     activeCourseId: string | null;
     completedLessons: Record<string, string[]>;
+    /** The lesson open in the learning panel (its notes and ways to learn it) */
+    openLesson: LessonRef | null;
+    setOpenLesson: (ref: LessonRef | null) => void;
     setActiveCourse: (id: string) => void;
     backToCatalog: () => void;
     toggleLesson: (courseId: string, lessonId: string) => void;
@@ -17,8 +21,10 @@ export const useCourseStore = create<CourseState>()(
         (set) => ({
             activeCourseId: null,
             completedLessons: {},
-            setActiveCourse: (id) => set({ activeCourseId: id }),
-            backToCatalog: () => set({ activeCourseId: null }),
+            openLesson: null,
+            setOpenLesson: (openLesson) => set({ openLesson }),
+            setActiveCourse: (id) => set((s) => ({ activeCourseId: id, openLesson: s.openLesson?.courseId === id ? s.openLesson : null })),
+            backToCatalog: () => set({ activeCourseId: null, openLesson: null }),
             toggleLesson: (courseId, lessonId) =>
                 set((state) => {
                     const done = state.completedLessons[courseId] ?? [];
@@ -46,7 +52,7 @@ export const useCourseStore = create<CourseState>()(
             name: 'vylos-courses',
             version: 1,
             migrate: (persisted, version) => {
-                const state = persisted as Pick<CourseState, 'activeCourseId' | 'completedLessons'>;
+                const state = persisted as Pick<CourseState, 'activeCourseId' | 'completedLessons' | 'openLesson'>;
                 if (version < 1 && state?.completedLessons) {
                     state.completedLessons = fromPositionalIds(state.completedLessons);
                 }

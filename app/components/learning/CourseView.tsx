@@ -13,24 +13,34 @@ import {
     Trophy,
     CheckCheck,
     Puzzle,
+    Dumbbell,
+    MessageSquare,
 } from 'lucide-react';
 import { Course, courseProgress, moduleLessonIds, moduleProgress } from '@/app/lib/learning/types';
 import { firstIncompleteLesson, startLessonWithTutor } from '@/app/lib/learning/lesson-utils';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useVoiceStore } from '@/app/lib/stores/voice-store';
+import { exerciseKey, useExerciseStore } from '@/app/lib/stores/exercise-store';
+import { openExercise } from '@/app/lib/exercises/session';
+import { startTextLesson } from '@/app/lib/ai/text-tutor';
+import SetupCard from './SetupCard';
+import CourseMasteryPanel, { type CourseSubView } from './CourseMasteryPanel';
 import { cn } from '@/app/lib/utils';
 
 interface CourseViewProps {
     course: Course;
     onBack: () => void;
+    onOpenSub: (view: CourseSubView) => void;
 }
 
-export default function CourseView({ course, onBack }: CourseViewProps) {
-    const { completedLessons, toggleLesson, completeLessons, resetCourse } = useCourseStore();
+export default function CourseView({ course, onBack, onOpenSub }: CourseViewProps) {
+    const { completedLessons, toggleLesson, completeLessons, resetCourse, setOpenLesson } = useCourseStore();
     const { lessonContext, status: voiceStatus } = useVoiceStore();
     const completed = completedLessons[course.id] ?? [];
     const done = new Set(completed);
     const progress = courseProgress(course, completed);
+    const exerciseProgress = useExerciseStore((s) => s.progress);
+    const exerciseCount = course.modules.reduce((n, m) => n + m.lessons.filter((l) => l.exercise).length, 0);
 
     const isTeaching = (lessonId: string) =>
         voiceStatus !== 'idle' &&
@@ -93,6 +103,11 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                             <span className="flex items-center gap-1">
                                 <Clock size={9} /> ~{course.hours}h
                             </span>
+                            {exerciseCount > 0 && (
+                                <span className="flex items-center gap-1" title="Lessons with a coding exercise that's checked automatically">
+                                    <Dumbbell size={9} /> {exerciseCount} exercises
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -121,10 +136,26 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                         {progress.done > 0 ? 'Continue with Voice Tutor' : 'Learn with Voice Tutor'}
                     </button>
                 )}
+                {progress.percent < 100 && (
+                    <button
+                        onClick={() => {
+                            const ref = firstIncompleteLesson(course, completed);
+                            if (ref) void startTextLesson(ref);
+                        }}
+                        className="mt-2 w-full flex items-center justify-center gap-2 py-2 border border-[#27272a] hover:border-[#3f3f46] text-gray-300 hover:text-white font-bold rounded-lg text-[10px] uppercase tracking-widest transition-colors"
+                    >
+                        <MessageSquare size={12} /> {progress.done > 0 ? 'Continue by chatting' : 'Learn by chatting'}
+                    </button>
+                )}
             </div>
 
             {/* Modules */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="flex-1 overflow-y-auto">
+            <SetupCard course={course} />
+            <div className="px-4 pt-4">
+                <CourseMasteryPanel course={course} onOpenSub={onOpenSub} />
+            </div>
+            <div className="p-4 space-y-2">
                 {course.modules.map((mod, mi) => {
                     const mp = moduleProgress(course, mi, completed);
                     const isOpen = expanded === mi;
@@ -193,13 +224,20 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                                                     <button
                                                         onClick={() => toggleLesson(course.id, lesson.id)}
                                                         title={isDone ? 'Mark as not done' : 'Mark as done'}
-                                                        className="flex-1 flex items-start gap-2.5 pl-2 pr-1 py-1.5 text-left min-w-0"
+                                                        aria-label={isDone ? `Mark ${lesson.title} as not done` : `Mark ${lesson.title} as done`}
+                                                        className="pl-2 pr-1 py-1.5 shrink-0"
                                                     >
                                                         {isDone ? (
-                                                            <CheckCircle size={13} className="text-[var(--vylos-green)] mt-0.5 shrink-0" strokeWidth={2.5} />
+                                                            <CheckCircle size={13} className="text-[var(--vylos-green)] mt-0.5" strokeWidth={2.5} />
                                                         ) : (
-                                                            <Circle size={13} className="text-gray-700 group-hover/lesson:text-gray-500 mt-0.5 shrink-0 transition-colors" />
+                                                            <Circle size={13} className="text-gray-700 group-hover/lesson:text-gray-500 hover:!text-[var(--vylos-green)] mt-0.5 transition-colors" />
                                                         )}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setOpenLesson({ courseId: course.id, lessonId: lesson.id })}
+                                                        title="Open the lesson: notes, and learn it by chatting, by voice or with practice"
+                                                        className="flex-1 flex items-start pr-1 py-1.5 text-left min-w-0"
+                                                    >
                                                         <span
                                                             className={cn(
                                                                 'text-[11px] leading-relaxed transition-colors',
@@ -210,6 +248,23 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                                                             {lesson.title}
                                                         </span>
                                                     </button>
+                                                    {lesson.exercise && (() => {
+                                                        const passed = exerciseProgress[exerciseKey({ courseId: course.id, lessonId: lesson.id })]?.passed;
+                                                        return (
+                                                            <button
+                                                                onClick={() => void openExercise({ courseId: course.id, lessonId: lesson.id })}
+                                                                title={passed ? 'Exercise passed. Open it again' : 'Practice: a coding exercise, checked automatically'}
+                                                                className={cn(
+                                                                    'flex items-center gap-1 px-1.5 my-1 h-5 rounded shrink-0 text-[9px] font-bold uppercase tracking-wider border transition-colors',
+                                                                    passed
+                                                                        ? 'text-[var(--vylos-green)] border-[var(--vylos-green-dark)]/50 bg-[var(--vylos-green-dark)]/10'
+                                                                        : 'text-gray-400 border-[#27272a] hover:text-white hover:border-[#3f3f46]'
+                                                                )}
+                                                            >
+                                                                <Dumbbell size={10} /> {passed ? 'Done' : 'Practice'}
+                                                            </button>
+                                                        );
+                                                    })()}
                                                     <button
                                                         onClick={() => startLessonWithTutor({ courseId: course.id, lessonId: lesson.id })}
                                                         title="Teach me this lesson (voice tutor)"
@@ -240,12 +295,13 @@ export default function CourseView({ course, onBack }: CourseViewProps) {
                     );
                 })}
             </div>
+            </div>
 
             {progress.percent === 100 && (
                 <div className="p-4 bg-[var(--vylos-green-dark)]/20 border-t border-[var(--vylos-green-dark)]/30 flex items-center justify-center gap-2">
                     <Trophy size={16} className="text-[var(--vylos-green)]" />
                     <span className="text-[10px] font-black text-[var(--vylos-green)] uppercase tracking-[0.2em]">
-                        {course.title} — Mastery Achieved
+                        Every lesson done · now show what you know
                     </span>
                 </div>
             )}

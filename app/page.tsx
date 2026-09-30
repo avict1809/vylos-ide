@@ -25,7 +25,7 @@ const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: 
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
-  const { showTerminal, restoreSession, openLaunchPaths } = useFileStore();
+  const { showTerminal, showSidebar, restoreSession, openLaunchPaths } = useFileStore();
   const { hasCompletedOnboarding, isAuthenticated } = useAuthStore();
   const showWorkbench = mounted && isAuthenticated && hasCompletedOnboarding;
 
@@ -71,15 +71,19 @@ export default function Home() {
         {/* Resizable Panels (Horizontal) */}
         <Group orientation="horizontal" className="h-full w-full">
 
-          {/* Side Panel (File Explorer, etc.) */}
-          <Panel defaultSize={20} minSize={140} className="bg-[var(--vylos-grey-dark)]">
-            <SidePanel />
-          </Panel>
+          {/* Side Panel (File Explorer, etc.); Ctrl+B hides it */}
+          {showSidebar && (
+            <>
+              <Panel id="side-panel" defaultSize={20} minSize={140} className="bg-[var(--vylos-grey-dark)]">
+                <SidePanel />
+              </Panel>
 
-          <Separator className="w-[1px] bg-[var(--vylos-green)] transition-all duration-200" />
+              <Separator className="w-[1px] bg-[var(--vylos-green)] transition-all duration-200" />
+            </>
+          )}
 
           {/* Main Workspace (Editor + Terminal) */}
-          <Panel defaultSize={80}>
+          <Panel id="workspace" defaultSize={80}>
             <Group orientation="vertical" className="h-full w-full">
 
               {/* Editor area */}
@@ -91,14 +95,7 @@ export default function Home() {
                 <>
                   <Separator className="h-[1px] bg-[var(--vylos-black)] hover:bg-[var(--vylos-green)] transition-all duration-200" />
                   <Panel defaultSize={30} minSize={100} className="bg-[#09090b]">
-                    <div className="h-full flex flex-col">
-                      <div className="h-7 border-b border-[#27272a] flex items-center px-4 bg-[#09090b]">
-                        <span className="text-[10px] uppercase tracking-widest text-[#10b981] font-bold">Terminal</span>
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <Terminal />
-                      </div>
-                    </div>
+                    <Terminal />
                   </Panel>
                 </>
               )}

@@ -23,8 +23,13 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         }
     },
     auth: {
-        signInViaBrowser: (config) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', config),
+        signInViaBrowser: (options) => electron_1.ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => electron_1.ipcRenderer.invoke('auth:cancel'),
+        onCompleted: (callback) => {
+            const subscription = (_event, tokens) => callback(tokens);
+            electron_1.ipcRenderer.on('auth:completed', subscription);
+            return () => electron_1.ipcRenderer.removeListener('auth:completed', subscription);
+        },
     },
     updates: {
         getState: () => electron_1.ipcRenderer.invoke('update:get-state'),
@@ -55,7 +60,16 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         }
     },
     shell: {
+        openHtml: (path) => electron_1.ipcRenderer.invoke('shell:openHtml', path),
         showItemInFolder: (path) => electron_1.ipcRenderer.invoke('shell:showItemInFolder', path),
+    },
+    device: {
+        getId: () => electron_1.ipcRenderer.invoke('device:id'),
+    },
+    localAi: {
+        models: (endpoint) => electron_1.ipcRenderer.invoke('localai:models', endpoint),
+        chat: (endpoint, body, token) => electron_1.ipcRenderer.invoke('localai:chat', endpoint, body, token),
+        cancel: (token) => electron_1.ipcRenderer.invoke('localai:cancel', token),
     },
     extensions: {
         scan: () => electron_1.ipcRenderer.invoke('extensions:scan'),
@@ -71,6 +85,11 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
             const subscription = () => callback();
             electron_1.ipcRenderer.on('shortcut:toggle-terminal', subscription);
             return () => electron_1.ipcRenderer.removeListener('shortcut:toggle-terminal', subscription);
+        },
+        onNewTerminal: (callback) => {
+            const subscription = () => callback();
+            electron_1.ipcRenderer.on('shortcut:new-terminal', subscription);
+            return () => electron_1.ipcRenderer.removeListener('shortcut:new-terminal', subscription);
         },
     },
     cli: {
@@ -92,7 +111,11 @@ electron_1.contextBridge.exposeInMainWorld('electron', {
         search: (query, rootDir) => electron_1.ipcRenderer.invoke('find:search', query, rootDir)
     },
     term: {
+        info: () => electron_1.ipcRenderer.invoke('term:info'),
         run: (opts) => electron_1.ipcRenderer.invoke('term:run', opts),
+        shell: (opts) => electron_1.ipcRenderer.invoke('term:shell', opts),
+        input: (runId, data) => electron_1.ipcRenderer.invoke('term:input', runId, data),
+        resize: (runId, cols, rows) => electron_1.ipcRenderer.invoke('term:resize', runId, cols, rows),
         kill: (runId) => electron_1.ipcRenderer.invoke('term:kill', runId),
         onStarted: (callback) => {
             const subscription = (_event, data) => callback(data);

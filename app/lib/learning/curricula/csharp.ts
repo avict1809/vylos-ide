@@ -8,6 +8,7 @@ export const csharp: CourseDefinition = {
     hours: 35,
     accent: '#68217A',
     badge: 'C#',
+    requires: ['dotnet'],
     modules: [
         {
             title: 'Getting Started',

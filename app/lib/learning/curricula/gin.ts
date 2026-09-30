@@ -8,6 +8,7 @@ export const gin: CourseDefinition = {
     hours: 16,
     accent: '#00ADD8',
     badge: 'GIN',
+    requires: ['go'],
     category: 'framework',
     stack: 'Go',
     modules: [

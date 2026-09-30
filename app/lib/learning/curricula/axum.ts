@@ -8,6 +8,7 @@ export const axum: CourseDefinition = {
     hours: 16,
     accent: '#DEA584',
     badge: 'AXM',
+    requires: ['rust'],
     category: 'framework',
     stack: 'Rust',
     modules: [

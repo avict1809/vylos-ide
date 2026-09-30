@@ -12,19 +12,22 @@ import ExtensionsView from "./ExtensionsView";
 import { useFileStore } from "../lib/useFileStore";
 import { useRoadmapStore } from "../lib/stores/roadmap-store";
 import { useCourseStore } from "../lib/stores/course-store";
+import { useActivePersonalPlan } from "../lib/stores/personal-tutor-store";
 import { useEffect } from "react";
 
 export default function SidePanel() {
     const { activeView, setActiveView } = useFileStore();
     const { currentRoadmap } = useRoadmapStore();
     const { activeCourseId } = useCourseStore();
+    const personalPlan = useActivePersonalPlan();
 
-    // Feature Gating: If user tries to access AI without a learning path (course or roadmap), redirect to Learning
+    // Feature Gating: If user tries to access AI without a learning path
+    // (a course, a roadmap, or their own personal tutoring topic), redirect to Learning
     useEffect(() => {
-        if (activeView === 'ai' && !currentRoadmap && !activeCourseId) {
+        if (activeView === 'ai' && !currentRoadmap && !activeCourseId && !personalPlan) {
             setActiveView('learning');
         }
-    }, [activeView, currentRoadmap, activeCourseId, setActiveView]);
+    }, [activeView, currentRoadmap, activeCourseId, personalPlan, setActiveView]);
 
     return (
         <div className="h-full flex flex-col bg-[#000000] animate-in slide-in-from-left-2 duration-300">

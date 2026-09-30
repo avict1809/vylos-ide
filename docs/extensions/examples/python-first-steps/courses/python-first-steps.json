@@ -9,6 +9,7 @@
     "badge": "PY",
     "category": "language",
     "stack": "Python",
+    "requires": ["python"],
     "tutorGuidelines": [
         "Assume the learner has never programmed before. Explain every new word the first time you use it.",
         "Keep every example under 10 lines and run it after writing it."
@@ -29,7 +30,28 @@
             "lessons": [
                 "Variables: giving a value a name",
                 "Numbers and strings",
-                "Asking a question with if / else"
+                {
+                    "title": "Asking a question with if / else",
+                    "exercise": {
+                        "prompt": "Finish the program: it asks for an age, then prints `Adult` for 18 and over, and `Minor` otherwise.",
+                        "files": {
+                            "age.py": "age = int(input(\"How old are you? \"))\n# Print Adult for 18 and over, otherwise Minor\n"
+                        },
+                        "check": {
+                            "type": "output",
+                            "cases": [
+                                { "name": "20 is an adult", "input": "20", "expected": "Adult", "match": "contains" },
+                                { "name": "18 is an adult", "input": "18", "expected": "Adult", "match": "contains" },
+                                { "name": "12 is a minor", "input": "12", "expected": "Minor", "match": "contains" }
+                            ]
+                        },
+                        "hints": [
+                            "`if age >= 18:` runs the indented lines under it only when the condition is true.",
+                            "`else:` catches every other case. Both lines under them need the same indentation."
+                        ],
+                        "solution": "age = int(input(\"How old are you? \"))\nif age >= 18:\n    print(\"Adult\")\nelse:\n    print(\"Minor\")\n"
+                    }
+                }
             ]
         }
     ]

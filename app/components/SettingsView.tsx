@@ -13,10 +13,15 @@ import {
     WrapText,
     Settings as SettingsIcon,
     AudioLines,
-    Lock
+    Lock,
+    Brain,
 } from 'lucide-react';
 import { useConfigStore } from '@/app/lib/stores/config-store';
 import { useVoiceStore, TUTOR_VOICES } from '@/app/lib/stores/voice-store';
+import LocalAiSettings from './LocalAiSettings';
+import { useAuthStore } from '@/app/lib/stores/auth-store';
+import { useConversationStore } from '@/app/lib/stores/conversation-store';
+import { forgetConversations } from '@/app/lib/memory/conversation-sync';
 import { cn } from '@/app/lib/utils';
 
 export default function SettingsView() {
@@ -69,6 +74,8 @@ export default function SettingsView() {
                             <ToggleSetting label="Word Wrap" description="Wrap long lines to viewport" enabled={wordWrap === 'on'} onChange={(val) => setWordWrap(val ? 'on' : 'off')} icon={<WrapText size={14} />} />
                         </div>
                     </section>
+
+                    <LocalAiSettings />
 
                     <section>
                         <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
@@ -139,6 +146,8 @@ export default function SettingsView() {
                             Applies the next time you start a lesson. A resumed lesson continues in the voice it began with.
                         </p>
                     </section>
+
+                    <TutorMemorySettings />
                 </div>
 
                 <div className="mt-12 px-8 py-8 border-t border-[#1a1a1a] flex flex-col items-center gap-3">
@@ -149,6 +158,78 @@ export default function SettingsView() {
                 </div>
             </div>
         </div>
+    );
+}
+
+/** How much the tutor remembers, and a way to make it forget. */
+function TutorMemorySettings() {
+    const userId = useAuthStore((s) => s.user?.id);
+    const messages = useConversationStore((s) => s.messages);
+    const [confirming, setConfirming] = React.useState(false);
+    const [state, setState] = React.useState<'idle' | 'working' | 'failed' | 'done'>('idle');
+
+    // The session notes aren't messages anyone sent
+    const mine = messages.filter((m) => m.userId === userId && m.role !== 'summary');
+    const unsent = mine.filter((m) => !m.synced).length;
+    const sessions = new Set(mine.map((m) => m.sessionId)).size;
+
+    async function forget() {
+        setState('working');
+        const { ok } = await forgetConversations();
+        setState(ok ? 'done' : 'failed');
+        setConfirming(false);
+    }
+
+    return (
+        <section>
+            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span className="w-1 h-1 bg-[var(--vylos-green)] rounded-full" />
+                Tutor Memory
+            </h3>
+            <div className="flex items-start gap-4 py-2">
+                <div className="p-2 bg-[#09090b] border border-[#1a1a1a] rounded-lg text-gray-500">
+                    <Brain size={14} />
+                </div>
+                <div className="flex flex-col gap-1">
+                    <span className="text-[13px] font-bold text-gray-300">Conversations</span>
+                    <span className="text-[11px] text-gray-500 leading-relaxed">
+                        Your voice and chat lessons are saved to your account, so the tutor remembers what you covered — even on another computer.
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                        {mine.length === 0
+                            ? 'Nothing remembered yet.'
+                            : `${sessions} conversation${sessions === 1 ? '' : 's'}, ${mine.length} messages${unsent ? ` · ${unsent} waiting to sync` : ''}`}
+                    </span>
+                </div>
+            </div>
+            {mine.length > 0 && (
+                <div className="mt-2 flex items-center gap-2">
+                    {confirming ? (
+                        <>
+                            <button
+                                onClick={forget}
+                                disabled={state === 'working'}
+                                className="px-3 py-1.5 rounded-lg border border-red-500/40 bg-red-500/10 text-[11px] font-bold text-red-400 hover:bg-red-500/20 disabled:opacity-60"
+                            >
+                                {state === 'working' ? 'Forgetting…' : 'Yes, forget everything'}
+                            </button>
+                            <button onClick={() => setConfirming(false)} className="px-3 py-1.5 text-[11px] text-gray-400 hover:text-gray-200">
+                                Cancel
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            onClick={() => { setConfirming(true); setState('idle'); }}
+                            className="px-3 py-1.5 rounded-lg border border-[#27272a] bg-[#09090b] text-[11px] font-bold text-gray-300 hover:border-red-500/40 hover:text-red-400"
+                        >
+                            Forget conversations
+                        </button>
+                    )}
+                </div>
+            )}
+            {state === 'failed' && <p className="mt-2 text-[11px] text-yellow-300">Couldn&apos;t reach Vylos to delete them. Check your connection and try again.</p>}
+            {state === 'done' && mine.length === 0 && <p className="mt-2 text-[11px] text-gray-500">Done — the tutor starts fresh next session.</p>}
+        </section>
     );
 }
 

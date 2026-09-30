@@ -5,7 +5,8 @@ import Editor, { useMonaco } from '@monaco-editor/react';
 import { vylosTheme } from '@/app/lib/theme';
 import { useConfigStore } from '@/app/lib/stores/config-store';
 import { useFileStore } from '@/app/lib/useFileStore';
-import { registerEditor, unregisterEditor } from '@/app/lib/editor-bridge';
+import { registerEditor, trackEditorStatus, unregisterEditor } from '@/app/lib/editor-bridge';
+import { registerEditorShortcuts } from '@/app/lib/commands';
 import { setupAiCodeHints } from '@/app/lib/ai/code-hover';
 import { setupStepGuide } from '@/app/lib/ai/step-guide';
 import { setupCoaching } from '@/app/lib/ai/code-coach';
@@ -15,6 +16,8 @@ import { Sparkles, Save, Search, Code, GraduationCap } from 'lucide-react';
 interface MonacoEditorProps {
     /** Picks the language from its extension; overridden by `language` */
     fileName?: string;
+    /** The tab this editor shows. Autosave writes this file, not whichever is focused. */
+    filePath?: string;
     language?: string;
     defaultValue?: string;
     value?: string;
@@ -30,6 +33,7 @@ function languageForFile(monaco: any, fileName: string | undefined): string {
 
 export default function MonacoEditor({
     fileName,
+    filePath,
     language: languageOverride,
     defaultValue = '// Start coding...',
     value = '',
@@ -49,13 +53,8 @@ export default function MonacoEditor({
 
     const {
         saveActiveFile,
-        saveActiveFileAs,
+        saveFile,
         setActiveView,
-        toggleTerminal,
-        createNewFile,
-        openExternalFile,
-        openFolder,
-        setShowQuickOpen,
         monacoAction,
         setMonacoAction,
         searchMetadata,
@@ -69,11 +68,13 @@ export default function MonacoEditor({
         if (!autoSave || !value) return;
 
         const timeout = setTimeout(() => {
-            saveActiveFile();
+            // Save the file in this editor: with split groups the focused one may be another
+            if (filePath) void saveFile(filePath);
+            else void saveActiveFile();
         }, 1500); // 1.5s debounce for auto-save
 
         return () => clearTimeout(timeout);
-    }, [value, autoSave, saveActiveFile]);
+    }, [value, autoSave, filePath, saveFile, saveActiveFile]);
 
     const handleContextMenu = (e: any) => {
         e.event.preventDefault();
@@ -140,8 +141,10 @@ export default function MonacoEditor({
     const handleEditorDidMount = (editor: any, monaco: any) => {
         editorRef.current = editor;
 
-        // Give the voice tutor access for highlighting/scrolling
+        // Give the voice tutor access for highlighting/scrolling. With editor
+        // groups there is one of these per group, so the focused one takes over.
         registerEditor(editor, monaco);
+        editor.onDidFocusEditorWidget?.(() => registerEditor(editor, monaco));
         editor.onDidDispose?.(() => unregisterEditor(editor));
 
         // AI hover hints: underline functions/classes, explain them on hover
@@ -156,101 +159,12 @@ export default function MonacoEditor({
         // Register custom context menu
         editor.onContextMenu(handleContextMenu);
 
-        // Register keybindings within Monaco to prevent them from being swallowed
+        // The workbench's shortcuts (app/lib/commands.ts), registered with the
+        // editor too so it runs them instead of keeping the keys for itself
+        registerEditorShortcuts(editor, monaco);
 
-        // Ctrl+P: Quick Open
-        editor.addAction({
-            id: 'vylos-quick-open',
-            label: 'Quick Open',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyP],
-            contextMenuGroupId: 'navigation',
-            run: () => setShowQuickOpen(true)
-        });
-
-        // Ctrl+S: Save
-        editor.addAction({
-            id: 'vylos-save',
-            label: 'Save File',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS],
-            run: () => saveActiveFile()
-        });
-
-        // Ctrl+Shift+S: Save As
-        editor.addAction({
-            id: 'vylos-save-as',
-            label: 'Save File As',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyS],
-            run: () => saveActiveFileAs()
-        });
-
-        // Ctrl+B: Toggle Sidebar
-        editor.addAction({
-            id: 'vylos-toggle-sidebar',
-            label: 'Toggle Sidebar',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB],
-            run: () => {
-                const currentView = useFileStore.getState().activeView;
-                setActiveView(currentView === 'explorer' ? 'search' : 'explorer');
-            }
-        });
-
-        // Ctrl+` : Toggle Terminal
-        editor.addAction({
-            id: 'vylos-toggle-terminal',
-            label: 'Toggle Terminal',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Backquote],
-            run: () => toggleTerminal()
-        });
-
-        // Ctrl+N: New File
-        editor.addAction({
-            id: 'vylos-new-file',
-            label: 'New File',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyN],
-            run: () => createNewFile()
-        });
-
-        // Ctrl+O: Open File
-        editor.addAction({
-            id: 'vylos-open-file',
-            label: 'Open File',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyO],
-            run: () => openExternalFile()
-        });
-
-        // Ctrl+L: AI Assistant (Voice)
-        editor.addAction({
-            id: 'vylos-ai-assistant',
-            label: 'Toggle Voice Assistant',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyL],
-            run: () => {
-                window.dispatchEvent(new CustomEvent('vylos:toggle-voice'));
-            }
-        });
-
-        // Ctrl+Shift+F: Search
-        editor.addAction({
-            id: 'vylos-sidebar-search',
-            label: 'Open Search',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
-            run: () => setActiveView('search')
-        });
-
-        // Ctrl+Shift+E: Explorer 
-        editor.addAction({
-            id: 'vylos-sidebar-explorer',
-            label: 'Open Explorer',
-            keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyE],
-            run: () => setActiveView('explorer')
-        });
-
-        // Ctrl+K Ctrl+O: Open Folder (Chord)
-        editor.addAction({
-            id: 'vylos-open-folder',
-            label: 'Open Folder...',
-            keybindings: [monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyO)],
-            run: () => openFolder()
-        });
+        // Cursor position, selection, indentation and language for the status bar
+        trackEditorStatus(editor);
     };
 
     return (
@@ -276,6 +190,16 @@ export default function MonacoEditor({
                     renderLineHighlight: 'all',
                     automaticLayout: true,
                     contextmenu: false,
+                    // What VS Code has on by default
+                    bracketPairColorization: { enabled: true },
+                    guides: { bracketPairs: 'active', indentation: true, highlightActiveIndentation: true },
+                    stickyScroll: { enabled: true },
+                    renderWhitespace: 'selection',
+                    linkedEditing: true,
+                    formatOnPaste: true,
+                    mouseWheelZoom: true,
+                    matchBrackets: 'always',
+                    showFoldingControls: 'mouseover',
                 }}
             />
             {showMenu && (

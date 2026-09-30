@@ -8,6 +8,7 @@ export const ios: CourseDefinition = {
     hours: 28,
     accent: '#0A84FF',
     badge: 'iOS',
+    requires: ['swift'],
     category: 'framework',
     stack: 'Swift',
     modules: [

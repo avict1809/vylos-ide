@@ -1,4 +1,5 @@
 import { CourseDefinition } from '../types';
+import * as ex from './exercises/python';
 
 export const python: CourseDefinition = {
     id: 'python',
@@ -8,6 +9,19 @@ export const python: CourseDefinition = {
     hours: 30,
     accent: '#3776AB',
     badge: 'PY',
+    requires: ['python'],
+    capstone: {
+        title: 'Command-line expense tracker',
+        description: 'A program you run in the terminal to record what you spend, see it by category, and keep it between runs.',
+        requirements: [
+            'Add expenses (amount, category, note)',
+            'Delete expenses',
+            'List expenses and totals by category',
+            'Save data to a file',
+            'Read the data back when the program starts',
+            'Handle bad input and a missing or broken data file without crashing',
+        ],
+    },
     modules: [
         {
             title: 'Getting Started',
@@ -15,7 +29,7 @@ export const python: CourseDefinition = {
             lessons: [
                 'What is Python and what can you build with it',
                 'Installing Python 3 on your machine',
-                'Your first program: Hello World',
+                { title: 'Your first program: Hello World', exercise: ex.helloWorld },
                 'How Python code is executed (interpreter, bytecode)',
                 'Setting up your editor and Python extensions',
                 'Linting and formatting with PEP 8',
@@ -29,14 +43,14 @@ export const python: CourseDefinition = {
             lessons: [
                 'Variables and how Python stores them',
                 'Variable naming conventions',
-                'Strings and indexing/slicing',
+                { title: 'Strings and indexing/slicing', exercise: ex.slicing },
                 'Escape sequences',
-                'Formatted strings (f-strings)',
-                'Essential string methods',
+                { title: 'Formatted strings (f-strings)', exercise: ex.fStrings },
+                { title: 'Essential string methods', exercise: ex.stringMethods },
                 'Numbers: int, float, complex',
-                'Arithmetic operators and augmented assignment',
+                { title: 'Arithmetic operators and augmented assignment', exercise: ex.arithmetic },
                 'Working with the math module',
-                'Type conversion and type()',
+                { title: 'Type conversion and type()', exercise: ex.typeConversion },
             ],
         },
         {
@@ -44,17 +58,17 @@ export const python: CourseDefinition = {
             description: 'Teach your programs to make decisions and repeat work.',
             lessons: [
                 'Comparison operators',
-                'Conditional statements (if / elif / else)',
+                { title: 'Conditional statements (if / elif / else)', exercise: ex.ifElif },
                 'Ternary (conditional) expressions',
-                'Logical operators (and / or / not)',
+                { title: 'Logical operators (and / or / not)', exercise: ex.leapYear },
                 'Short-circuit evaluation',
                 'Chaining comparison operators',
-                'For loops and range()',
+                { title: 'For loops and range()', exercise: ex.forRange },
                 'for..else',
                 'Nested loops',
-                'While loops and infinite loops',
+                { title: 'While loops and infinite loops', exercise: ex.whileLoop },
                 'Iterables and the iteration protocol',
-                'Exercise: FizzBuzz and a guessing game',
+                { title: 'Exercise: FizzBuzz and a guessing game', exercise: ex.fizzBuzz },
             ],
         },
         {
@@ -64,13 +78,13 @@ export const python: CourseDefinition = {
                 'Defining and calling functions',
                 'Parameters vs arguments',
                 'Keyword arguments',
-                'Default argument values',
-                'Returning values (and returning None)',
+                { title: 'Default argument values', exercise: ex.defaultArgs },
+                { title: 'Returning values (and returning None)', exercise: ex.returningNone },
                 '*args: variable-length arguments',
                 '**kwargs: keyword argument packing',
                 'Scope: local, global, and the LEGB rule',
                 'Debugging functions step by step',
-                'Exercise: reusable Fibonacci and validation helpers',
+                { title: 'Exercise: reusable Fibonacci and validation helpers', exercise: ex.fibonacci },
             ],
         },
         {
@@ -83,7 +97,7 @@ export const python: CourseDefinition = {
                 'Sorting lists and the key parameter',
                 'Lambda functions',
                 'Map and filter',
-                'List comprehensions',
+                { title: 'List comprehensions', exercise: ex.listComprehension },
                 'Zip',
                 'Stacks and queues (deque)',
                 'Tuples and swapping variables',
@@ -91,7 +105,7 @@ export const python: CourseDefinition = {
                 'Dictionaries and dictionary comprehensions',
                 'Generator expressions',
                 'The unpacking operator (* and **)',
-                'Exercise: word frequency counter',
+                { title: 'Exercise: word frequency counter', exercise: ex.wordFrequency },
             ],
         },
         {

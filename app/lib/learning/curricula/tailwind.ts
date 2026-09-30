@@ -8,6 +8,7 @@ export const tailwind: CourseDefinition = {
     hours: 12,
     accent: '#38BDF8',
     badge: 'TW',
+    requires: ['node'],
     category: 'framework',
     stack: 'HTML & CSS',
     modules: [

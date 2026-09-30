@@ -8,6 +8,7 @@ export const cpp: CourseDefinition = {
     hours: 45,
     accent: '#659AD2',
     badge: 'C++',
+    requires: ['cc'],
     modules: [
         {
             title: 'Getting Started',

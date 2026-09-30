@@ -1,4 +1,7 @@
-import type { CourseCategory, CourseDefinition, LessonDefinition } from '../learning/types';
+import type { CourseCategory, CourseDefinition, Exercise, LessonDefinition } from '../learning/types';
+import { lessonSlug } from '../learning/types';
+import { validateExercise } from '../exercises/format';
+import { TOOL_IDS } from '../setup/tools';
 
 /**
  * Checks extension files, which are untrusted JSON written by hand. Every
@@ -36,10 +39,10 @@ const ID = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const LESSON_ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const VERSION = /^(\d+)\.(\d+)\.(\d+)(?:-[0-9A-Za-z.-]+)?$/;
 const COLOR = /^#[0-9a-fA-F]{6}$/;
-const CATEGORIES: CourseCategory[] = ['language', 'framework', 'ai', 'security', 'essentials'];
+const CATEGORIES: CourseCategory[] = ['language', 'framework', 'ai', 'vibe', 'security', 'essentials'];
 
 const MANIFEST_KEYS = ['name', 'publisher', 'displayName', 'version', 'description', 'engines', 'main', 'permissions', 'contributes', '$schema'];
-const COURSE_KEYS = ['id', 'title', 'tagline', 'level', 'hours', 'accent', 'badge', 'category', 'stack', 'tutorGuidelines', 'modules', '$schema'];
+const COURSE_KEYS = ['id', 'title', 'tagline', 'level', 'hours', 'accent', 'badge', 'category', 'stack', 'requires', 'tutorGuidelines', 'modules', '$schema'];
 // package.json doubles as an npm manifest, so npm's own fields are expected there
 const NPM_KEYS = ['license', 'repository', 'author', 'homepage', 'bugs', 'keywords', 'private', 'scripts', 'devDependencies'];
 
@@ -235,6 +238,20 @@ export function validateCourse(json: unknown, manifest: ExtensionManifest): Chec
         else p.error('category', `must be one of: ${CATEGORIES.join(', ')}`);
     }
 
+    // Only tools Vylos knows how to find: a course can't supply its own commands
+    let requires: string[] | undefined;
+    if (json.requires !== undefined) {
+        if (!Array.isArray(json.requires) || json.requires.length > 10) {
+            p.error('requires', 'must be a list of tool ids, e.g. ["python"]');
+        } else {
+            requires = [];
+            json.requires.forEach((id, i) => {
+                if (typeof id === 'string' && TOOL_IDS.includes(id)) requires!.push(id);
+                else p.error(`requires[${i}]`, `must be one of: ${TOOL_IDS.join(', ')}`);
+            });
+        }
+    }
+
     let tutorGuidelines: string[] | undefined;
     if (json.tutorGuidelines !== undefined) {
         const list = json.tutorGuidelines;
@@ -276,13 +293,20 @@ export function validateCourse(json: unknown, manifest: ExtensionManifest): Chec
                         if (lesson.trim() && lesson.length <= 200) lessons.push(lesson.trim());
                         else p.error(lat, 'a lesson title must be 1 to 200 characters');
                     } else if (isObject(lesson)) {
-                        p.unknownKeys(lesson, ['id', 'title'], lat);
-                        const lessonId = p.text(lesson, 'id', lat, 100);
+                        p.unknownKeys(lesson, ['id', 'title', 'exercise'], lat);
                         const lessonTitle = p.text(lesson, 'title', lat, 200);
+                        // Like a plain title, an object without an id gets the title's slug
+                        const lessonId = lesson.id === undefined ? (lessonTitle && lessonSlug(lessonTitle)) : p.text(lesson, 'id', lat, 100);
+                        let exercise: Exercise | undefined;
+                        if (lesson.exercise !== undefined) {
+                            const checked = validateExercise(lesson.exercise, `${lat}.exercise`);
+                            p.errors.push(...checked.errors);
+                            exercise = checked.exercise;
+                        }
                         if (lessonId && !LESSON_ID.test(lessonId)) p.error(`${lat}.id`, 'use lowercase letters, digits and dashes');
-                        else if (lessonId && lessonTitle) lessons.push({ id: lessonId, title: lessonTitle });
+                        else if (lessonId && lessonTitle) lessons.push({ id: lessonId, title: lessonTitle, ...(exercise ? { exercise } : {}) });
                     } else {
-                        p.error(lat, 'must be a title, or { "id": ..., "title": ... }');
+                        p.error(lat, 'must be a title, or { "title": ..., "id": ..., "exercise": ... }');
                     }
                 });
             }
@@ -302,6 +326,7 @@ export function validateCourse(json: unknown, manifest: ExtensionManifest): Chec
             badge: (badge ?? title!.replace(/[^A-Za-z0-9]/g, '').slice(0, 2)).toUpperCase() || 'EX',
             category,
             stack,
+            requires,
             tutorGuidelines,
             extension: { id: manifest.id, displayName: manifest.displayName, publisher: manifest.publisher },
             modules,

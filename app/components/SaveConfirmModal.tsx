@@ -5,33 +5,19 @@ import { AlertTriangle, X } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 
 export default function SaveConfirmModal() {
-    const { fileToClose, setFileToClose, saveActiveFile, closeFile, openFiles, activeFileIndex } = useFileStore();
+    const { fileToClose, setFileToClose, discardAndCloseFile } = useFileStore();
 
     if (!fileToClose) return null;
 
     const handleSave = async () => {
-        // Find index of the file to close to temporarily make it active? 
-        // Or just write directly.
+        // Written straight out: this tab need not be the active one
         if (window.electron) {
             await window.electron.fs.write(fileToClose.path, fileToClose.content);
         }
-        // Force close without dirt check
-        const newFiles = openFiles.filter(f => f.path !== fileToClose.path);
-        let newIndex = activeFileIndex;
-        if (newFiles.length === 0) newIndex = null;
-        else if (activeFileIndex !== null && activeFileIndex >= newFiles.length) newIndex = newFiles.length - 1;
-
-        useFileStore.setState({ openFiles: newFiles, activeFileIndex: newIndex, fileToClose: null });
+        discardAndCloseFile(fileToClose.path);
     };
 
-    const handleDontSave = () => {
-        const newFiles = openFiles.filter(f => f.path !== fileToClose.path);
-        let newIndex = activeFileIndex;
-        if (newFiles.length === 0) newIndex = null;
-        else if (activeFileIndex !== null && activeFileIndex >= newFiles.length) newIndex = newFiles.length - 1;
-
-        useFileStore.setState({ openFiles: newFiles, activeFileIndex: newIndex, fileToClose: null });
-    };
+    const handleDontSave = () => discardAndCloseFile(fileToClose.path);
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">

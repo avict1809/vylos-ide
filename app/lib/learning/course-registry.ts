@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import type { Disposable } from '../disposable';
 import { Course, CourseCategory, CourseDefinition, lessonSlug } from './types';
 import { BUILTIN_COURSES } from './curricula';
+import { validateExercise } from '../exercises/format';
 
 /**
  * Every course the catalog can show. The built-in curricula register here at
@@ -20,6 +21,7 @@ const CATEGORY_LABELS: Record<CourseCategory, string> = {
     language: 'Languages',
     framework: 'Frameworks & Platforms',
     ai: 'AI & Data Science',
+    vibe: 'Vibe Coding',
     security: 'Cybersecurity',
     essentials: 'CS Essentials',
 };
@@ -35,11 +37,15 @@ function toCourse(def: CourseDefinition): Course {
     const modules = def.modules.map((mod) => ({
         ...mod,
         lessons: mod.lessons.map((lesson) => {
-            const { id, title } = typeof lesson === 'string' ? { id: lessonSlug(lesson), title: lesson } : lesson;
+            const { title, exercise: rawExercise } = typeof lesson === 'string' ? { title: lesson, exercise: undefined } : lesson;
+            const id = (typeof lesson === 'string' ? undefined : lesson.id) ?? lessonSlug(title);
             if (!id) throw new Error(`Course "${def.id}": lesson "${title}" has an empty id`);
             if (seen.has(id)) throw new Error(`Course "${def.id}": two lessons share the id "${id}"; give one an explicit id`);
             seen.add(id);
-            return { id, title };
+            if (!rawExercise) return { id, title };
+            const { exercise, errors } = validateExercise(rawExercise, `Course "${def.id}", lesson "${id}": exercise`);
+            if (!exercise) throw new Error(errors.join('\n'));
+            return { id, title, exercise };
         }),
     }));
     return { ...def, modules };
@@ -50,7 +56,7 @@ function changed() {
         .map((category) => ({
             category,
             label: CATEGORY_LABELS[category],
-            courses: [...courses.values()].filter((c) => (c.category ?? 'language') === category),
+            courses: [...courses.values()].filter((c) => !c.hidden && (c.category ?? 'language') === category),
         }))
         .filter((group) => group.courses.length > 0);
     listeners.forEach((listener) => listener());

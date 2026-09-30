@@ -8,6 +8,7 @@ export const aspnet: CourseDefinition = {
     hours: 24,
     accent: '#8B7CF6',
     badge: '.NET',
+    requires: ['dotnet'],
     category: 'framework',
     stack: 'C#',
     modules: [

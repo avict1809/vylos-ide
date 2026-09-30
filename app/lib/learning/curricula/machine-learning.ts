@@ -9,6 +9,7 @@ export const machineLearning: CourseDefinition = {
     hours: 35,
     accent: '#F7931E',
     badge: 'ML',
+    requires: ['python'],
     category: 'ai',
     stack: 'Python',
     tutorGuidelines: [

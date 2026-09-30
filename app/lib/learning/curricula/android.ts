@@ -8,6 +8,7 @@ export const android: CourseDefinition = {
     hours: 30,
     accent: '#3DDC84',
     badge: 'AND',
+    requires: ['java'],
     category: 'framework',
     stack: 'Kotlin',
     modules: [

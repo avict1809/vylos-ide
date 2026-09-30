@@ -421,3 +421,9 @@ verify_jwt = false
 
 [functions.ai-live-token]
 verify_jwt = false
+
+[functions.device-register]
+verify_jwt = false
+
+[functions.learning]
+verify_jwt = false

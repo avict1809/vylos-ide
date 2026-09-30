@@ -4,11 +4,22 @@ import { X, Minus, Square, Copy, ChevronRight } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useFileStore } from "../lib/useFileStore";
 import { cn } from "@/app/lib/utils";
+import { useTerminalStore } from "../lib/stores/terminal-store";
+import { runActiveFile } from "../lib/run/run-file";
+import { isAppShortcut, isInTerminal } from "../lib/terminal/xterm-host";
+import { commandById, dispatchShortcut, formatBinding } from "../lib/commands";
 import Image from "next/image";
 
 import SaveConfirmModal from "./SaveConfirmModal";
 import QuickOpenModal from "./QuickOpenModal";
 import AboutModal from "./AboutModal";
+import CommandPalette from "./CommandPalette";
+
+/** A registry command's first shortcut, for its menu item */
+const menuShortcut = (id?: string) => {
+    const binding = id ? commandById(id)?.keys?.[0] : undefined;
+    return binding ? formatBinding(binding) : undefined;
+};
 
 export function TitleBar() {
     const {
@@ -21,6 +32,7 @@ export function TitleBar() {
         openFolder,
         setActiveView,
         closeFile,
+        moveEditorToNewGroup,
         setShowQuickOpen,
         setShowAbout,
         toggleTerminal,
@@ -35,7 +47,6 @@ export function TitleBar() {
     const activeFile = activeFileIndex !== null ? openFiles[activeFileIndex] : null;
     const [isMaximized, setIsMaximized] = useState(false);
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
-    const [ctrlKTyped, setCtrlKTyped] = useState(false);
 
     useEffect(() => {
         if (!window?.electron?.window) return;
@@ -49,6 +60,11 @@ export function TitleBar() {
         };
     }, []);
 
+    const openNewTerminal = () => {
+        useFileStore.getState().setShowTerminal(true);
+        void useTerminalStore.getState().newShell(useFileStore.getState().projectRoot);
+    };
+
     const handleAction = (label: string) => {
         switch (label) {
             case "New Text File": createNewFile(); break;
@@ -57,13 +73,16 @@ export function TitleBar() {
             case "Save": saveActiveFile(); break;
             case "Save As...": saveActiveFileAs(); break;
             case "Close Editor": if (activeFile) closeFile(activeFile.path); break;
+            case "Move Editor into Group Right": moveEditorToNewGroup('right'); break;
+            case "Move Editor into Group Below": moveEditorToNewGroup('down'); break;
             case "Exit": window.electron?.window.close(); break;
             case "Toggle Terminal": toggleTerminal(); break;
-            case "New Terminal": toggleTerminal(); break;
+            case "New Terminal": openNewTerminal(); break;
+            case "Run Active File": void runActiveFile(); break;
             case "Install 'vylos' Command in PATH": window.electron?.cli?.installCommand(); break;
             case "Uninstall 'vylos' Command from PATH": window.electron?.cli?.uninstallCommand(); break;
 
-            case "Toggle Sidebar": setActiveView(getOppositeView()); break;
+            case "Toggle Sidebar": useFileStore.getState().toggleSidebar(); break;
             case "Search": setActiveView('search'); break;
             case "Explorer": setActiveView('explorer'); break;
             case "AI Assistant": setActiveView('ai'); break;
@@ -87,10 +106,6 @@ export function TitleBar() {
         setActiveMenu(null);
     };
 
-    const getOppositeView = (): 'explorer' | 'search' | 'ai' | 'settings' | 'learning' => {
-        return useFileStore.getState().activeView === 'explorer' ? 'search' : 'explorer';
-    };
-
     const MENUS = [
         {
             label: "File",
@@ -103,9 +118,11 @@ export function TitleBar() {
                 { type: "separator" },
                 { label: "Save", shortcut: "Ctrl+S" },
                 { label: "Save As...", shortcut: "Ctrl+Shift+S" },
-                { label: "Save All" },
+                { label: "Save All", command: "file.saveAll" },
                 { type: "separator" },
-                { label: "Close Editor", shortcut: "Ctrl+F4" },
+                { label: "Close Editor", command: "editor.close" },
+                { label: "Close Saved Editors", command: "editor.closeSaved" },
+                { label: "Reopen Closed Editor", command: "editor.reopenClosed" },
                 { label: "Exit", shortcut: "Alt+F4" },
             ]
         },
@@ -134,20 +151,39 @@ export function TitleBar() {
         {
             label: "View",
             items: [
+                { label: "Command Palette...", command: "workbench.commandPalette" },
+                { type: "separator" },
                 { label: "Explorer", shortcut: "Ctrl+Shift+E" },
                 { label: "Search", shortcut: "Ctrl+Shift+F" },
+                { label: "Source Control", command: "workbench.scm" },
+                { label: "Extensions", command: "workbench.extensions" },
                 { label: "AI Assistant", shortcut: "Ctrl+Shift+I" },
                 { label: "Learning Path", shortcut: "Ctrl+Shift+L" },
                 { type: "separator" },
-                { label: "Toggle Sidebar", shortcut: "Ctrl+B" },
-                { label: "Appearance" },
+                { label: "Toggle Side Bar", command: "workbench.toggleSidebar" },
+                { label: "Toggle Terminal", command: "workbench.toggleTerminal" },
+                { label: "Word Wrap", command: "editor.toggleWordWrap" },
+                { label: "Minimap", command: "editor.toggleMinimap" },
+                { type: "separator" },
+                { label: "Move Editor into Group Right", shortcut: "Ctrl+\\" },
+                { label: "Move Editor into Group Below", shortcut: "Ctrl+K Ctrl+\\" },
             ]
         },
-        { label: "Go", items: [{ label: "Go to File...", shortcut: "Ctrl+P" }] },
+        {
+            label: "Go",
+            items: [
+                { label: "Go to File...", shortcut: "Ctrl+P" },
+                { label: "Go to Line/Column...", command: "editor.goToLine" },
+                { type: "separator" },
+                { label: "Next Editor", command: "editor.next" },
+                { label: "Previous Editor", command: "editor.previous" },
+            ]
+        },
         {
             label: "Terminal",
             items: [
                 { label: "New Terminal", shortcut: "Ctrl+Shift+`" },
+                { label: "Run Active File", shortcut: "F5" },
                 { type: "separator" },
                 { label: "Install 'vylos' Command in PATH" },
                 { label: "Uninstall 'vylos' Command from PATH" },
@@ -156,55 +192,21 @@ export function TitleBar() {
         { label: "Help", items: [{ label: "About Vylos" }] }
     ];
 
+    // Every shortcut comes from the command registry (app/lib/commands.ts),
+    // which the command palette and the editor use too
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey || e.metaKey) {
-                if (e.key.toLowerCase() === 'k') {
-                    setCtrlKTyped(true);
-                    setTimeout(() => setCtrlKTyped(false), 2000);
-                    return;
-                }
-
-                if (ctrlKTyped && e.key.toLowerCase() === 'o') {
-                    e.preventDefault();
-                    setCtrlKTyped(false);
-                    handleAction("Open Folder...");
-                    return;
-                }
-
-                // Physical key, so it works on every layout. In the desktop app the
-                // main process handles Ctrl+` first and this never fires.
-                if (e.code === 'Backquote') {
-                    e.preventDefault();
-                    toggleTerminal();
-                    return;
-                }
-
-                switch (e.key.toLowerCase()) {
-                    case 's': e.preventDefault(); e.shiftKey ? saveActiveFileAs() : saveActiveFile(); break;
-                    case 'n': e.preventDefault(); createNewFile(); break;
-                    case 'o': e.preventDefault(); openExternalFile(); break;
-                    case 'p': e.preventDefault(); useFileStore.getState().setShowQuickOpen(true); break;
-                    case 'b': e.preventDefault(); handleAction("Toggle Sidebar"); break;
-                    case 'l':
-                        e.preventDefault();
-                        if (e.shiftKey) setActiveView('learning');
-                        else window.dispatchEvent(new CustomEvent('vylos:toggle-voice'));
-                        break;
-                    case 'f': if (e.shiftKey) { e.preventDefault(); setActiveView('search'); } break;
-                    case 'e': if (e.shiftKey) { e.preventDefault(); setActiveView('explorer'); } break;
-                    case 'i': if (e.shiftKey) { e.preventDefault(); setActiveView('ai'); } break;
-                }
-            } else {
-                setCtrlKTyped(false);
-            }
+            // In the terminal, keys like Ctrl+L and Ctrl+B belong to the shell
+            if (isInTerminal(e.target) && !isAppShortcut(e)) return;
+            dispatchShortcut(e);
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [saveActiveFile, saveActiveFileAs, createNewFile, openExternalFile, openFolder, ctrlKTyped, handleAction]);
+    }, []);
 
-    // Ctrl+` as caught by the Electron main process
+    // Ctrl+` and Ctrl+Shift+` as caught by the Electron main process
     useEffect(() => window.electron?.shortcuts?.onToggleTerminal(toggleTerminal), [toggleTerminal]);
+    useEffect(() => window.electron?.shortcuts?.onNewTerminal?.(openNewTerminal), []);
 
     useEffect(() => {
         if (!activeMenu) return;
@@ -217,6 +219,7 @@ export function TitleBar() {
         <>
             <SaveConfirmModal />
             <QuickOpenModal />
+            <CommandPalette />
             <AboutModal />
 
             {/* TITLE BAR ROOT */}
@@ -284,13 +287,17 @@ export function TitleBar() {
                                                 className="px-3 py-1 hover:bg-[var(--vylos-green-dark)] hover:text-white flex justify-between items-center cursor-default"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleAction(item.label);
+                                                    const command = item.command && commandById(item.command);
+                                                    if (command) {
+                                                        setActiveMenu(null);
+                                                        void command.run();
+                                                    } else handleAction(item.label);
                                                 }}
                                             >
                                                 <span>{item.label}</span>
-                                                {item.shortcut && (
+                                                {(item.shortcut ?? menuShortcut(item.command)) && (
                                                     <span className="text-gray-500 text-[11px] ml-4">
-                                                        {item.shortcut}
+                                                        {item.shortcut ?? menuShortcut(item.command)}
                                                     </span>
                                                 )}
                                             </div>

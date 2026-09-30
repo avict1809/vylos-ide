@@ -8,6 +8,7 @@ export const devops: CourseDefinition = {
     hours: 35,
     accent: '#2496ED',
     badge: 'OPS',
+    requires: ['git', 'docker'],
     category: 'essentials',
     stack: 'Docker',
     tutorGuidelines: [

@@ -5,10 +5,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { cn } from '@/app/lib/utils';
 import { useFileStore } from '@/app/lib/useFileStore';
 import { fileIconUrl, folderIconUrl } from '@/app/lib/file-icons';
+import { FILE_DRAG, PATH_DRAG } from '@/app/lib/dnd';
 import ContextMenu, { type ContextMenuItem } from './ContextMenu';
-
-// dataTransfer type for paths dragged within the explorer
-const DRAG_TYPE = 'application/x-vylos-path';
 
 interface FileNode {
     name: string;
@@ -141,7 +139,9 @@ const FileItem = ({
                 onContextMenu={(e) => onContextMenu(e, item)}
                 draggable={!isRenaming}
                 onDragStart={(e) => {
-                    e.dataTransfer.setData(DRAG_TYPE, item.path);
+                    e.dataTransfer.setData(PATH_DRAG, item.path);
+                    // Files can also be dropped on an editor group, which opens them there
+                    if (!item.isDirectory) e.dataTransfer.setData(FILE_DRAG, item.path);
                     e.dataTransfer.effectAllowed = 'move';
                 }}
                 onDragOver={(e) => drag.onDragOver(e, item)}
@@ -383,7 +383,7 @@ export function FileExplorer() {
     const dragProps: DragProps = {
         targetDir: dropDir,
         onDragOver: (e, node) => {
-            if (!e.dataTransfer.types.includes(DRAG_TYPE)) return;
+            if (!e.dataTransfer.types.includes(PATH_DRAG)) return;
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = 'move';
@@ -391,7 +391,7 @@ export function FileExplorer() {
             if (dir !== dropDir) setDropDir(dir);
         },
         onDrop: async (e, node) => {
-            const src = e.dataTransfer.getData(DRAG_TYPE);
+            const src = e.dataTransfer.getData(PATH_DRAG);
             e.preventDefault();
             e.stopPropagation();
             setDropDir(null);

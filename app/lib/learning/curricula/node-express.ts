@@ -8,6 +8,7 @@ export const nodeExpress: CourseDefinition = {
     hours: 26,
     accent: '#339933',
     badge: 'NODE',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [
