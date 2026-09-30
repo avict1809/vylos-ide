@@ -63,7 +63,8 @@ const THEME = {
  * shell keys there.
  */
 export function isAppShortcut(e: KeyboardEvent): boolean {
-    if (e.key === 'F5') return true;
+    // Run, and the command palette
+    if (e.key === 'F5' || e.key === 'F1') return true;
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
     if (e.code === 'Backquote') return true;
     // Ctrl+Shift+C / V are the terminal's own copy and paste

@@ -158,6 +158,11 @@ const closedTabState = (files: FileTab[], activeFileIndex: number | null, path: 
     return { openFiles, activeFileIndex: active === -1 ? 0 : active, fileToClose: null };
 };
 
+const MAX_RECENTLY_CLOSED = 20;
+/** Adds a closed tab's file to the reopen list (untitled ones can't be reopened). */
+const rememberClosed = (list: string[], path: string) =>
+    isUntitled(path) ? list : [...list.filter(p => p !== path), path].slice(-MAX_RECENTLY_CLOSED);
+
 const snapshotSession = ({ openFiles, activeFileIndex }: Pick<FileStore, 'openFiles' | 'activeFileIndex'>): WorkspaceSession => ({
     groups: editorCells(openFiles)
         .map(cell => {
@@ -193,7 +198,12 @@ interface FileStore {
     projectRoot: string | null;
     fileToClose: FileTab | null;
     showTerminal: boolean;
+    // The side bar (explorer, search, ...); Ctrl+B hides and shows it
+    showSidebar: boolean;
     showQuickOpen: boolean;
+    showCommandPalette: boolean;
+    // Files whose tabs were closed, newest last, for Ctrl+Shift+T
+    recentlyClosed: string[];
     showAbout: boolean;
     monacoAction: string | null;
     searchMetadata: { query: string; line?: number } | null;
@@ -246,10 +256,17 @@ interface FileStore {
     saveActiveFile: () => Promise<void>;
     saveFile: (path: string) => Promise<void>;
     saveActiveFileAs: () => Promise<void>;
-    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor') => void;
+    setActiveView: (view: 'explorer' | 'search' | 'ai' | 'settings' | 'learning' | 'git' | 'account' | 'tutor' | 'extensions') => void;
     toggleTerminal: () => void;
     setShowTerminal: (show: boolean) => void;
+    toggleSidebar: () => void;
+    setShowSidebar: (show: boolean) => void;
     setShowQuickOpen: (show: boolean) => void;
+    setShowCommandPalette: (show: boolean) => void;
+    /** Focuses the next (1) or previous (-1) tab in the focused editor group, wrapping round. */
+    cycleTab: (delta: 1 | -1) => void;
+    /** Reopens the most recently closed tab. */
+    reopenClosedEditor: () => Promise<void>;
     setShowAbout: (show: boolean) => void;
     setMonacoAction: (action: string | null) => void;
     clearSearchMetadata: () => void;
@@ -263,7 +280,10 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     projectRoot: null,
     fileToClose: null,
     showTerminal: false,
+    showSidebar: true,
     showQuickOpen: false,
+    showCommandPalette: false,
+    recentlyClosed: [],
     showAbout: false,
     monacoAction: null,
     searchMetadata: null,
@@ -586,12 +606,12 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
             set({ fileToClose: file });
             return;
         }
-        set(closedTabState(openFiles, activeFileIndex, path));
+        set({ ...closedTabState(openFiles, activeFileIndex, path), recentlyClosed: rememberClosed(get().recentlyClosed, path) });
     },
 
     discardAndCloseFile: (path) => {
         const { openFiles, activeFileIndex } = get();
-        set(closedTabState(openFiles, activeFileIndex, path));
+        set({ ...closedTabState(openFiles, activeFileIndex, path), recentlyClosed: rememberClosed(get().recentlyClosed, path) });
     },
 
     setFileToClose: (file) => set({ fileToClose: file }),
@@ -692,9 +712,34 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
         }
     },
 
-    setActiveView: (view) => set({ activeView: view }),
+    // Picking a view shows the side bar if Ctrl+B had hidden it
+    setActiveView: (view) => set({ activeView: view, showSidebar: true }),
 
     toggleTerminal: () => set((state) => ({ showTerminal: !state.showTerminal })),
+
+    toggleSidebar: () => set((state) => ({ showSidebar: !state.showSidebar })),
+    setShowSidebar: (show) => set({ showSidebar: show }),
+    setShowCommandPalette: (show) => set({ showCommandPalette: show }),
+
+    cycleTab: (delta) => {
+        const { openFiles, activeFileIndex } = get();
+        if (activeFileIndex === null) return;
+        const active = openFiles[activeFileIndex];
+        const group = openFiles.filter(f => inCell(f, cellOf(active)));
+        if (group.length < 2) return;
+        const next = group[(group.indexOf(active) + delta + group.length) % group.length];
+        get().setActiveIndex(openFiles.indexOf(next));
+    },
+
+    reopenClosedEditor: async () => {
+        const closed = [...get().recentlyClosed];
+        const openPaths = new Set(get().openFiles.map(f => f.path));
+        // Skip ones that were opened again since
+        let path = closed.pop();
+        while (path && openPaths.has(path)) path = closed.pop();
+        set({ recentlyClosed: closed });
+        if (path) await get().openFileByPath(path);
+    },
 
     setShowTerminal: (show) => set({ showTerminal: show }),
 
@@ -727,6 +772,7 @@ export const useFileStore = create<FileStore>()(persist((set, get) => ({
     partialize: (state) => ({
         projectRoot: state.projectRoot,
         activeView: state.activeView,
+        showSidebar: state.showSidebar,
         recentFiles: state.recentFiles,
         recentFolders: state.recentFolders,
         // Until the saved tabs are reopened, keep them as-is so an early write can't wipe them

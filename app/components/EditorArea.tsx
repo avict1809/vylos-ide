@@ -351,6 +351,17 @@ function WelcomeScreen() {
 
                 <div className="mt-12 space-y-4 max-w-sm w-full px-8">
                     <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Show All Commands</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Shift</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">P</kbd>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13px]">
                         <span className="text-gray-500">Go to File</span>
                         <div className="flex gap-1">
                             <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
@@ -376,6 +387,15 @@ function WelcomeScreen() {
                             <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
                             <span className="text-gray-600">+</span>
                             <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">`</kbd>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[13px]">
+                        <span className="text-gray-500">Toggle Side Bar</span>
+                        <div className="flex gap-1">
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">Ctrl</kbd>
+                            <span className="text-gray-600">+</span>
+                            <kbd className="px-1.5 py-0.5 bg-[#333] rounded text-gray-300 min-w-[20px] text-center border border-[#444] shadow-sm">B</kbd>
                         </div>
                     </div>
 

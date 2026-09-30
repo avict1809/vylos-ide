@@ -8,6 +8,7 @@ import { cancelLocalTurn } from './local-provider';
 import { useVoiceStore } from '../stores/voice-store';
 import { useFileStore } from '../useFileStore';
 import type { LessonRef } from '../learning/lesson-utils';
+import { registerLiveConversation } from '../memory/tutor-memory';
 
 /**
  * The tutor, in writing. Same lesson workflow, same tools and same completion
@@ -57,6 +58,9 @@ export const useTextTutorStore = create<TextTutorStore>()(
         }
     )
 );
+
+// Already in the chat the model is sent, so the tutor's memory leaves it out
+registerLiveConversation(() => useTextTutorStore.getState().entries.map((e) => e.text));
 
 const add = (role: ChatEntry['role'], text: string) =>
     useTextTutorStore.setState((s) => ({ entries: [...s.entries, { id: nextId++, role, text }].slice(-MAX_ENTRIES) }));

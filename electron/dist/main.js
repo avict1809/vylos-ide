@@ -181,8 +181,38 @@ const createWindow = async () => {
         }
     });
 };
+/**
+ * The app draws its own menus (TitleBar), so this one is only here for its
+ * keyboard shortcuts: copy/paste, reload, zoom, full screen. It replaces
+ * Electron's default, which would close the whole window on Ctrl+W (in Vylos
+ * that closes the editor tab, as in VS Code) and open developer tools on
+ * Ctrl+Shift+I (Vylos AI's shortcut).
+ */
+function applicationMenu() {
+    const template = [
+        process.platform === 'darwin' ? { role: 'appMenu' } : { label: 'File', submenu: [{ role: 'quit' }] },
+        { role: 'editMenu' },
+        {
+            label: 'View',
+            submenu: [
+                { role: 'reload' },
+                { role: 'forceReload' },
+                { role: 'toggleDevTools', accelerator: 'CommandOrControl+Alt+I' },
+                { type: 'separator' },
+                { role: 'resetZoom' },
+                { role: 'zoomIn' },
+                { role: 'zoomOut' },
+                { type: 'separator' },
+                { role: 'togglefullscreen' },
+            ],
+        },
+        { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' }] },
+    ];
+    return electron_1.Menu.buildFromTemplate(template);
+}
 if (isPrimaryInstance)
     electron_1.app.whenReady().then(async () => {
+        electron_1.Menu.setApplicationMenu(applicationMenu());
         // Before the window: the page asks for these as soon as it mounts
         (0, extensions_1.initExtensions)(() => mainWindow);
         (0, terminal_1.initTerminal)(() => mainWindow);

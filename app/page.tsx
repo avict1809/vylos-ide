@@ -25,7 +25,7 @@ const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: 
 
 export default function Home() {
   const [mounted, setMounted] = React.useState(false);
-  const { showTerminal, restoreSession, openLaunchPaths } = useFileStore();
+  const { showTerminal, showSidebar, restoreSession, openLaunchPaths } = useFileStore();
   const { hasCompletedOnboarding, isAuthenticated } = useAuthStore();
   const showWorkbench = mounted && isAuthenticated && hasCompletedOnboarding;
 
@@ -71,15 +71,19 @@ export default function Home() {
         {/* Resizable Panels (Horizontal) */}
         <Group orientation="horizontal" className="h-full w-full">
 
-          {/* Side Panel (File Explorer, etc.) */}
-          <Panel defaultSize={20} minSize={140} className="bg-[var(--vylos-grey-dark)]">
-            <SidePanel />
-          </Panel>
+          {/* Side Panel (File Explorer, etc.); Ctrl+B hides it */}
+          {showSidebar && (
+            <>
+              <Panel id="side-panel" defaultSize={20} minSize={140} className="bg-[var(--vylos-grey-dark)]">
+                <SidePanel />
+              </Panel>
 
-          <Separator className="w-[1px] bg-[var(--vylos-green)] transition-all duration-200" />
+              <Separator className="w-[1px] bg-[var(--vylos-green)] transition-all duration-200" />
+            </>
+          )}
 
           {/* Main Workspace (Editor + Terminal) */}
-          <Panel defaultSize={80}>
+          <Panel id="workspace" defaultSize={80}>
             <Group orientation="vertical" className="h-full w-full">
 
               {/* Editor area */}

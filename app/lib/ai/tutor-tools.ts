@@ -14,6 +14,7 @@ import { activePersonalPlan, LEVEL_DESCRIPTIONS, PERSONAL_LEVELS, usePersonalTut
 import { nextLessonRef, resolveLesson } from '../learning/lesson-utils';
 import { highlightLines, clearHighlights, revealLine } from '../editor-bridge';
 import { TUTOR_ACCURACY_RULES } from './guidelines';
+import { buildMemoryBlock } from '../memory/tutor-memory';
 import { registerTutorTool, TutorTool } from './tutor-tool-registry';
 
 export { getTutorToolDeclarations, executeTutorTool, describeTutorTool } from './tutor-tool-registry';
@@ -652,13 +653,15 @@ export function buildTutorSystemInstruction(opts: { resume?: boolean; mode?: 'vo
     // learner's personal topic while it is open.
     const personalBlock = lessonBlock ? '' : buildPersonalBlock();
     const resumeBlock = opts.resume ? buildResumeBlock() : '';
+    // Earlier sessions, from this computer's copy of the conversations
+    const memoryBlock = buildMemoryBlock();
     const currentLesson = useVoiceStore.getState().lessonContext;
     const personal = personalBlock ? activePersonalPlan() : null;
 
     return `You are Vylos, a friendly, patient tutor for programming and computing (software, AI, cybersecurity, and more) ${text
         ? 'chatting in writing with a learner inside their code editor. They read your messages in a side panel next to the editor and type their replies.'
         : 'speaking with a learner inside their code editor. You talk with your voice; the learner hears you and sees their editor.'}
-${lessonBlock}${personalBlock}${resumeBlock}
+${lessonBlock}${personalBlock}${memoryBlock}${resumeBlock}
 ${TUTOR_ACCURACY_RULES}
 
 TEACHING STYLE:

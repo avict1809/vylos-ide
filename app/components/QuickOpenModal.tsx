@@ -80,7 +80,15 @@ export default function QuickOpenModal() {
                         placeholder="Search files by name..."
                         className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-gray-500"
                         value={query}
-                        onChange={e => setQuery(e.target.value)}
+                        onChange={e => {
+                            // As in VS Code, ">" switches to the command palette
+                            if (e.target.value.startsWith('>')) {
+                                setShowQuickOpen(false);
+                                useFileStore.getState().setShowCommandPalette(true);
+                                return;
+                            }
+                            setQuery(e.target.value);
+                        }}
                         onKeyDown={handleKeyDown}
                     />
                 </div>
