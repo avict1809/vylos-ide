@@ -14,7 +14,7 @@ import { activePersonalPlan, LEVEL_DESCRIPTIONS, PERSONAL_LEVELS, usePersonalTut
 import { nextLessonRef, resolveLesson } from '../learning/lesson-utils';
 import { highlightLines, clearHighlights, revealLine } from '../editor-bridge';
 import { TUTOR_ACCURACY_RULES } from './guidelines';
-import { buildMemoryBlock } from '../memory/tutor-memory';
+import { buildMemory } from '../memory/tutor-memory';
 import { registerTutorTool, TutorTool } from './tutor-tool-registry';
 
 export { getTutorToolDeclarations, executeTutorTool, describeTutorTool } from './tutor-tool-registry';
@@ -591,7 +591,7 @@ function buildPersonalBlock(): string {
 
     const covered = plan.covered.length
         ? `\nALREADY COVERED with them — do NOT re-teach these unless they ask or get them wrong:\n${plan.covered.map((c) => `- ${c}`).join('\n')}\n`
-        : '\nYou have not recorded anything covered yet — this is the start of their topic.\n';
+        : '\nYou have not recorded anything covered yet with remember_progress. If WHERE YOU LEFT OFF appears below, you have started already: continue from there. Otherwise this is the start of their topic.\n';
     const struggling = plan.struggling.length
         ? `STILL HARD FOR THEM — come back to these, gently, when they fit:\n${plan.struggling.map((c) => `- ${c}`).join('\n')}\n`
         : '';
@@ -603,7 +603,7 @@ PERSONAL TUTORING MODE — there is no fixed curriculum here. You are this learn
 - Why they want it: ${plan.goal || 'they did not say — ask once, briefly, if it would change how you teach'}
 ${covered}${struggling}
 HOW TO TUTOR PERSONALLY:
-1. PLAN WITH THEM, don't hand down a syllabus. At the very start, ask 2-3 short questions to find out what they already know and what they want to be able to DO. Then say in one or two sentences what you suggest tackling first, and check they're happy with it.
+1. PLAN WITH THEM, don't hand down a syllabus. The first time you tutor this topic (not when WHERE YOU LEFT OFF shows you've already started), ask 2-3 short questions to find out what they already know and what they want to be able to DO. Then say in one or two sentences what you suggest tackling first, and check they're happy with it.
 2. ONE SMALL THING AT A TIME. Pick the next smallest useful step towards their topic, teach it hands-on in the editor, and stop there. Never plan out ten steps aloud.
 3. PRACTICE EVERY STEP. After you show something, hand it over: ask them to write the next bit themselves, then check with get_workspace_state and give specific feedback.
 4. REMEMBER WHAT HAPPENED. Call remember_progress as soon as they demonstrate something themselves (covered), whenever you find a gap (struggling), and when an old gap is closed (resolved). This is the only memory you have of them between sessions — without it you will re-teach what they already know.
@@ -653,8 +653,10 @@ export function buildTutorSystemInstruction(opts: { resume?: boolean; mode?: 'vo
     // learner's personal topic while it is open.
     const personalBlock = lessonBlock ? '' : buildPersonalBlock();
     const resumeBlock = opts.resume ? buildResumeBlock() : '';
-    // Earlier sessions, from this computer's copy of the conversations
-    const memoryBlock = buildMemoryBlock();
+    // Earlier sessions, from this computer's copy of the conversations: notes,
+    // and where the last one on this lesson or topic stopped
+    const memory = buildMemory();
+    const memoryBlock = memory.block;
     const currentLesson = useVoiceStore.getState().lessonContext;
     const personal = personalBlock ? activePersonalPlan() : null;
 
@@ -698,7 +700,9 @@ CURRENT CONTEXT:
 
 ${resumeBlock
         ? 'Start with a brief "welcome back", recap in ONE sentence where you left off, check the workspace with get_workspace_state, then continue the lesson from that exact point.'
-        : currentLesson
+        : memory.continues
+            ? 'Start with a brief "welcome back", say in ONE sentence exactly where you stopped last time (see WHERE YOU LEFT OFF), check the workspace with get_workspace_state, then continue from that exact point. Do not start the topic over.'
+            : currentLesson
             ? 'Start the session by greeting the learner briefly, looking at their workspace, then begin teaching the CURRENT LESSON right away.'
             : personal
                 ? `Start by greeting the learner briefly and looking at their workspace, then ${personal.covered.length || personal.struggling.length ? 'recap in ONE sentence where you left off on their topic and continue from there' : 'find out what they already know about their topic with a couple of short questions before you teach anything'}.`

@@ -8,10 +8,10 @@ import { topicTitle } from './session-notes';
 
 /**
  * What the tutor remembers of earlier sessions, for its instructions: the
- * study notes written when each session ended (session-notes), never the old
- * conversation itself. A new session starts fresh — nothing said before is
- * replayed into it — while the tutor still knows what the learner studied,
- * understood and struggled with.
+ * study notes written when each session ended (session-notes), plus the last
+ * lines of the most recent conversation on the same lesson or topic, word for
+ * word, so the tutor picks up exactly where it stopped instead of starting the
+ * topic over. The chat on screen still starts empty; only the tutor is told.
  *
  * Read from this computer's copy (conversation-store), so starting a session
  * never waits on the network. Notes on the same lesson or topic come first.
@@ -21,6 +21,9 @@ import { topicTitle } from './session-notes';
 
 const MAX_NOTES = 6;
 const MAX_CHARS = 4000;
+/** Lines of the last conversation given word for word, so the tutor knows exactly where it stopped */
+const TAIL_LINES = 14;
+const MAX_TAIL_LINE = 400;
 
 function dateLabel(at: number): string {
     const days = Math.floor((Date.now() - at) / 86_400_000);
@@ -57,9 +60,18 @@ interface Note {
     spoke: boolean;
 }
 
-export function buildMemoryBlock(opts: { lessonKey: string | null } = { lessonKey: currentLessonKey() }): string {
+export interface Memory {
+    /** For the tutor's instructions ('' when there's nothing to remember) */
+    block: string;
+    /** There's a conversation on this lesson or topic to pick up from */
+    continues: boolean;
+}
+
+const NOTHING: Memory = { block: '', continues: false };
+
+export function buildMemory(opts: { lessonKey: string | null } = { lessonKey: currentLessonKey() }): Memory {
     const userId = useAuthStore.getState().user?.id;
-    if (!userId) return '';
+    if (!userId) return NOTHING;
     const store = useConversationStore.getState();
     const mine = store.messages.filter((m) => m.userId === userId);
 
@@ -80,27 +92,50 @@ export function buildMemoryBlock(opts: { lessonKey: string | null } = { lessonKe
         notes.set(m.sessionId, note);
     }
     const earlier = [...notes.values()].filter((n) => n.spoke || n.text);
-    if (earlier.length === 0) return '';
+    if (earlier.length === 0) return NOTHING;
 
     const newest = (a: Note, b: Note) => b.at - a.at;
     const sameTopic = opts.lessonKey ? earlier.filter((n) => n.lessonKey === opts.lessonKey).sort(newest) : [];
     const others = earlier.filter((n) => !sameTopic.includes(n)).sort(newest);
     const picked = [...sameTopic, ...others].slice(0, MAX_NOTES).sort((a, b) => a.at - b.at);
 
+    // The conversation to pick up from: the last one on this lesson or topic, or
+    // simply the last one when chatting freely. Another lesson starts fresh.
+    const resumeFrom = sameTopic[0] ?? (opts.lessonKey ? null : others[0] ?? null);
+
     let body = picked
         .map((n) => {
             const topic = topicTitle(n.lessonKey);
             const heading = `${dateLabel(n.at)}, ${n.channel === 'voice' ? 'voice' : 'chat'}${topic ? ` — ${topic}` : ''}`;
-            // Without notes (they couldn't be written yet) only the topic is known
-            return n.text ? `(${heading})\n${n.text}` : `(${heading})\n- studied this; no notes were kept`;
+            // Notes are written after a session ends, so the latest may not have them yet
+            return n.text ? `(${heading})\n${n.text}` : `(${heading})\n- no notes yet${n === resumeFrom ? ' — see where you left off below' : ''}`;
         })
         .join('\n\n');
     if (body.length > MAX_CHARS) body = `…${body.slice(-MAX_CHARS)}`;
 
-    return `
+    const notesBlock = `
 WHAT YOU REMEMBER ABOUT THIS LEARNER — your notes from earlier sessions${sameTopic.length > 0 ? ' (including this lesson/topic)' : ''}, oldest first:
 ${body}
-
-This is a NEW session. Do not continue or quote an earlier conversation, and don't recap it unprompted. Use the notes only to teach better: build on what they already showed they understand, don't re-teach it, come back to what they found hard when it fits, and you may mention it briefly ("last time, loops were tricky — let's make sure they click").
 `;
+    if (!resumeFrom) {
+        return { continues: false, block: `${notesBlock}
+They're starting something different now. Don't continue an earlier conversation; use the notes to teach better: build on what they already showed they understand, come back to what they found hard when it fits, and you may mention it briefly ("last time, loops were tricky").
+` };
+    }
+
+    const tail = mine
+        .filter((m) => m.sessionId === resumeFrom.sessionId && (m.role === 'user' || m.role === 'tutor'))
+        .slice(-TAIL_LINES)
+        .map((m) => {
+            const line = `${m.role === 'tutor' ? 'Tutor' : 'Learner'}: ${m.text}`;
+            return line.length > MAX_TAIL_LINE ? `${line.slice(0, MAX_TAIL_LINE)}…` : line;
+        })
+        .join('\n');
+
+    return { continues: true, block: `${notesBlock}
+WHERE YOU LEFT OFF — the end of your last conversation (${dateLabel(resumeFrom.at)}, ${resumeFrom.channel === 'voice' ? 'by voice' : 'in the chat'}), word for word:
+${tail}
+
+CONTINUE FROM THERE. Open by saying in one short sentence exactly where you stopped (e.g. "Last time we got to binary search — you were about to work out the middle index. Let's pick that up."), then carry on from that exact point: if a question, task, exercise or quiz was open, go back to it; if you were partway through explaining something, finish it. Don't restart the topic from the beginning and don't re-teach what they already did. Only if they say they want something else, follow them instead.
+` };
 }
