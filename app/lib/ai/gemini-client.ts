@@ -14,7 +14,17 @@ const AI_ERRORS = {
     device: "Vylos AI can't be used with this account on this computer. Sign out and back in, or use an account registered here.",
     failed: 'Error generating content. Please try again.',
     noTools: "The local model you picked can't call tools, so it can't teach a lesson. Choose a tool-capable model (Qwen or Devstral, for example) in Settings, or switch back to Vylos AI.",
+    // Billing refusals (guard.ts, when BILLING_ENFORCED is on)
+    noPlan: 'Vylos AI needs a plan. Set up a local model in Settings → AI Models to use it free, or see plans at vylos.co/pricing.',
+    notIncluded: 'Your Root plan covers the voice tutor. Set up a local model in Settings → AI Models for this, or move to Sprout for all of Vylos AI.',
+    outOfCredits: "You've used this month's Vylos AI credits. They renew with your plan — or use a local model, or move up a plan at vylos.co/pricing.",
 } as const;
+
+const BILLING_ERRORS: Record<string, string> = {
+    no_plan: AI_ERRORS.noPlan,
+    not_included: AI_ERRORS.notIncluded,
+    out_of_credits: AI_ERRORS.outOfCredits,
+};
 
 export function isAiError(text: string): boolean {
     return (Object.values(AI_ERRORS) as string[]).includes(text);
@@ -27,6 +37,10 @@ export function aiErrorMessage(error: unknown): string {
         if (status === 401) return AI_ERRORS.signedOut;
         if (status === 429) return AI_ERRORS.dailyLimit;
         if (status === 403) return AI_ERRORS.device;
+        if (status === 402) {
+            const reason = (error.context as Response).headers.get('x-vylos-billing') ?? '';
+            return BILLING_ERRORS[reason] ?? AI_ERRORS.noPlan;
+        }
     }
     return AI_ERRORS.failed;
 }

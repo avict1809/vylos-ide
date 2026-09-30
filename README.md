@@ -117,6 +117,9 @@ Optional secrets (set the same way; no redeploy needed):
 | `AI_DAILY_VOICE_LIMIT` | `20` | Voice sessions per user per day (UTC) |
 | `AI_MAX_OUTPUT_TOKENS` | `8192` | Cap per text answer, thinking included |
 | `AI_TEXT_MODEL` | `gemini-3.6-flash` | Gemini model for text features |
+| `BILLING_ENFORCED` | off | `true` makes Vylos AI need a paid plan and spend its monthly credits (Seed: none, Root: voice only, Sprout/Canopy: all). Needs the `subscriptions` and `ai_credits` migrations. The daily limits above still apply |
+| `CREDIT_COST_TEXT_MILLI` | `10` | Credits per text request, in thousandths (10 = 0.01 credit, 100 requests per credit) |
+| `CREDIT_COST_VOICE_MILLI` | `250` | Credits per voice tutor session, in thousandths (250 = 4 sessions per credit) |
 
 ### Run
 

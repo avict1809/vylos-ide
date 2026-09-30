@@ -13,7 +13,6 @@ interface User {
     email: string;
     name: string;
     avatarUrl: string | null;
-    subscription: 'free' | 'pro' | 'enterprise';
 }
 
 interface AuthStore {
@@ -45,7 +44,6 @@ function toUser(session: Session | null): User | null {
         email: u.email ?? '',
         name: meta.full_name || meta.name || u.email?.split('@')[0] || 'User',
         avatarUrl: meta.avatar_url || null,
-        subscription: 'free',
     };
 }
 

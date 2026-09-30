@@ -4,6 +4,8 @@ export const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-vylos-device',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    // Lets the app read why a request was refused for billing (see guard)
+    'Access-Control-Expose-Headers': 'x-vylos-billing',
 };
 
 export function json(body: unknown, status = 200): Response {
@@ -54,9 +56,39 @@ export async function authenticate(req: Request): Promise<{ user: User } | { res
 // with `supabase secrets set REQUIRE_DEVICE=true`. See docs/DEVICE-LIMITS.md.
 const REQUIRE_DEVICE = Deno.env.get('REQUIRE_DEVICE') === 'true';
 
+// Off until paid plans are on sale and the app that explains them is out; turn
+// on with `supabase secrets set BILLING_ENFORCED=true`. Until then everyone
+// gets today's daily limits and nothing spends credits. With it on, Vylos AI
+// needs a plan: Seed gets none (local models still work, they never come
+// here), Root's credits cover voice only, Sprout and Canopy cover both.
+const BILLING_ENFORCED = Deno.env.get('BILLING_ENFORCED') === 'true';
+
+// What one request costs, in millicredits (1 credit = 1000). A text request is
+// one model call; a text-tutor reply that uses tools makes several. A voice
+// request is one voice tutor session.
+const CREDIT_COST = {
+    text: envInt('CREDIT_COST_TEXT_MILLI', 10),
+    voice: envInt('CREDIT_COST_VOICE_MILLI', 250),
+};
+
+const BILLING_REFUSALS: Record<string, string> = {
+    no_plan: 'Vylos AI needs a plan. Use your own local model for free, or add the Vylos AI tutor at vylos.co/pricing.',
+    not_included: 'Your Root plan covers the voice tutor. Use your local model for this, or move to Sprout for all of Vylos AI.',
+    out_of_credits: "You've used this month's Vylos AI credits. They renew with your plan, or move up a plan at vylos.co/pricing.",
+};
+
+function billingRefusal(reason: string): Response {
+    return new Response(JSON.stringify({ error: BILLING_REFUSALS[reason] ?? 'Vylos AI needs a plan.', code: reason }), {
+        status: 402,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json', 'x-vylos-billing': reason },
+    });
+}
+
 /**
  * Admits a request only from a signed-in (non-anonymous) user who is still
  * under today's `dailyLimit` for `kind`, and counts it against that limit.
+ * With BILLING_ENFORCED, it must also be covered by the account's plan and
+ * spends its credits; refusals are 402 with the reason in x-vylos-billing.
  * With REQUIRE_DEVICE, the request must also come from a device the account
  * is registered on (device-register), so accounts beyond a device's limit get
  * no free AI. Returns the error response to send back, or null to go ahead.
@@ -88,5 +120,19 @@ export async function guard(req: Request, kind: 'text' | 'voice', dailyLimit: nu
         return json({ error: 'Usage check failed' }, 500);
     }
     if (!allowed) return json({ error: 'Daily AI limit reached' }, 429);
+
+    // After the daily cap, so a request that cap refuses never spends credits
+    if (BILLING_ENFORCED) {
+        const { data: outcome, error: creditError } = await admin.rpc('consume_ai_credits', {
+            p_user_id: user.id,
+            p_kind: kind,
+            p_cost_milli: CREDIT_COST[kind],
+        });
+        if (creditError) {
+            console.error('consume_ai_credits failed:', creditError.message);
+            return json({ error: 'Usage check failed' }, 500);
+        }
+        if (outcome !== 'ok') return billingRefusal(String(outcome));
+    }
     return null;
 }
