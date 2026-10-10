@@ -30,6 +30,23 @@ declare global {
         codeError?: string;
     }
 
+    interface TermInfo {
+        interactive: boolean;
+        error: string | null;
+        platform: string;
+        shell: string;
+    }
+
+    interface TermStarted {
+        runId: number;
+        /** The tag passed to run/shell, so the page knows which tab it belongs to */
+        tag: string | null;
+        kind: 'run' | 'shell';
+        command: string;
+        cwd: string;
+        interactive: boolean;
+    }
+
     interface Window {
         electron: {
             getVersion: () => Promise<string>;
@@ -43,9 +60,12 @@ declare global {
                 onUnmaximize: (callback: () => void) => () => void;
             };
             auth: {
-                signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
+                signInViaBrowser: (options: { mode?: string }) =>
                     Promise<{ access_token?: string; refresh_token?: string; error?: string }>;
                 cancel: () => Promise<boolean>;
+                onCompleted: (
+                    callback: (tokens: { access_token: string; refresh_token: string }) => void,
+                ) => () => void;
             };
             updates: {
                 getState: () => Promise<UpdateState>;
@@ -68,7 +88,24 @@ declare global {
                 onChanged: (callback: (data: { event: string; path: string }) => void) => () => void;
             };
             shell: {
+                /** Opens an .html file in the default browser; resolves with an error message, or '' on success */
+                openHtml: (path: string) => Promise<string>;
                 showItemInFolder: (path: string) => Promise<boolean>;
+            };
+            device: {
+                /** SHA-256 hex of this computer's OS install id */
+                getId: () => Promise<string>;
+            };
+            /** A local OpenAI-compatible model server (Ollama, LM Studio, llama.cpp…) */
+            localAi: {
+                models: (endpoint: string) => Promise<
+                    { ok: true; endpoint: string; models: { id: string; size?: number }[] } | { ok: false; error: string }
+                >;
+                /** One chat completion; `token` lets it be cancelled. */
+                chat: (endpoint: string, body: unknown, token?: string) => Promise<
+                    { ok: true; data: unknown } | { ok: false; error: string }
+                >;
+                cancel: (token: string) => Promise<boolean>;
             };
             extensions: {
                 scan: () => Promise<{ dir: string; extensions: ExtensionScan[] }>;
@@ -77,6 +114,7 @@ declare global {
             };
             shortcuts: {
                 onToggleTerminal: (callback: () => void) => () => void;
+                onNewTerminal: (callback: () => void) => () => void;
             };
             cli: {
                 takePendingOpens: () => Promise<CliOpenRequest[]>;
@@ -90,11 +128,19 @@ declare global {
                 saveFile: (content: string, defaultPath?: string) => Promise<string | null>;
             };
             term: {
-                run: (opts: { command: string; cwd?: string; timeoutMs?: number }) =>
+                /** Whether processes get a real pseudo-terminal (input works) and the default shell's name */
+                info: () => Promise<TermInfo>;
+                /** Runs one command; resolves when it exits. timeoutMs null = no time limit */
+                run: (opts: { command: string; cwd?: string; timeoutMs?: number | null; cols?: number; rows?: number; tag?: string }) =>
                     Promise<{ runId: number; exitCode: number; output: string; truncated?: boolean; timedOut?: boolean; error?: string }>;
+                /** Starts an interactive shell */
+                shell: (opts: { cwd?: string; cols?: number; rows?: number; tag?: string }) =>
+                    Promise<{ runId: number; name: string } | { error: string }>;
+                input: (runId: number, data: string) => Promise<boolean>;
+                resize: (runId: number, cols: number, rows: number) => Promise<boolean>;
                 kill: (runId: number) => Promise<boolean>;
-                onStarted: (callback: (data: { runId: number; command: string; cwd: string | null }) => void) => () => void;
-                onOutput: (callback: (data: { runId: number; chunk: string; stream: 'stdout' | 'stderr' }) => void) => () => void;
+                onStarted: (callback: (data: TermStarted) => void) => () => void;
+                onOutput: (callback: (data: { runId: number; chunk: string }) => void) => () => void;
                 onExit: (callback: (data: { runId: number; exitCode: number; timedOut: boolean; error?: string }) => void) => () => void;
             };
             find: {

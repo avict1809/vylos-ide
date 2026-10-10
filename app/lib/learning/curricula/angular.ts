@@ -8,6 +8,7 @@ export const angular: CourseDefinition = {
     hours: 28,
     accent: '#DD0031',
     badge: 'NG',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [

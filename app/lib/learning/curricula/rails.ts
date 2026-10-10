@@ -8,6 +8,7 @@ export const rails: CourseDefinition = {
     hours: 26,
     accent: '#CC0000',
     badge: 'ROR',
+    requires: ['ruby'],
     category: 'framework',
     stack: 'Ruby',
     modules: [

@@ -54,6 +54,8 @@ npm run release
 
 This builds the Next.js UI and the Electron shell, packages them, and uploads to a GitHub release tagged `v<version>` (for example `v0.1.2`). It creates the release as a **draft** if it doesn't exist.
 
+**The terminal uses a native module, `node-pty`.** Nothing extra is needed on Windows or macOS: it ships prebuilt binaries there. On Linux, `npm install` compiles it, so the build machine needs `g++`, `make` and `python3`. It uses Node's stable ABI (N-API), so it is never rebuilt for Electron (`npmRebuild: false` stays), and `asarUnpack` keeps it outside `app.asar` where it can be loaded. If it ever fails to load, the app still starts: runs fall back to plain output (no typing into programs) and the terminal panel says why.
+
 - **Don't create the release by hand on GitHub first.** electron-builder looks for the tag `v0.1.2`. A hand-made release (especially a tag without the `v`) ends up as a separate, empty release.
 - `npm run electron:build` builds locally but **uploads nothing**. Only `npm run release` publishes.
 - electron-builder builds only for the OS you run it on. A release made on Linux has only Linux files. For Windows users, also run `npm run release` on a Windows machine with the same version; it adds to the same draft.

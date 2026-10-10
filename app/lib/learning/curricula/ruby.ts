@@ -8,6 +8,7 @@ export const ruby: CourseDefinition = {
     hours: 24,
     accent: '#CC342D',
     badge: 'RB',
+    requires: ['ruby'],
     modules: [
         {
             title: 'Getting Started',

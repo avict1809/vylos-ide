@@ -8,6 +8,7 @@ export const c: CourseDefinition = {
     hours: 30,
     accent: '#A8B9CC',
     badge: 'C',
+    requires: ['cc'],
     modules: [
         {
             title: 'Getting Started',

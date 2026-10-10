@@ -1,15 +1,28 @@
 'use client';
 
+import { useSyncExternalStore } from "react";
 import { useFileStore } from "../lib/useFileStore";
-import { Cpu, Globe, CheckCircle2, FileCode } from "lucide-react";
+import { Cpu, Globe, FileCode, PanelLeft } from "lucide-react";
+import { editorStatus, languageName, runEditorAction } from "../lib/editor-bridge";
 
 export default function StatusBar() {
-    const { openFiles, activeFileIndex } = useFileStore();
+    const { openFiles, activeFileIndex, showSidebar, toggleSidebar } = useFileStore();
     const activeFile = activeFileIndex !== null ? openFiles[activeFileIndex] : null;
+    // The focused editor's cursor, selection and settings, live
+    const status = useSyncExternalStore(editorStatus.subscribe, editorStatus.get, () => null);
 
     return (
         <div className="h-6 bg-[#09090b] text-gray-400 border-t border-[#27272a] flex items-center px-3 text-[10.5px] select-none">
             <div className="flex items-center h-full">
+                <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    title={`${showSidebar ? 'Hide' : 'Show'} Side Bar (Ctrl+B)`}
+                    className="flex items-center hover:bg-[#27272a] hover:text-white px-2 h-full transition-colors"
+                >
+                    <PanelLeft size={12} className={showSidebar ? 'text-[var(--vylos-green)]' : ''} />
+                </button>
+
                 <div className="flex items-center gap-1.5 hover:bg-[#27272a] hover:text-white px-2 h-full cursor-pointer transition-colors group">
                     <Globe size={12} className="group-hover:text-[var(--vylos-green)]" />
                     <span className="font-medium">vylos-ai</span>
@@ -33,18 +46,27 @@ export default function StatusBar() {
             <div className="flex-1" />
 
             <div className="flex items-center h-full">
-                {activeFile && (
+                {activeFile && status && (
                     <>
-                        <div className="px-3 border-l border-[#27272a] hover:bg-[#27272a] h-full flex items-center cursor-pointer transition-colors">
-                            <span className="opacity-60">Ln</span>&nbsp;{activeFile.content.split('\n').length},&nbsp;
-                            <span className="opacity-60">Col</span>&nbsp;1&nbsp;
-                            <span className="ml-2 text-[9px] px-1 bg-[#18181b] rounded border border-[#27272a]">
-                                {activeFile.content.length} chars
-                            </span>
-                        </div>
-                        <div className="px-3 border-l border-[#27272a] hover:bg-[#27272a] h-full flex items-center cursor-pointer transition-colors font-bold uppercase tracking-widest text-[#10b981]">
-                            {activeFile.name.split('.').pop() || 'plain text'}
-                        </div>
+                        <button
+                            type="button"
+                            onClick={() => runEditorAction('editor.action.gotoLine')}
+                            title="Go to Line/Column (Ctrl+G)"
+                            className="px-3 border-l border-[#27272a] hover:bg-[#27272a] hover:text-white h-full flex items-center transition-colors"
+                        >
+                            Ln {status.line}, Col {status.column}
+                            {status.cursors > 1
+                                ? ` (${status.cursors} selections)`
+                                : status.selectedChars > 0 ? ` (${status.selectedChars} selected)` : ''}
+                        </button>
+                        <span className="px-3 border-l border-[#27272a] h-full flex items-center" title="Indentation">
+                            {status.insertSpaces ? 'Spaces' : 'Tab Size'}: {status.tabSize}
+                        </span>
+                        <span className="px-3 border-l border-[#27272a] h-full flex items-center">UTF-8</span>
+                        <span className="px-3 border-l border-[#27272a] h-full flex items-center" title="End of line sequence">{status.eol}</span>
+                        <span className="px-3 border-l border-[#27272a] h-full flex items-center font-bold text-[#10b981]">
+                            {languageName(status.languageId)}
+                        </span>
                     </>
                 )}
 

@@ -8,6 +8,7 @@ export const git: CourseDefinition = {
     hours: 15,
     accent: '#F05032',
     badge: 'GIT',
+    requires: ['git'],
     category: 'essentials',
     stack: 'Git',
     tutorGuidelines: [

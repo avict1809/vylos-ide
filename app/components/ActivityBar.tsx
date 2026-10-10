@@ -4,7 +4,7 @@ import { cn } from "@/app/lib/utils";
 import { useState, useEffect } from 'react';
 
 export function ActivityBar() {
-    const { activeView, setActiveView } = useFileStore();
+    const { activeView, setActiveView, showSidebar, toggleSidebar } = useFileStore();
     const [gitChanges, setGitChanges] = useState(0);
 
     // Mock Git change detection
@@ -23,10 +23,11 @@ export function ActivityBar() {
 
     const ActivityIcon = ({ id, icon: Icon, label, badge }: { id: string; icon: any; label: string; badge?: number }) => (
         <button
-            onClick={() => setActiveView(id as any)}
+            // Like VS Code: clicking the open view's icon hides the side bar again
+            onClick={() => (showSidebar && activeView === id ? toggleSidebar() : setActiveView(id as any))}
             className={cn(
                 "p-3 w-12 h-12 flex items-center justify-center transition-colors relative",
-                activeView === id
+                showSidebar && activeView === id
                     ? "text-[var(--vylos-green)] border-l-2 border-[var(--vylos-green)] bg-[#000000] shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]"
                     : "text-[var(--vylos-text-secondary)] hover:text-[var(--vylos-text-primary)] hover:bg-white/5"
             )}

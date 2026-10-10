@@ -9,13 +9,63 @@ import { cn } from '@/app/lib/utils';
 import RoadmapCreator from './RoadmapCreator';
 import CourseCatalog from './CourseCatalog';
 import CourseView from './CourseView';
+import ExerciseView from './ExerciseView';
+import LessonView from './LessonView';
+import PersonalTutorView from './PersonalTutorView';
+import { useExerciseStore } from '@/app/lib/stores/exercise-store';
+import ProgressView from './ProgressView';
+import CapstoneView from './CapstoneView';
+import AssessmentView from './AssessmentView';
+import CertificateView from './CertificateView';
+import type { CourseSubView } from './CourseMasteryPanel';
+import { PRACTICE_COURSE_ID, practiceOrigin } from '@/app/lib/learning/practice';
+import { useCourseLock } from '@/app/lib/learning/course-access';
+import LockedCourseView from './LockedCourseView';
+import QuizView from './QuizView';
+import ShopView from './ShopView';
+import CommunityView from './CommunityView';
 
 export default function RoadmapView() {
     const { currentRoadmap } = useRoadmapStore();
-    const { activeCourseId, backToCatalog } = useCourseStore();
-    const [view, setView] = useState<'auto' | 'catalog' | 'creator'>('auto');
+    const { activeCourseId, backToCatalog, openLesson, setOpenLesson } = useCourseStore();
+    const [view, setView] = useState<'auto' | 'catalog' | 'creator' | 'personal' | 'progress' | 'shop' | 'community'>('auto');
+    // A capstone, assessment or certificate page belongs to the course it was opened from
+    const [opened, setOpened] = useState<{ courseId: string; view: CourseSubView } | null>(null);
 
     const course = useCourse(activeCourseId);
+    const lock = useCourseLock(course);
+    const { active: activeExercise, setActive: setActiveExercise } = useExerciseStore();
+
+    const sub = opened?.courseId === activeCourseId ? opened.view : null;
+    const setSub = (view: CourseSubView | null) => setOpened(view && activeCourseId ? { courseId: activeCourseId, view } : null);
+
+    const openCourse = (id: string) => {
+        useCourseStore.getState().setActiveCourse(id);
+        setView('auto');
+    };
+
+    if (view === 'personal') {
+        return <PersonalTutorView onBack={() => setView('catalog')} />;
+    }
+
+    if (view === 'progress') {
+        return (
+            <ProgressView
+                onBack={() => setView('catalog')}
+                onOpenCourse={openCourse}
+                onOpenShop={() => setView('shop')}
+                onOpenCommunity={() => setView('community')}
+            />
+        );
+    }
+
+    if (view === 'shop') {
+        return <ShopView onBack={() => setView('progress')} onOpenCourse={openCourse} />;
+    }
+
+    if (view === 'community') {
+        return <CommunityView onBack={() => setView('progress')} />;
+    }
 
     if (view === 'creator' && !currentRoadmap) {
         return (
@@ -32,12 +82,51 @@ export default function RoadmapView() {
     }
 
     if (view !== 'catalog') {
-        if (course) {
+        // Paid courses show their price until unlocked, whichever of their pages was asked for
+        if (course && lock.locked) {
+            return (
+                <LockedCourseView
+                    course={course}
+                    cost={lock.cost}
+                    onBack={() => {
+                        backToCatalog();
+                        setActiveExercise(null);
+                        setView('catalog');
+                    }}
+                />
+            );
+        }
+        if (course && activeExercise?.courseId === course.id) {
+            return (
+                <ExerciseView
+                    lessonRef={activeExercise}
+                    onBack={() => {
+                        setActiveExercise(null);
+                        // Practice goes back to the course it was written for
+                        if (course.id === PRACTICE_COURSE_ID) {
+                            const origin = practiceOrigin(activeExercise.lessonId);
+                            if (origin) useCourseStore.getState().setActiveCourse(origin.id);
+                            else backToCatalog();
+                        }
+                    }}
+                />
+            );
+        }
+        if (course && openLesson?.courseId === course.id) {
+            return <LessonView lessonRef={openLesson} onBack={() => setOpenLesson(null)} />;
+        }
+        if (course && course.id !== PRACTICE_COURSE_ID) {
+            if (sub === 'capstone') return <CapstoneView course={course} onBack={() => setSub(null)} />;
+            if (sub === 'assessment') return <AssessmentView course={course} onBack={() => setSub(null)} />;
+            if (sub === 'certificate') return <CertificateView course={course} onBack={() => setSub(null)} />;
+            if (sub?.startsWith('quiz:')) return <QuizView course={course} moduleIndex={Number(sub.slice(5))} onBack={() => setSub(null)} />;
             return (
                 <CourseView
                     course={course}
+                    onOpenSub={setSub}
                     onBack={() => {
                         backToCatalog();
+                        setActiveExercise(null);
                         setView('catalog');
                     }}
                 />
@@ -60,6 +149,8 @@ export default function RoadmapView() {
                 setView('auto');
             }}
             onCustomPath={() => setView('creator')}
+            onPersonalTutor={() => setView('personal')}
+            onOpenProgress={() => setView('progress')}
             onResumeRoadmap={() => {
                 backToCatalog();
                 setView('auto');

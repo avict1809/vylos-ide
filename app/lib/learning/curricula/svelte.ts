@@ -8,6 +8,7 @@ export const svelte: CourseDefinition = {
     hours: 18,
     accent: '#FF3E00',
     badge: 'SV',
+    requires: ['node'],
     category: 'framework',
     stack: 'JavaScript',
     modules: [

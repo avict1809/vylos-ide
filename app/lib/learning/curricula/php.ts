@@ -8,6 +8,7 @@ export const php: CourseDefinition = {
     hours: 26,
     accent: '#777BB4',
     badge: 'PHP',
+    requires: ['php'],
     modules: [
         {
             title: 'Getting Started',

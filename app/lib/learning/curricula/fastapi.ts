@@ -8,6 +8,7 @@ export const fastapi: CourseDefinition = {
     hours: 18,
     accent: '#009688',
     badge: 'FA',
+    requires: ['python'],
     category: 'framework',
     stack: 'Python',
     modules: [

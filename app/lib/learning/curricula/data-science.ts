@@ -9,6 +9,7 @@ export const dataScience: CourseDefinition = {
     hours: 30,
     accent: '#E70488',
     badge: 'DS',
+    requires: ['python'],
     category: 'ai',
     stack: 'Python',
     tutorGuidelines: [

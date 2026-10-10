@@ -8,6 +8,7 @@ export const swift: CourseDefinition = {
     hours: 30,
     accent: '#F05138',
     badge: 'SW',
+    requires: ['swift'],
     modules: [
         {
             title: 'Getting Started',

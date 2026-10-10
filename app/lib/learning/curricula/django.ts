@@ -8,6 +8,7 @@ export const django: CourseDefinition = {
     hours: 26,
     accent: '#44B78B',
     badge: 'DJ',
+    requires: ['python'],
     category: 'framework',
     stack: 'Python',
     modules: [

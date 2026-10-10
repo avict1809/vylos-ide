@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFileStore } from '../lib/useFileStore';
-import { Search, File } from 'lucide-react';
+import { Search } from 'lucide-react';
+import FileIcon from './ui/FileIcon';
 import { cn } from '../lib/utils';
 
 export default function QuickOpenModal() {
@@ -79,7 +80,15 @@ export default function QuickOpenModal() {
                         placeholder="Search files by name..."
                         className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-gray-500"
                         value={query}
-                        onChange={e => setQuery(e.target.value)}
+                        onChange={e => {
+                            // As in VS Code, ">" switches to the command palette
+                            if (e.target.value.startsWith('>')) {
+                                setShowQuickOpen(false);
+                                useFileStore.getState().setShowCommandPalette(true);
+                                return;
+                            }
+                            setQuery(e.target.value);
+                        }}
                         onKeyDown={handleKeyDown}
                     />
                 </div>
@@ -102,7 +111,7 @@ export default function QuickOpenModal() {
                                     }}
                                     onMouseEnter={() => setSelectedIndex(index)}
                                 >
-                                    <File size={16} className="text-gray-400" />
+                                    <FileIcon name={name ?? file} size={16} />
                                     <div className="flex flex-col flex-1 min-w-0">
                                         <span className={cn("text-sm", selectedIndex === index ? "text-[var(--vylos-green)] font-medium" : "text-gray-200")}>
                                             {name}

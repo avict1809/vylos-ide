@@ -1,6 +1,7 @@
 import { AudioProcessor } from './audio-processor';
 import { aiErrorMessage } from './gemini-client';
 import { getSupabase } from '../supabase';
+import { deviceHeaders } from '../device';
 
 const HOST = 'generativelanguage.googleapis.com';
 // Sessions authenticate with a single-use token from the `ai-live-token` Edge
@@ -11,7 +12,9 @@ const LIVE_URL = `wss://${HOST}/ws/google.ai.generativelanguage.v1alpha.Generati
 async function fetchLiveToken(): Promise<{ token: string; model: string } | { error: string }> {
     const supabase = getSupabase();
     if (!supabase) return { error: 'Vylos AI is not configured for this build.' };
-    const { data, error } = await supabase.functions.invoke<{ token: string; model: string }>('ai-live-token');
+    const { data, error } = await supabase.functions.invoke<{ token: string; model: string }>('ai-live-token', {
+        headers: await deviceHeaders(),
+    });
     if (error || !data?.token) return { error: aiErrorMessage(error) };
     return data;
 }

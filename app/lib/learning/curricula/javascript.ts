@@ -1,4 +1,5 @@
 import { CourseDefinition } from '../types';
+import * as ex from './exercises/javascript';
 
 export const javascript: CourseDefinition = {
     id: 'javascript',
@@ -8,6 +9,19 @@ export const javascript: CourseDefinition = {
     hours: 35,
     accent: '#F7DF1E',
     badge: 'JS',
+    requires: ['node'],
+    capstone: {
+        title: 'Weather app',
+        description: 'A small web app that looks up the weather for a city from a real weather API.',
+        requirements: [
+            'Fetches data from a weather API',
+            'Search by city name',
+            'Shows a loading state while it waits',
+            'Handles errors: unknown city, no network, API failures',
+            'A clear, usable UI',
+            'Deployed somewhere, or with instructions to run it',
+        ],
+    },
     modules: [
         {
             title: 'Getting Started',
@@ -16,7 +30,7 @@ export const javascript: CourseDefinition = {
                 'What is JavaScript and what can it do',
                 'JavaScript in the browser vs Node.js',
                 'Setting up your editor and dev environment',
-                'Your first script and the browser console',
+                { title: 'Your first script and the browser console', exercise: ex.helloWorld },
                 'Linking scripts to HTML and separation of concerns',
                 'Statements, expressions, and comments',
             ],
@@ -31,7 +45,7 @@ export const javascript: CourseDefinition = {
                 'Objects: your first look',
                 'Arrays: your first look',
                 'Functions: your first look',
-                'Template literals',
+                { title: 'Template literals', exercise: ex.templateLiterals },
             ],
         },
         {
@@ -41,9 +55,9 @@ export const javascript: CourseDefinition = {
                 'Arithmetic and assignment operators',
                 'Comparison operators',
                 'Strict equality (===) vs loose equality (==)',
-                'Ternary operator',
+                { title: 'Ternary operator', exercise: ex.ternary },
                 'Logical operators and non-boolean operands',
-                'Nullish coalescing (??)',
+                { title: 'Nullish coalescing (??)', exercise: ex.nullish },
                 'Operator precedence',
             ],
         },
@@ -52,19 +66,19 @@ export const javascript: CourseDefinition = {
             description: 'Branching and looping through data.',
             lessons: [
                 'if...else and else if',
-                'switch...case',
-                'for loops',
+                { title: 'switch...case', exercise: ex.switchCase },
+                { title: 'for loops', exercise: ex.forLoop },
                 'while and do...while',
                 'break and continue',
                 'for...in vs for...of',
-                'Exercises: FizzBuzz, max of numbers, star pattern',
+                { title: 'Exercises: FizzBuzz, max of numbers, star pattern', exercise: ex.largest },
             ],
         },
         {
             title: 'Objects',
             description: 'The heart of JavaScript: creating, cloning, and working with objects.',
             lessons: [
-                'Object literals',
+                { title: 'Object literals', exercise: ex.objectLiterals },
                 'Factory functions',
                 'Constructor functions',
                 'Dynamic nature of objects',

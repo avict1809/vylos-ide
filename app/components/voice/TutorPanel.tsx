@@ -5,6 +5,8 @@ import { AudioLines, Mic, Play, Wrench, Loader2 } from 'lucide-react';
 import { useVoiceStore, TranscriptEntry } from '@/app/lib/stores/voice-store';
 import { resolveLesson, resumeLessonWithTutor } from '@/app/lib/learning/lesson-utils';
 import { useCourse } from '@/app/lib/learning/course-registry';
+import { useActivePersonalPlan } from '@/app/lib/stores/personal-tutor-store';
+import { startPersonalVoice } from '@/app/lib/learning/personal-tutor';
 import { cn } from '@/app/lib/utils';
 
 export default function TutorPanel() {
@@ -15,6 +17,10 @@ export default function TutorPanel() {
     // may come from an extension that loads after startup.
     const lessonCourse = useCourse(lessonContext?.courseId);
     const pausedLesson = status === 'idle' && lessonContext && lessonCourse ? resolveLesson(lessonContext) : null;
+
+    // Their own topic, outside the courses. A paused lesson takes the footer first.
+    const personalPlan = useActivePersonalPlan();
+    const personal = status === 'idle' && !pausedLesson ? personalPlan : null;
 
     // Follow the conversation as it grows
     useEffect(() => {
@@ -52,6 +58,11 @@ export default function TutorPanel() {
                         <p className="text-[11px] text-gray-600 leading-relaxed">
                             Click the orb in the corner (or press Ctrl+L) to start a voice lesson. Everything the tutor says appears here.
                         </p>
+                        {personal && (
+                            <p className="text-[11px] text-gray-600 leading-relaxed mt-2">
+                                It will pick up your personal topic, <span className="text-gray-400">{personal.topic}</span>.
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -82,6 +93,20 @@ export default function TutorPanel() {
                 <div className="p-3 border-t border-[#1a1a1a] flex items-center justify-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--vylos-green)] animate-pulse" />
                     <span className="text-[9px] uppercase tracking-widest text-gray-600 font-bold">Listening — just speak</span>
+                </div>
+            )}
+
+            {personal && (
+                <div className="p-3 border-t border-[#1a1a1a] bg-gradient-to-t from-[#050505] to-transparent">
+                    <button
+                        onClick={() => startPersonalVoice(personal)}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-[var(--vylos-green)] hover:bg-[var(--vylos-green-accent)] text-black font-bold rounded-lg text-[10px] uppercase tracking-widest transition-all active:scale-[0.98] shadow-[0_0_15px_rgba(0,255,0,0.15)]"
+                    >
+                        <Play size={12} /> {personal.covered.length ? 'Continue' : 'Start'} Tutoring
+                    </button>
+                    <p className="text-[10px] text-gray-600 text-center mt-1.5 truncate">
+                        {personal.topic} · personal topic
+                    </p>
                 </div>
             )}
 

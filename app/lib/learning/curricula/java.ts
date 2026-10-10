@@ -8,6 +8,7 @@ export const java: CourseDefinition = {
     hours: 40,
     accent: '#E76F00',
     badge: 'JAVA',
+    requires: ['java'],
     modules: [
         {
             title: 'Getting Started',

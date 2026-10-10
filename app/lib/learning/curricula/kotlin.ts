@@ -8,6 +8,7 @@ export const kotlin: CourseDefinition = {
     hours: 28,
     accent: '#7F52FF',
     badge: 'KT',
+    requires: ['java', 'kotlin'],
     modules: [
         {
             title: 'Getting Started',

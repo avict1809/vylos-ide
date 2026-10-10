@@ -8,6 +8,7 @@ export const qt: CourseDefinition = {
     hours: 18,
     accent: '#41CD52',
     badge: 'QT',
+    requires: ['cc'],
     category: 'framework',
     stack: 'C++',
     modules: [

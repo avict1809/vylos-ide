@@ -137,6 +137,12 @@ export default function VoiceOrb() {
             beginSession(useVoiceStore.getState().selectedVoice);
         };
 
+        // Personal tutoring asked for a spoken session on the learner's own
+        // topic; the topic is already set, so a plain session picks it up
+        const handleStartPersonal = () => {
+            beginSession(useVoiceStore.getState().selectedVoice);
+        };
+
         // The tutor panel asked to continue the interrupted lesson where it left off
         const handleResumeLesson = () => {
             const s = useVoiceStore.getState();
@@ -147,11 +153,13 @@ export default function VoiceOrb() {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('vylos:toggle-voice', handleCustomEvent);
         window.addEventListener('vylos:start-lesson', handleStartLesson);
+        window.addEventListener('vylos:start-personal', handleStartPersonal);
         window.addEventListener('vylos:resume-lesson', handleResumeLesson);
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('vylos:toggle-voice', handleCustomEvent);
             window.removeEventListener('vylos:start-lesson', handleStartLesson);
+            window.removeEventListener('vylos:start-personal', handleStartPersonal);
             window.removeEventListener('vylos:resume-lesson', handleResumeLesson);
         };
     }, [toggleVoice, endSession, beginSession]);

@@ -9,6 +9,7 @@ export const ai: CourseDefinition = {
     hours: 40,
     accent: '#A855F7',
     badge: 'AI',
+    requires: ['python'],
     category: 'ai',
     stack: 'Python',
     tutorGuidelines: [

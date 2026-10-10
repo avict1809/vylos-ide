@@ -8,6 +8,7 @@ export const flask: CourseDefinition = {
     hours: 18,
     accent: '#cccccc',
     badge: 'FL',
+    requires: ['python'],
     category: 'framework',
     stack: 'Python',
     modules: [

@@ -22,9 +22,14 @@ contextBridge.exposeInMainWorld('electron', {
         }
     },
     auth: {
-        signInViaBrowser: (config: { supabaseUrl: string; supabaseAnonKey: string; mode?: string }) =>
-            ipcRenderer.invoke('auth:signInViaBrowser', config),
+        signInViaBrowser: (options: { mode?: string }) =>
+            ipcRenderer.invoke('auth:signInViaBrowser', options),
         cancel: () => ipcRenderer.invoke('auth:cancel'),
+        onCompleted: (callback: (tokens: { access_token: string; refresh_token: string }) => void) => {
+            const subscription = (_event: any, tokens: any) => callback(tokens);
+            ipcRenderer.on('auth:completed', subscription);
+            return () => ipcRenderer.removeListener('auth:completed', subscription);
+        },
     },
     updates: {
         getState: () => ipcRenderer.invoke('update:get-state'),
@@ -55,7 +60,16 @@ contextBridge.exposeInMainWorld('electron', {
         }
     },
     shell: {
+        openHtml: (path: string) => ipcRenderer.invoke('shell:openHtml', path),
         showItemInFolder: (path: string) => ipcRenderer.invoke('shell:showItemInFolder', path),
+    },
+    device: {
+        getId: () => ipcRenderer.invoke('device:id'),
+    },
+    localAi: {
+        models: (endpoint: string) => ipcRenderer.invoke('localai:models', endpoint),
+        chat: (endpoint: string, body: unknown, token?: string) => ipcRenderer.invoke('localai:chat', endpoint, body, token),
+        cancel: (token: string) => ipcRenderer.invoke('localai:cancel', token),
     },
     extensions: {
         scan: () => ipcRenderer.invoke('extensions:scan'),
@@ -71,6 +85,11 @@ contextBridge.exposeInMainWorld('electron', {
             const subscription = () => callback();
             ipcRenderer.on('shortcut:toggle-terminal', subscription);
             return () => ipcRenderer.removeListener('shortcut:toggle-terminal', subscription);
+        },
+        onNewTerminal: (callback: () => void) => {
+            const subscription = () => callback();
+            ipcRenderer.on('shortcut:new-terminal', subscription);
+            return () => ipcRenderer.removeListener('shortcut:new-terminal', subscription);
         },
     },
     cli: {
@@ -92,14 +111,19 @@ contextBridge.exposeInMainWorld('electron', {
         search: (query: string, rootDir: string) => ipcRenderer.invoke('find:search', query, rootDir)
     },
     term: {
-        run: (opts: { command: string; cwd?: string; timeoutMs?: number }) => ipcRenderer.invoke('term:run', opts),
+        info: () => ipcRenderer.invoke('term:info'),
+        run: (opts: { command: string; cwd?: string; timeoutMs?: number | null; cols?: number; rows?: number; tag?: string }) =>
+            ipcRenderer.invoke('term:run', opts),
+        shell: (opts: { cwd?: string; cols?: number; rows?: number; tag?: string }) => ipcRenderer.invoke('term:shell', opts),
+        input: (runId: number, data: string) => ipcRenderer.invoke('term:input', runId, data),
+        resize: (runId: number, cols: number, rows: number) => ipcRenderer.invoke('term:resize', runId, cols, rows),
         kill: (runId: number) => ipcRenderer.invoke('term:kill', runId),
-        onStarted: (callback: (data: { runId: number; command: string; cwd: string | null }) => void) => {
+        onStarted: (callback: (data: any) => void) => {
             const subscription = (_event: any, data: any) => callback(data);
             ipcRenderer.on('term:started', subscription);
             return () => ipcRenderer.removeListener('term:started', subscription);
         },
-        onOutput: (callback: (data: { runId: number; chunk: string; stream: 'stdout' | 'stderr' }) => void) => {
+        onOutput: (callback: (data: { runId: number; chunk: string }) => void) => {
             const subscription = (_event: any, data: any) => callback(data);
             ipcRenderer.on('term:output', subscription);
             return () => ipcRenderer.removeListener('term:output', subscription);
