@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Editor, { useMonaco } from '@monaco-editor/react';
+import '@/app/lib/monaco-loader';
 import { vylosTheme } from '@/app/lib/theme';
 import { useConfigStore } from '@/app/lib/stores/config-store';
 import { useFileStore } from '@/app/lib/useFileStore';

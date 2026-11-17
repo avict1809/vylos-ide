@@ -4,6 +4,7 @@ import "./globals.css";
 import { TitleBar } from "./components/TitleBar";
 import { Providers } from "./providers";
 import UpdateGate from "./components/UpdateGate";
+import { contentSecurityPolicy } from "./lib/security/csp";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Only the app's own code runs in this window: it can reach the file system (lib/security/csp.ts) */}
+        {process.env.NODE_ENV === "production" && (
+          <meta httpEquiv="Content-Security-Policy" content={contentSecurityPolicy()} />
+        )}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col h-screen overflow-hidden bg-[var(--vylos-black)] text-white`}
       >

@@ -19,6 +19,7 @@ import VoiceOrb from "./components/voice/VoiceOrb";
 import { useFileStore } from "./lib/useFileStore";
 import { useAuthStore } from "./lib/stores/auth-store";
 import Onboarding from "./components/Onboarding";
+import CommandApproval from "./components/CommandApproval";
 import { startExtensions } from "./lib/extensions/loader";
 import { startCourseSync } from "./lib/learning/course-source";
 
@@ -115,6 +116,9 @@ export default function Home() {
 
       {/* Voice Tutor Orb */}
       <VoiceOrb />
+
+      {/* Asks before the tutor or an extension runs anything beyond a project file */}
+      <CommandApproval />
     </div>
   );
 }

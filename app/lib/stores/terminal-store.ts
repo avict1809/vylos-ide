@@ -2,6 +2,8 @@
 
 import { create } from 'zustand';
 import * as host from '../terminal/xterm-host';
+import { classifyCommand } from '../security/command-policy';
+import { requestApproval } from '../security/approval-store';
 
 /** Who started a run: the learner (Run button), the voice tutor, or an extension. */
 export type RunSource = 'user' | 'tutor' | 'extension';
@@ -35,6 +37,22 @@ export interface TermRun {
     /** The file the Run button ran, if that's what this was */
     target?: string;
 }
+
+export interface RunCommandOptions {
+    source?: RunSource;
+    target?: string;
+    /**
+     * The open project folder. Commands from the tutor or an extension run
+     * without asking only if they plainly run a file inside it; leave it out
+     * and they always ask.
+     */
+    projectRoot?: string | null;
+    /** Who is asking, shown on the approval prompt */
+    requester?: string;
+}
+
+/** What a declined command returns, so the tutor knows not to retry it. */
+export const DECLINED = 'The learner chose not to run this command. Do not run it again unless they ask; explain what it would do and let them run it themselves if they want.';
 
 export interface RunCommandResult {
     exitCode: number;
@@ -100,7 +118,7 @@ interface TerminalStore {
      * Runs a command in a run tab and resolves when it exits. The learner sees
      * it live and can type into it. timeoutMs null = no limit.
      */
-    runCommand: (command: string, cwd?: string, timeoutMs?: number | null, opts?: { source?: RunSource; target?: string }) =>
+    runCommand: (command: string, cwd?: string, timeoutMs?: number | null, opts?: RunCommandOptions) =>
         Promise<RunCommandResult>;
 }
 
@@ -265,11 +283,25 @@ export const useTerminalStore = create<TerminalStore>((set, get) => {
         },
 
         runCommand: async (command, cwd, timeoutMs = DEFAULT_TIMEOUT_MS, opts) => {
+            const source = opts?.source ?? 'tutor';
+            // The learner's own runs are never gated; the tutor's and
+            // extensions' are, unless they plainly run a project file
+            if (source !== 'user') {
+                const verdict = classifyCommand(command, cwd, opts?.projectRoot);
+                if (!verdict.autoRun) {
+                    const approved = await requestApproval({
+                        command,
+                        cwd: cwd ?? null,
+                        requester: opts?.requester ?? (source === 'tutor' ? 'Your AI tutor' : 'An extension'),
+                        reason: verdict.reason ?? '',
+                    });
+                    if (!approved) return { exitCode: -1, output: '', timedOut: false, error: DECLINED };
+                }
+            }
             if (!window.electron?.term) {
                 return { exitCode: -1, output: '', timedOut: false, error: 'Terminal unavailable outside the desktop app.' };
             }
             get().init();
-            const source = opts?.source ?? 'tutor';
             const tabId = await acquireRunTab(source);
             patchTab(tabId, { target: opts?.target });
             // The learner's own program gets the keyboard, so input() / Scanner / cin just work

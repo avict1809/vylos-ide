@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell, type MenuItemConstructorOptions } from 'electron';
+import { app, BrowserWindow, Menu, session, shell, type MenuItemConstructorOptions } from 'electron';
 import crypto from 'crypto';
 import http from 'http';
 import path from 'path';
@@ -107,7 +107,10 @@ const createWindow = async () => {
             nodeIntegration: false,
             contextIsolation: true,
             sandbox: true,
-            devTools: true,
+            // Off in released builds: a "paste this into the console" trick
+            // would otherwise reach the file system and the terminal.
+            // VYLOS_DEVTOOLS=1 turns them back on for debugging.
+            devTools: !app.isPackaged || process.env.VYLOS_DEVTOOLS === '1',
         },
     });
 
@@ -191,7 +194,38 @@ function applicationMenu(): Menu {
     return Menu.buildFromTemplate(template);
 }
 
+/** Permissions the app's page may have; everything else is refused. */
+const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'fullscreen']);
+
+function lockDownPermissions() {
+    // The microphone for the voice tutor, clipboard writes and fullscreen,
+    // and only for the app's own page: no camera, location, notifications,
+    // USB, serial, HID or screen capture
+    session.defaultSession.setPermissionRequestHandler((contents, permission, callback, details) => {
+        if (!isAppUrl(details.requestingUrl || contents.getURL())) return callback(false);
+        if (permission === 'media') {
+            const types = 'mediaTypes' in details ? details.mediaTypes ?? [] : [];
+            return callback(types.length > 0 && types.every((type) => type === 'audio'));
+        }
+        callback(ALLOWED_PERMISSIONS.has(permission));
+    });
+    session.defaultSession.setPermissionCheckHandler((_contents, permission, requestingOrigin) =>
+        isAppUrl(requestingOrigin) && (permission === 'media' || ALLOWED_PERMISSIONS.has(permission))
+    );
+}
+
+// No window but the app's own: webviews are never attached, and anything
+// that tries to open a new window goes to the system browser instead
+app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-attach-webview', (event) => event.preventDefault());
+    contents.setWindowOpenHandler(({ url }) => {
+        openInBrowser(url);
+        return { action: 'deny' };
+    });
+});
+
 if (isPrimaryInstance) app.whenReady().then(async () => {
+    lockDownPermissions();
     Menu.setApplicationMenu(applicationMenu());
     // Before the window: the page asks for these as soon as it mounts
     initExtensions(() => mainWindow);

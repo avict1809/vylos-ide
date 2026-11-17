@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Course working copies: courses live in Supabase (npm run courses, docs/courses.md)
 /courses/
+
+# Monaco, copied from node_modules by scripts/copy-monaco.mjs
+/public/monaco/
