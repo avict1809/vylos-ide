@@ -194,7 +194,7 @@ app/
       step-guide.ts        step-by-step problem solving (CodeLens)
       roadmap-generator.ts custom AI learning paths
     learning/
-      curricula/           all 36 course definitions (one file each)
+      course-source.ts     loads courses from Supabase (see docs/courses.md)
       types.ts             course/module/lesson model + progress math
       lesson-utils.ts      lesson navigation for the tutor
     stores/              Zustand stores (courses, voice, files, auth…)

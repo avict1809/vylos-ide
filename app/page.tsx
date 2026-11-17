@@ -20,6 +20,7 @@ import { useFileStore } from "./lib/useFileStore";
 import { useAuthStore } from "./lib/stores/auth-store";
 import Onboarding from "./components/Onboarding";
 import { startExtensions } from "./lib/extensions/loader";
+import { startCourseSync } from "./lib/learning/course-source";
 
 const Terminal = dynamic(() => import("./components/Terminal/Terminal"), { ssr: false });
 
@@ -32,6 +33,9 @@ export default function Home() {
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Courses from Supabase; the saved copy is already showing
+  React.useEffect(() => startCourseSync(), []);
 
   // Course packs from ~/.vylos/extensions, reloaded whenever that folder changes
   React.useEffect(() => startExtensions(), []);

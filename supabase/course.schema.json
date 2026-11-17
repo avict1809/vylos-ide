@@ -1,0 +1,135 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://vylos.co/schemas/course.json",
+    "title": "Vylos course",
+    "description": "A course file for `npm run courses -- push`. id, position and published are the row's columns; everything else is its definition. See docs/courses.md.",
+    "type": "object",
+    "required": ["id", "title", "tagline", "level", "hours", "accent", "badge", "modules"],
+    "properties": {
+        "$schema": { "type": "string" },
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$", "description": "Permanent: progress is stored against it." },
+        "position": { "type": "integer", "description": "Order within its catalog section; lower first." },
+        "published": { "type": "boolean", "description": "false hides the course from the app and keeps everyone's progress." },
+        "title": { "type": "string", "minLength": 1 },
+        "tagline": { "type": "string", "minLength": 1 },
+        "level": { "type": "string", "minLength": 1, "description": "Starting with 'Beginner' makes the course free; otherwise it costs coins (500, AI 750)." },
+        "hours": { "type": "number", "exclusiveMinimum": 0 },
+        "accent": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "badge": { "type": "string", "minLength": 1, "maxLength": 4 },
+        "category": { "enum": ["language", "framework", "ai", "vibe", "security", "essentials"], "default": "language" },
+        "stack": { "type": "string", "description": "Tag shown on the card, e.g. 'JavaScript'." },
+        "buildsOn": { "type": "string", "description": "Id of a course whose functions module this course's first module requires." },
+        "requires": { "type": "array", "items": { "type": "string" }, "description": "Tool ids from app/lib/setup/tools.ts, e.g. 'python'." },
+        "tutorGuidelines": { "type": "array", "items": { "type": "string" } },
+        "capstone": {
+            "type": "object",
+            "required": ["title", "description", "requirements"],
+            "properties": {
+                "title": { "type": "string" },
+                "description": { "type": "string" },
+                "requirements": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+                "achievementId": { "type": "string" }
+            },
+            "additionalProperties": false
+        },
+        "modules": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/module" } }
+    },
+    "additionalProperties": false,
+    "$defs": {
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "module": {
+            "type": "object",
+            "required": ["title", "description", "lessons"],
+            "properties": {
+                "id": { "$ref": "#/$defs/slug", "description": "Keep it when rewording the title, or the module's mastery starts over. Filled in on push." },
+                "title": { "type": "string", "minLength": 1 },
+                "description": { "type": "string" },
+                "lessons": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/lesson" } }
+            },
+            "additionalProperties": false
+        },
+        "lesson": {
+            "oneOf": [
+                { "type": "string", "description": "A lesson title; push turns it into { id, title }." },
+                {
+                    "type": "object",
+                    "required": ["title"],
+                    "properties": {
+                        "id": { "$ref": "#/$defs/slug", "description": "Keep it when rewording the title, or learners lose this lesson's progress. Filled in on push." },
+                        "title": { "type": "string", "minLength": 1 },
+                        "exercise": { "$ref": "#/$defs/exercise" }
+                    },
+                    "additionalProperties": false
+                }
+            ]
+        },
+        "exercise": {
+            "type": "object",
+            "required": ["prompt", "files", "check"],
+            "properties": {
+                "prompt": { "type": "string", "minLength": 1 },
+                "files": {
+                    "type": "object",
+                    "description": "Starter files by name. The first is the main file: it opens in the editor and it's what gets checked.",
+                    "minProperties": 1,
+                    "maxProperties": 10,
+                    "additionalProperties": { "type": "string" }
+                },
+                "check": {
+                    "oneOf": [
+                        {
+                            "type": "object",
+                            "required": ["type", "cases"],
+                            "properties": {
+                                "type": { "const": "output" },
+                                "cases": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "object",
+                                        "required": ["expected"],
+                                        "properties": {
+                                            "name": { "type": "string" },
+                                            "input": { "type": "string" },
+                                            "expected": { "type": "string" },
+                                            "match": { "enum": ["exact", "contains", "regex"] }
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        {
+                            "type": "object",
+                            "required": ["type", "function", "cases"],
+                            "properties": {
+                                "type": { "const": "function" },
+                                "function": { "type": "string" },
+                                "cases": {
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "type": "object",
+                                        "required": ["args", "expected"],
+                                        "properties": {
+                                            "name": { "type": "string" },
+                                            "args": { "type": "array" },
+                                            "expected": {}
+                                        },
+                                        "additionalProperties": false
+                                    }
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    ]
+                },
+                "hints": { "type": "array", "items": { "type": "string" }, "maxItems": 10 },
+                "solution": { "type": "string" },
+                "solutionAfter": { "type": "integer", "minimum": 0 }
+            },
+            "additionalProperties": false
+        }
+    }
+}

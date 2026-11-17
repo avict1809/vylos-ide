@@ -1,11 +1,11 @@
 import { Capstone, Course, lessonSlug } from './types';
 
 /**
- * How the app's courses map onto the learning engine's catalog in Supabase
- * (supabase/migrations/*_learning_engine.sql): a course is a learning path,
- * each module is a skill, each lesson is a lesson and each exercise a
- * challenge. The catalog generator (scripts/learning-catalog.ts) and the app
- * both use these, so the ids always agree.
+ * How courses map onto the learning engine's catalog in Supabase: a course is
+ * a learning path, each module is a skill, each lesson is a lesson and each
+ * exercise a challenge. The database derives the same ids when a course is
+ * saved (_sync_course_catalog in supabase/migrations/*_courses.sql); keep the
+ * two in step.
  */
 
 export const pathId = (course: Course) => course.id;
@@ -18,10 +18,14 @@ export const challengeDbId = lessonDbId;
 
 export const capstoneId = (course: Course) => `${course.id}/capstone`;
 
-/** One skill id per module, in module order. Repeated module titles get a numeric suffix. */
+/**
+ * One skill id per module, in module order: the module's id, or for a module
+ * without one its title's slug, with a numeric suffix when titles repeat.
+ */
 export function skillIds(course: Course): string[] {
     const seen = new Map<string, number>();
     return course.modules.map((mod, i) => {
+        if (mod.id) return `${course.id}/${mod.id}`;
         const slug = lessonSlug(mod.title) || `module-${i + 1}`;
         const n = (seen.get(slug) ?? 0) + 1;
         seen.set(slug, n);
@@ -39,6 +43,7 @@ export function skillIdForLesson(course: Course, lessonId: string): string | nul
 export const requiredChallenges = (course: Course) =>
     Math.ceil(course.modules.reduce((n, m) => n + m.lessons.filter((l) => l.exercise).length, 0) * 0.8);
 
+/** The course's capstone, or the general one. _sync_course_catalog writes the same default. */
 export function capstoneFor(course: Course): Capstone {
     return (
         course.capstone ?? {
@@ -63,6 +68,7 @@ export function capstoneFor(course: Course): Capstone {
  * start; courses that build on others cost coins, which come from learning
  * (1 per 10 XP, plus 200 for a certificate). Finishing a beginner course like
  * Python earns enough to unlock the next one, e.g. Machine Learning.
+ * _sync_course_catalog applies the same rule to the catalog.
  */
 export function unlockCost(course: Course): number {
     if (/^beginner/i.test(course.level)) return 0;

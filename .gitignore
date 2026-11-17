@@ -44,3 +44,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Course working copies: courses live in Supabase (npm run courses, docs/courses.md)
+/courses/

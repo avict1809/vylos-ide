@@ -1,13 +1,11 @@
 import { useSyncExternalStore } from 'react';
 import type { Disposable } from '../disposable';
 import { Course, CourseCategory, CourseDefinition, lessonSlug } from './types';
-import { BUILTIN_COURSES } from './curricula';
 import { validateExercise } from '../exercises/format';
 
 /**
- * Every course the catalog can show. The built-in curricula register here at
- * startup; course packs and extensions will register the same way, so nothing
- * else in the app should import curricula directly.
+ * Every course the catalog can show. Courses from the database (see
+ * course-source.ts), extensions and the learner's practice all register here.
  */
 
 export interface CourseGroup {
@@ -31,7 +29,7 @@ const listeners = new Set<() => void>();
 let groups: CourseGroup[] = [];
 
 /** Resolves lesson ids and checks the course can be tracked. Throws on a malformed course. */
-function toCourse(def: CourseDefinition): Course {
+export function parseCourse(def: CourseDefinition): Course {
     if (!def.id) throw new Error(`Course "${def.title}" has no id`);
     const seen = new Set<string>();
     const modules = def.modules.map((mod) => ({
@@ -56,7 +54,9 @@ function changed() {
         .map((category) => ({
             category,
             label: CATEGORY_LABELS[category],
-            courses: [...courses.values()].filter((c) => !c.hidden && (c.category ?? 'language') === category),
+            courses: [...courses.values()]
+                .filter((c) => !c.hidden && (c.category ?? 'language') === category)
+                .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)),
         }))
         .filter((group) => group.courses.length > 0);
     listeners.forEach((listener) => listener());
@@ -67,7 +67,7 @@ function changed() {
  * existing one (this also keeps hot reload working in development).
  */
 export function registerCourse(def: CourseDefinition): Disposable {
-    const course = toCourse(def);
+    const course = parseCourse(def);
     if (courses.has(course.id) && process.env.NODE_ENV !== 'development') {
         console.warn(`Course "${course.id}" was registered twice; the later one wins`);
     }
@@ -99,5 +99,3 @@ export function useCourse(id: string | null | undefined): Course | undefined {
     const get = () => (id ? courses.get(id) : undefined);
     return useSyncExternalStore(subscribe, get, get);
 }
-
-BUILTIN_COURSES.forEach(registerCourse);

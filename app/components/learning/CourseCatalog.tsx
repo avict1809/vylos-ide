@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { GraduationCap, Search, Sparkles, ChevronRight, Clock, Layers, Target, Code2, Boxes, Brain, WandSparkles, ShieldCheck, Wrench, Puzzle, type LucideIcon } from 'lucide-react';
 import { useCourseGroups } from '@/app/lib/learning/course-registry';
+import { refreshCourses, useCourseSourceStatus } from '@/app/lib/learning/course-source';
 import { Course, CourseCategory, courseProgress, totalLessons } from '@/app/lib/learning/types';
 import { useCourseStore } from '@/app/lib/stores/course-store';
 import { useRoadmapStore } from '@/app/lib/stores/roadmap-store';
@@ -37,6 +38,7 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
     const personalPlan = useActivePersonalPlan();
     const openCourse = onOpenCourse ?? setActiveCourse;
     const courseGroups = useCourseGroups();
+    const sourceStatus = useCourseSourceStatus();
 
     const matches = (course: Course) => {
         const q = query.trim().toLowerCase();
@@ -122,7 +124,24 @@ export default function CourseCatalog({ onCustomPath, onResumeRoadmap, onOpenCou
                     </div>
                 ))}
 
-                {groups.length === 0 && (
+                {courseGroups.length === 0 && sourceStatus === 'loading' && (
+                    <div className="text-center py-10 text-xs text-gray-600">Loading courses…</div>
+                )}
+
+                {courseGroups.length === 0 && sourceStatus === 'error' && (
+                    <div className="text-center py-10 text-xs text-gray-500 space-y-2">
+                        <p>Courses need an internet connection the first time.</p>
+                        <button onClick={() => void refreshCourses()} className="text-[var(--vylos-green)] hover:underline">
+                            Try again
+                        </button>
+                    </div>
+                )}
+
+                {courseGroups.length === 0 && sourceStatus === 'ready' && (
+                    <div className="text-center py-10 text-xs text-gray-600">No courses yet.</div>
+                )}
+
+                {courseGroups.length > 0 && groups.length === 0 && (
                     <div className="text-center py-10 text-xs text-gray-600">No paths match “{query}”.</div>
                 )}
 

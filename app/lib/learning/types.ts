@@ -46,6 +46,12 @@ export interface Exercise {
 }
 
 export interface CourseModule {
+    /**
+     * The module's skill id within its course (`<course>/<id>`), so its
+     * mastery survives a reworded title. Courses from the database always
+     * have one; without it the title's slug is used.
+     */
+    id?: string;
     title: string;
     description: string;
     lessons: Lesson[];
@@ -65,6 +71,10 @@ export interface Course {
     category?: CourseCategory;
     /** The base language/stack shown as a tag, e.g. 'JavaScript' */
     stack?: string;
+    /** A course this one builds on: its first module requires that course's functions module. */
+    buildsOn?: string;
+    /** Order within its catalog section; lower first. Courses without one go last. */
+    order?: number;
     /**
      * Course-specific rules for the AI tutor: tooling to verify before use,
      * facts it must not guess, safety and ethics boundaries.
@@ -90,6 +100,8 @@ export interface Capstone {
     title: string;
     description: string;
     requirements: string[];
+    /** Achievement the capstone earns, e.g. 'api_builder' */
+    achievementId?: string;
 }
 
 /**
